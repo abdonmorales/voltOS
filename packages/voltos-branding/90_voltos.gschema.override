@@ -1,0 +1,16 @@
+# VoltOS desktop defaults: the Sun/OpenSolaris Nimbus look and feel.
+# Users can still change any of these in Settings or GNOME Tweaks.
+
+[org.gnome.desktop.interface]
+gtk-theme='nimbus'
+icon-theme='nimbus'
+cursor-theme='Adwaita'
+color-scheme='default'
+accent-color='slate'
+
+[org.gnome.desktop.wm.preferences]
+theme='nimbus'
+button-layout='appmenu:minimize,maximize,close'
+
+[org.gnome.shell]
+favorite-apps=['org.gnome.Nautilus.desktop', 'firefox.desktop', 'org.gnome.Console.desktop', 'org.gnome.TextEditor.desktop', 'org.gnome.Settings.desktop']

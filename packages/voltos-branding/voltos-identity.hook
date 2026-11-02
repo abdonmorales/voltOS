@@ -1,0 +1,14 @@
+# The filesystem package owns /usr/lib/os-release and /etc/issue; re-apply
+# the VoltOS identity whenever they (or this package) change.
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Target = usr/lib/os-release
+Target = etc/issue
+Target = usr/share/voltos/os-release
+
+[Action]
+Description = Applying VoltOS identity to os-release...
+When = PostTransaction
+Exec = /usr/lib/voltos/apply-identity

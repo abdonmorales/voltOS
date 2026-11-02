@@ -1,0 +1,11 @@
+NAME="VoltOS"
+PRETTY_NAME="VoltOS"
+ID=voltos
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;255;196;0"
+HOME_URL="https://github.com/abdonmorales/voltOS"
+DOCUMENTATION_URL="https://github.com/abdonmorales/voltOS#readme"
+SUPPORT_URL="https://github.com/abdonmorales/voltOS/issues"
+BUG_REPORT_URL="https://github.com/abdonmorales/voltOS/issues"
+LOGO=voltos-logo

@@ -1,0 +1,9 @@
+The VoltOS logo is currently Tux, the Linux mascot.
+
+Tux.svg from Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Tux.svg),
+originally drawn by Larry Ewing <lewing@isc.tamu.edu> with The GIMP.
+Permission to use and/or modify the image is granted provided Larry Ewing
+and The GIMP are acknowledged.
+
+VoltOS's copy only widens the drawing's canvas (viewBox) to a square so it
+fits icon slots; the artwork itself is unchanged.

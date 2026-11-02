@@ -1,0 +1,20 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+
+pkgname=voltos-installer
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Guided VoltOS installer: ZFS root, boot environments, ZFSBootMenu"
+arch=('any')
+url="https://github.com/abdonmorales/voltOS"
+license=('unknown')
+depends=('bash' 'dialog' 'gptfdisk' 'dosfstools' 'parted' 'rsync'
+         'arch-install-scripts' 'efibootmgr' 'zfs-utils' 'zfsbootmenu-efi'
+         'util-linux' 'gnome-console' 'sudo')
+source=('voltos-install' 'voltos-installer.desktop')
+sha256sums=('SKIP' 'SKIP')
+
+package() {
+    install -Dm755 voltos-install "${pkgdir}"/usr/bin/voltos-install
+    install -Dm644 voltos-installer.desktop \
+        "${pkgdir}"/usr/share/applications/voltos-installer.desktop
+}

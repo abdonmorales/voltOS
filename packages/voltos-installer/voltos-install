@@ -1,0 +1,432 @@
+#!/bin/bash
+#
+# voltos-install: install VoltOS from the live medium onto a ZFS root.
+#
+# Layout created on the target disk (UEFI, GPT):
+#
+#   partition 1  1 GiB  EFI system partition (FAT32) -> /boot/efi
+#   partition 2  rest   ZFS pool "zroot"
+#
+#   zroot/ROOT              container for boot environments
+#   zroot/ROOT/voltos       the first boot environment, mounted at /
+#   zroot/home              /home, shared by every boot environment
+#
+# The kernel and initramfs live inside the boot environment (/boot), and
+# ZFSBootMenu on the ESP finds and boots them, so every snapshot or clone of
+# zroot/ROOT/voltos is a complete, bootable system - the same model as
+# Solaris/illumos boot environments.  voltos-zfs-snapshots takes a snapshot
+# before every pacman transaction.
+#
+# The installed system is a copy of the live system's root image, so
+# installation works offline and installs exactly what was tested on the ISO.
+#
+# Usage:
+#   voltos-install                    interactive (dialog)
+#   voltos-install --config FILE      unattended; FILE holds KEY=value lines:
+#                                     DISK HOSTNAME USERNAME PASSWORD
+#                                     TIMEZONE LOCALE KEYMAP POOL REBOOT
+#                                     CMDLINE (kernel command line)
+#
+
+set -euo pipefail
+
+TARGET=/mnt/voltos
+LIVE_ROOT=/run/archiso/airootfs
+LIVE_FILES=/usr/share/voltos/live-files
+ZBM_EFI=/usr/share/zfsbootmenu/zfsbootmenu.EFI
+LOG=/var/log/voltos-install.log
+
+DISK=""
+HOSTNAME_="voltos"
+USERNAME=""
+PASSWORD=""
+TIMEZONE="UTC"
+LOCALE="en_US.UTF-8"
+KEYMAP="us"
+POOL="zroot"
+REBOOT="no"
+CMDLINE="rw quiet loglevel=3"
+UNATTENDED=0
+
+die()
+{
+	echo "voltos-install: $*" >&2
+	if [ "$UNATTENDED" -eq 0 ] && command -v dialog >/dev/null; then
+		dialog --title "Installation failed" --msgbox \
+		    "$*\n\nDetails are in $LOG." 12 70 || true
+		clear
+	fi
+	exit 1
+}
+
+log()
+{
+	printf '[voltos-install] %s\n' "$*" | tee -a "$LOG" >&2
+}
+
+run()
+{
+	log "+ $*"
+	"$@" >>"$LOG" 2>&1 || die "command failed: $*"
+}
+
+# Partition device names: /dev/sda1, /dev/nvme0n1p1, /dev/vda1, ...
+part()
+{
+	case "$1" in
+	*[0-9]) echo "${1}p$2" ;;
+	*) echo "$1$2" ;;
+	esac
+}
+
+valid_name()
+{
+	[[ "$1" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]
+}
+
+read_config()
+{
+	local key value line
+	while IFS= read -r line || [ -n "$line" ]; do
+		case "$line" in
+		''|'#'*) continue ;;
+		esac
+		key=${line%%=*}
+		value=${line#*=}
+		case "$key" in
+		DISK) DISK=$value ;;
+		HOSTNAME) HOSTNAME_=$value ;;
+		USERNAME) USERNAME=$value ;;
+		PASSWORD) PASSWORD=$value ;;
+		TIMEZONE) TIMEZONE=$value ;;
+		LOCALE) LOCALE=$value ;;
+		KEYMAP) KEYMAP=$value ;;
+		POOL) POOL=$value ;;
+		REBOOT) REBOOT=$value ;;
+		CMDLINE) CMDLINE=$value ;;
+		*) die "unknown setting '$key' in $1" ;;
+		esac
+	done <"$1"
+}
+
+# The disk the live medium was booted from must never be offered.
+boot_disk()
+{
+	local src
+	src=$(findmnt -no SOURCE /run/archiso/bootmnt 2>/dev/null || true)
+	[ -n "$src" ] && lsblk -no PKNAME "$src" 2>/dev/null | head -n1
+}
+
+candidate_disks()
+{
+	local skip
+	skip=$(boot_disk || true)
+	lsblk -dpno NAME,SIZE,MODEL,TYPE | while read -r name size rest; do
+		case "$rest" in
+		*disk) ;;
+		*) continue ;;
+		esac
+		[ -n "$skip" ] && [ "$name" = "/dev/$skip" ] && continue
+		model=${rest% disk}
+		printf '%s\t%s %s\n' "$name" "$size" "${model:-disk}"
+	done
+}
+
+ask()
+{
+	# ask VAR "Title" "Prompt" default
+	local out
+	out=$(dialog --stdout --title "$2" --inputbox "$3" 10 70 "$4") ||
+	    die "installation cancelled"
+	printf -v "$1" '%s' "$out"
+}
+
+interactive()
+{
+	local disks=() line pw2
+
+	command -v dialog >/dev/null || die "dialog is not installed"
+	dialog --title "Install VoltOS" --yesno \
+"This will install VoltOS on a ZFS root file system with boot
+environments.  The disk you choose will be ERASED completely.
+
+Continue?" 10 70 || die "installation cancelled"
+
+	while IFS=$'\t' read -r name desc; do
+		disks+=("$name" "$desc")
+	done < <(candidate_disks)
+	[ "${#disks[@]}" -gt 0 ] || die "no installable disk found"
+	DISK=$(dialog --stdout --title "Target disk" \
+	    --menu "Choose the disk to install VoltOS on:" 15 70 6 \
+	    "${disks[@]}") || die "installation cancelled"
+
+	ask HOSTNAME_ "Computer name" "Host name for this computer:" "voltos"
+	ask USERNAME "Your account" "User name (lower case):" ""
+	valid_name "$USERNAME" || die "invalid user name '$USERNAME'"
+	while :; do
+		PASSWORD=$(dialog --stdout --insecure --title "Your account" \
+		    --passwordbox "Password for $USERNAME:" 10 70) ||
+		    die "installation cancelled"
+		pw2=$(dialog --stdout --insecure --title "Your account" \
+		    --passwordbox "Repeat the password:" 10 70) ||
+		    die "installation cancelled"
+		[ -n "$PASSWORD" ] && [ "$PASSWORD" = "$pw2" ] && break
+		dialog --msgbox "The passwords are empty or do not match." 7 50
+	done
+	ask TIMEZONE "Time zone" \
+	    "Time zone (e.g. America/Chicago, Europe/Berlin, UTC):" "$TIMEZONE"
+	ask LOCALE "Language" "Locale (e.g. en_US.UTF-8):" "$LOCALE"
+	ask KEYMAP "Keyboard" "Console keyboard layout (e.g. us, de, fr):" \
+	    "$KEYMAP"
+
+	dialog --title "Ready to install" --yesno \
+"Disk:      $DISK  (ALL DATA WILL BE LOST)
+Host name: $HOSTNAME_
+User:      $USERNAME (administrator)
+Time zone: $TIMEZONE
+Locale:    $LOCALE, keyboard $KEYMAP
+Pool:      $POOL, boot environment $POOL/ROOT/voltos
+
+Install now?" 15 70 || die "installation cancelled"
+	clear
+}
+
+preflight()
+{
+	[ "$(id -u)" -eq 0 ] || die "must be run as root (try: sudo voltos-install)"
+	[ -d /sys/firmware/efi ] ||
+	    die "VoltOS installs need UEFI firmware; this machine booted in BIOS mode"
+	[ -d "$LIVE_ROOT/usr" ] || die "$LIVE_ROOT not found; run this from the VoltOS live medium"
+	[ -f "$ZBM_EFI" ] || die "ZFSBootMenu ($ZBM_EFI) is missing"
+	modprobe zfs || die "the ZFS kernel module could not be loaded"
+	[ -b "$DISK" ] || die "'$DISK' is not a block device"
+	[ "$(lsblk -dno TYPE "$DISK")" = disk ] || die "'$DISK' is not a whole disk"
+	[ "/dev/$(boot_disk || true)" != "$DISK" ] ||
+	    die "$DISK holds the running live medium"
+	valid_name "$USERNAME" || die "invalid user name '$USERNAME'"
+	[ -n "$PASSWORD" ] || die "a password is required"
+	[[ "$HOSTNAME_" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,62}$ ]] ||
+	    die "invalid host name '$HOSTNAME_'"
+	[ -e "/usr/share/zoneinfo/$TIMEZONE" ] || die "unknown time zone '$TIMEZONE'"
+	valid_name "$POOL" || die "invalid pool name '$POOL'"
+	zpool list -H "$POOL" >/dev/null 2>&1 &&
+	    die "a pool named $POOL is already imported; export it first"
+	return 0
+}
+
+partition()
+{
+	local esp zpart
+	log "Partitioning $DISK"
+	swapoff -a 2>/dev/null || true
+	run wipefs -af "$DISK"
+	run sgdisk --zap-all "$DISK"
+	run sgdisk -n1:1M:+1G -t1:EF00 -c1:VOLTOS_EFI \
+	    -n2:0:0 -t2:BF00 -c2:"$POOL" "$DISK"
+	run partprobe "$DISK"
+	udevadm settle
+	esp=$(part "$DISK" 1)
+	zpart=$(part "$DISK" 2)
+	for _ in 1 2 3 4 5 6 7 8 9 10; do
+		[ -b "$esp" ] && [ -b "$zpart" ] && break
+		sleep 1
+	done
+	[ -b "$zpart" ] || die "partitions did not appear on $DISK"
+	run mkfs.fat -F 32 -n VOLTOS_EFI "$esp"
+	ESP=$esp
+	ZPART=$(lsblk -dno PARTUUID "$zpart")
+	ZPART=${ZPART:+/dev/disk/by-partuuid/$ZPART}
+	ZPART=${ZPART:-$zpart}
+}
+
+create_pool()
+{
+	log "Creating ZFS pool $POOL"
+	# The pool feature set is pinned to what ZFSBootMenu's own OpenZFS can
+	# read, so the boot menu can always import the pool.
+	run zgenhostid -f
+	run zpool create -f \
+	    -o ashift=12 \
+	    -o autotrim=on \
+	    -o compatibility=openzfs-2.2-linux \
+	    -O acltype=posixacl \
+	    -O xattr=sa \
+	    -O dnodesize=auto \
+	    -O compression=zstd \
+	    -O normalization=formD \
+	    -O relatime=on \
+	    -O canmount=off \
+	    -O mountpoint=none \
+	    -R "$TARGET" \
+	    "$POOL" "$ZPART"
+	run zfs create -o mountpoint=none "$POOL/ROOT"
+	run zfs create -o mountpoint=/ -o canmount=noauto "$POOL/ROOT/voltos"
+	run zfs mount "$POOL/ROOT/voltos"
+	run zfs create -o mountpoint=/home "$POOL/home"
+	run zpool set bootfs="$POOL/ROOT/voltos" "$POOL"
+	run zfs set org.zfsbootmenu:commandline="$CMDLINE" "$POOL/ROOT"
+	run zpool set cachefile=/etc/zfs/zpool.cache "$POOL"
+}
+
+copy_system()
+{
+	log "Copying the system (this takes a few minutes)"
+	run rsync -aAXHx --numeric-ids \
+	    --exclude='/dev/*' --exclude='/proc/*' --exclude='/sys/*' \
+	    --exclude='/run/*' --exclude='/tmp/*' --exclude='/mnt/*' \
+	    --exclude='/var/tmp/*' --exclude='/var/cache/pacman/pkg/*' \
+	    --exclude='/var/log/*' --exclude='/home/*' \
+	    "$LIVE_ROOT"/ "$TARGET"/
+
+	# Remove everything that only makes sense on the live medium.
+	if [ -f "$TARGET$LIVE_FILES" ]; then
+		while IFS= read -r f; do
+			case "$f" in
+			''|'#'*) continue ;;
+			/*) rm -rf -- "${TARGET:?}$f" ;;
+			esac
+		done <"$TARGET$LIVE_FILES"
+	fi
+
+	# mkarchiso moves the kernels out of /boot and the live medium uses
+	# its own mkinitcpio presets; restore the stock kernel images and
+	# presets that the kernel package would have installed.
+	local kdir pkgbase
+	for kdir in "$TARGET"/usr/lib/modules/*/; do
+		[ -f "$kdir/pkgbase" ] || continue
+		pkgbase=$(cat "$kdir/pkgbase")
+		run install -m644 "$kdir/vmlinuz" "$TARGET/boot/vmlinuz-$pkgbase"
+		cat >"$TARGET/etc/mkinitcpio.d/$pkgbase.preset" <<PRESET
+# mkinitcpio preset file for the '$pkgbase' package
+ALL_kver="/boot/vmlinuz-$pkgbase"
+PRESETS=('default')
+default_image="/boot/initramfs-$pkgbase.img"
+PRESET
+	done
+
+	# GDM's stock configuration, without the live session's autologin.
+	printf '# GDM configuration storage\n\n[daemon]\n\n[security]\n\n[xdmcp]\n\n[chooser]\n\n[debug]\n' \
+	    >"$TARGET/etc/gdm/custom.conf"
+
+	install -d -m755 "$TARGET/etc/zfs"
+	run cp /etc/hostid "$TARGET/etc/hostid"
+	run cp /etc/zfs/zpool.cache "$TARGET/etc/zfs/zpool.cache"
+	rm -f "$TARGET/etc/machine-id"
+	run systemd-machine-id-setup --root="$TARGET"
+}
+
+in_target()
+{
+	run arch-chroot "$TARGET" "$@"
+}
+
+configure()
+{
+	local uuid
+	log "Configuring the installed system"
+
+	echo "$HOSTNAME_" >"$TARGET/etc/hostname"
+	cat >"$TARGET/etc/hosts" <<HOSTS
+127.0.0.1	localhost
+::1		localhost
+127.0.1.1	$HOSTNAME_
+HOSTS
+	ln -sf "/usr/share/zoneinfo/$TIMEZONE" "$TARGET/etc/localtime"
+	sed -i "s/^#\\($LOCALE .*\\)/\\1/" "$TARGET/etc/locale.gen"
+	grep -q "^$LOCALE " "$TARGET/etc/locale.gen" ||
+	    echo "$LOCALE ${LOCALE#*.}" >>"$TARGET/etc/locale.gen"
+	echo "LANG=$LOCALE" >"$TARGET/etc/locale.conf"
+	echo "KEYMAP=$KEYMAP" >"$TARGET/etc/vconsole.conf"
+	in_target locale-gen
+
+	# Live-medium-only packages (live user, autologin, unattended install).
+	local livepkgs
+	livepkgs=$(arch-chroot "$TARGET" pacman -Qq voltos-live mkinitcpio-archiso 2>/dev/null || true)
+	[ -z "$livepkgs" ] || in_target pacman -Rdd --noconfirm $livepkgs
+
+	# Initramfs with ZFS: the zfs hook imports the pool and mounts the
+	# boot environment ZFSBootMenu selected (root=zfs:...).
+	cat >"$TARGET/etc/mkinitcpio.conf.d/voltos.conf" <<'MKINIT'
+HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block zfs filesystems)
+COMPRESSION="zstd"
+MKINIT
+	in_target mkinitcpio -P
+
+	# Accounts: the user administers the system through sudo; root is locked.
+	in_target useradd -m -G wheel -s /bin/bash "$USERNAME"
+	printf '%s:%s\n' "$USERNAME" "$PASSWORD" |
+	    arch-chroot "$TARGET" chpasswd >>"$LOG" 2>&1 ||
+	    die "could not set the password"
+	in_target passwd -l root
+	echo '%wheel ALL=(ALL:ALL) ALL' >"$TARGET/etc/sudoers.d/10-wheel"
+	chmod 440 "$TARGET/etc/sudoers.d/10-wheel"
+
+	in_target systemctl enable NetworkManager.service gdm.service \
+	    zfs-import-cache.service zfs-import.target zfs-mount.service \
+	    zfs-zed.service zfs.target
+
+	# Fresh pacman keyring for the installed system.
+	rm -rf "$TARGET/etc/pacman.d/gnupg"
+	in_target pacman-key --init
+	in_target pacman-key --populate archlinux
+
+	# EFI system partition and ZFSBootMenu.
+	install -d "$TARGET/boot/efi"
+	run mount "$ESP" "$TARGET/boot/efi"
+	uuid=$(lsblk -dno UUID "$ESP")
+	echo "UUID=$uuid /boot/efi vfat umask=0077,noauto,x-systemd.automount 0 2" \
+	    >"$TARGET/etc/fstab"
+	install -Dm644 "$ZBM_EFI" "$TARGET/boot/efi/EFI/zbm/zfsbootmenu.EFI"
+	install -Dm644 "$ZBM_EFI" "$TARGET/boot/efi/EFI/BOOT/BOOTX64.EFI"
+	efibootmgr --create --disk "$DISK" --part 1 \
+	    --label "VoltOS (ZFSBootMenu)" \
+	    --loader '\EFI\zbm\zfsbootmenu.EFI' >>"$LOG" 2>&1 ||
+	    log "efibootmgr failed; the removable-media path EFI/BOOT/BOOTX64.EFI will be used"
+}
+
+finish()
+{
+	log "Finishing"
+	sync
+	umount "$TARGET/boot/efi" 2>/dev/null || true
+	run zfs snapshot "$POOL/ROOT/voltos@install"
+	run zfs umount -a
+	run zpool export "$POOL"
+	log "VoltOS is installed on $DISK."
+}
+
+main()
+{
+	if [ "${1:-}" = "--config" ]; then
+		[ -r "${2:-}" ] || die "cannot read config '${2:-}'"
+		UNATTENDED=1
+		read_config "$2"
+	elif [ -n "${1:-}" ]; then
+		echo "usage: voltos-install [--config FILE]" >&2
+		exit 2
+	fi
+	: >"$LOG"
+	[ "$UNATTENDED" -eq 1 ] || interactive
+	preflight
+	install -d "$TARGET"
+	partition
+	create_pool
+	copy_system
+	configure
+	finish
+	if [ "$UNATTENDED" -eq 0 ]; then
+		dialog --title "VoltOS installed" --msgbox \
+"VoltOS has been installed on $DISK.
+
+Remove the installation medium and restart.  ZFSBootMenu will
+start VoltOS; press Escape at its countdown to pick another
+boot environment or roll back to a snapshot." 11 70 || true
+		clear
+	fi
+	case "$REBOOT" in
+	poweroff) systemctl poweroff ;;
+	yes) systemctl reboot ;;
+	esac
+}
+
+main "$@"

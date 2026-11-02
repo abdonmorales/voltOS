@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# Snapshot the running boot environment before pacman changes it, so any
+# upgrade can be rolled back from ZFSBootMenu (or with `zfs rollback`).
+# Keeps the newest $KEEP pacman snapshots of the boot environment.
+#
+KEEP=${VOLTOS_SNAPSHOT_KEEP:-10}
+
+fs=$(findmnt -no FSTYPE /) || exit 0
+[ "$fs" = zfs ] || exit 0
+ds=$(findmnt -no SOURCE /)
+stamp=$(date +%Y%m%d-%H%M%S)
+
+if zfs snapshot "$ds@pacman-$stamp"; then
+	echo "voltos: snapshot $ds@pacman-$stamp"
+else
+	echo "voltos: warning: could not snapshot $ds" >&2
+	exit 0
+fi
+
+zfs list -H -t snapshot -o name -s creation "$ds" |
+    grep "@pacman-" | head -n "-$KEEP" | while read -r snap; do
+	zfs destroy "$snap" && echo "voltos: pruned $snap"
+done
+exit 0

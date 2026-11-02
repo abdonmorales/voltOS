@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# Unattended installation for automated testing and mass deployment.
+# Runs only when the kernel command line has voltos.autoinstall=<disk>;
+# optional voltos.autoinstall.reboot=poweroff|yes and
+# voltos.autoinstall.serial=1 (serial console on the installed system).
+# Uses throwaway credentials (user "volt", password "volt") meant to be
+# changed at first login - never boot a medium with this option on a
+# machine you care about: it erases <disk> without asking.
+#
+set -e
+disk= after=poweroff cmdline="rw quiet loglevel=3"
+for arg in $(cat /proc/cmdline); do
+	case "$arg" in
+	voltos.autoinstall=*) disk=${arg#voltos.autoinstall=} ;;
+	voltos.autoinstall.reboot=*) after=${arg#voltos.autoinstall.reboot=} ;;
+	# Give the installed system a serial console too (used by CI).
+	voltos.autoinstall.serial=1)
+		cmdline="rw loglevel=4 console=tty0 console=ttyS0,115200" ;;
+	esac
+done
+[ -n "$disk" ] || exit 0
+cfg=$(mktemp)
+cat >"$cfg" <<CFG
+DISK=$disk
+HOSTNAME=voltos
+USERNAME=volt
+PASSWORD=volt
+TIMEZONE=UTC
+LOCALE=en_US.UTF-8
+KEYMAP=us
+REBOOT=$after
+CMDLINE=$cmdline
+CFG
+echo "voltos-autoinstall: installing to $disk" >/dev/console
+if voltos-install --config "$cfg"; then
+	echo "VOLTOS_AUTOINSTALL_OK" >/dev/console
+else
+	echo "VOLTOS_AUTOINSTALL_FAILED" >/dev/console
+	tail -n 40 /var/log/voltos-install.log >/dev/console
+fi

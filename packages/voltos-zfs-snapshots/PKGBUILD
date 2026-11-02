@@ -1,0 +1,18 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+
+pkgname=voltos-zfs-snapshots
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Snapshot the ZFS boot environment before every pacman transaction"
+arch=('any')
+url="https://github.com/abdonmorales/voltOS"
+license=('unknown')
+depends=('zfs-utils' 'util-linux')
+source=('voltos-snapshot' '00-voltos-snapshot.hook')
+sha256sums=('SKIP' 'SKIP')
+
+package() {
+    install -Dm755 voltos-snapshot "${pkgdir}"/usr/lib/voltos/voltos-snapshot
+    install -Dm644 00-voltos-snapshot.hook \
+        "${pkgdir}"/usr/share/libalpm/hooks/00-voltos-snapshot.hook
+}

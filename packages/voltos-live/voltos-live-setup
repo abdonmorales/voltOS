@@ -1,0 +1,10 @@
+#!/bin/sh
+# Create the passwordless live-session user (runs once per live boot).
+set -e
+id liveuser >/dev/null 2>&1 && exit 0
+useradd -m -G wheel -c "VoltOS Live" -s /bin/bash liveuser
+passwd -d liveuser
+install -d -o liveuser -g liveuser /home/liveuser/Desktop
+cp /usr/share/applications/voltos-installer.desktop /home/liveuser/Desktop/
+chown liveuser:liveuser /home/liveuser/Desktop/voltos-installer.desktop
+chmod 755 /home/liveuser/Desktop/voltos-installer.desktop

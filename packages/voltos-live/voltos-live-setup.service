@@ -1,0 +1,12 @@
+[Unit]
+Description=Create the VoltOS live session user
+Before=display-manager.service systemd-user-sessions.service
+After=systemd-sysusers.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/voltos/voltos-live-setup
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

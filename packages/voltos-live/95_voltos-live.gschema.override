@@ -1,0 +1,10 @@
+# Live session: put the installer in the dash and keep the screen awake.
+[org.gnome.shell]
+favorite-apps=['voltos-installer.desktop', 'org.gnome.Nautilus.desktop', 'firefox.desktop', 'org.gnome.Console.desktop', 'org.gnome.Settings.desktop']
+welcome-dialog-last-shown-version='9999'
+
+[org.gnome.desktop.screensaver]
+lock-enabled=false
+
+[org.gnome.desktop.session]
+idle-delay=uint32 0

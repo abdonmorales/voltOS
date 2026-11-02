@@ -1,0 +1,10 @@
+[Unit]
+Description=Report when the VoltOS live desktop is up
+After=graphical.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/voltos/voltos-live-ready
+
+[Install]
+WantedBy=graphical.target

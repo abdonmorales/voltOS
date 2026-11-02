@@ -1,0 +1,4 @@
+#!/bin/sh
+# Re-apply the VoltOS identity over files owned by Arch's filesystem package.
+install -m644 /usr/share/voltos/os-release /usr/lib/os-release
+install -m644 /usr/share/voltos/issue /etc/issue

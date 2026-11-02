@@ -1,0 +1,9 @@
+/out/
+/work/
+/packages/*/src/
+/packages/*/pkg/
+/packages/*/*.pkg.tar.*
+/packages/*/*.tar.gz
+/packages/*/*.EFI
+/packages/*/LICENSE
+/packages/nimbus-gtk-theme/nimbus/

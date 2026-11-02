@@ -1,0 +1,6 @@
+// The live user may administer the machine without a password.
+polkit.addRule(function(action, subject) {
+    if (subject.user == "liveuser") {
+        return polkit.Result.YES;
+    }
+});

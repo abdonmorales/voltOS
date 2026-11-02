@@ -1,0 +1,45 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+
+pkgname=voltos-branding
+pkgver=2026.11
+pkgrel=1
+pkgdesc="VoltOS identity: os-release, logo and Nimbus desktop defaults"
+arch=('any')
+url="https://github.com/abdonmorales/voltOS"
+license=('unknown')
+depends=('filesystem' 'nimbus-gtk-theme' 'glib2')
+makedepends=('librsvg')
+install=voltos-branding.install
+source=('os-release'
+        'apply-identity'
+        'voltos-identity.hook'
+        '90_voltos.gschema.override'
+        'issue'
+        'voltos-logo.svg'
+        'AUTHORS-logo.txt')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+package() {
+    install -Dm644 os-release "${pkgdir}"/usr/share/voltos/os-release
+    install -Dm644 voltos-identity.hook \
+        "${pkgdir}"/usr/share/libalpm/hooks/voltos-identity.hook
+    install -Dm644 90_voltos.gschema.override \
+        "${pkgdir}"/usr/share/glib-2.0/schemas/90_voltos.gschema.override
+    install -Dm644 issue "${pkgdir}"/usr/share/voltos/issue
+    install -Dm755 apply-identity "${pkgdir}"/usr/lib/voltos/apply-identity
+
+    # LOGO=voltos-logo in os-release; GNOME's About page and GDM look it
+    # up in the icon theme (nimbus -> hicolor).
+    install -Dm644 voltos-logo.svg \
+        "${pkgdir}"/usr/share/icons/hicolor/scalable/apps/voltos-logo.svg
+    local size
+    for size in 16 24 32 48 64 128 256; do
+        install -d "${pkgdir}"/usr/share/icons/hicolor/${size}x${size}/apps
+        rsvg-convert -w ${size} -h ${size} --keep-aspect-ratio \
+            voltos-logo.svg \
+            -o "${pkgdir}"/usr/share/icons/hicolor/${size}x${size}/apps/voltos-logo.png
+    done
+    install -Dm644 voltos-logo.svg "${pkgdir}"/usr/share/pixmaps/voltos-logo.svg
+    install -Dm644 AUTHORS-logo.txt \
+        "${pkgdir}"/usr/share/licenses/${pkgname}/AUTHORS-logo.txt
+}

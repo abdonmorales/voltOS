@@ -1,0 +1,12 @@
+[Trigger]
+Type = Package
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Target = *
+
+[Action]
+Description = Snapshotting the boot environment...
+When = PreTransaction
+Exec = /usr/lib/voltos/voltos-snapshot
+AbortOnFail

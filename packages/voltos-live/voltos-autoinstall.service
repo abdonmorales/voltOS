@@ -1,0 +1,12 @@
+[Unit]
+Description=VoltOS unattended installation (voltos.autoinstall=)
+ConditionKernelCommandLine=|voltos.autoinstall
+After=multi-user.target voltos-live-setup.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/voltos/voltos-autoinstall
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target

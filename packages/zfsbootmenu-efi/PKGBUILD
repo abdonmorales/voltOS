@@ -1,0 +1,26 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# ZFSBootMenu's prebuilt, signed-off release EFI executable.  The installer
+# copies it to the EFI system partition; it imports the pool, lists every
+# boot environment and snapshot, and kexecs the chosen one.  The checksum
+# is upstream's published sha256.txt entry for this file.
+
+pkgname=zfsbootmenu-efi
+pkgver=3.1.0
+_kver=6.18
+pkgrel=1
+pkgdesc="ZFSBootMenu release EFI executable (boot loader for ZFS boot environments)"
+arch=('x86_64')
+url="https://github.com/zbm-dev/zfsbootmenu"
+license=('MIT')
+options=('!strip')
+source=("zfsbootmenu-${pkgver}.EFI::https://github.com/zbm-dev/zfsbootmenu/releases/download/v${pkgver}/zfsbootmenu-release-x86_64-v${pkgver}-linux${_kver}.EFI"
+        "LICENSE::https://raw.githubusercontent.com/zbm-dev/zfsbootmenu/v${pkgver}/LICENSE")
+sha256sums=('0a2a192de90be4935c21a810f9e5281f0cbf625a76b2d6e9125c39c13becfe83'
+            'SKIP')
+
+package() {
+    install -Dm644 "zfsbootmenu-${pkgver}.EFI" \
+        "${pkgdir}"/usr/share/zfsbootmenu/zfsbootmenu.EFI
+    install -Dm644 LICENSE "${pkgdir}"/usr/share/licenses/${pkgname}/LICENSE
+}

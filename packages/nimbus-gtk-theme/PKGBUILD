@@ -1,0 +1,60 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# Nimbus, the Sun Microsystems / OpenSolaris desktop theme, from
+# abdonmorales/nimbus (the OpenIndiana-maintained fork).  VoltOS ships it as
+# the default GTK 3 theme, window-manager theme and icon theme.
+#
+# Arch no longer ships GTK 2, so the legacy GTK 2 engine (libnimbus) is
+# patched out of the autotools build in prepare(); everything GTK 3, the
+# Metacity theme and the icons build unchanged.
+
+pkgname=nimbus-gtk-theme
+_commit=3eb29096b0fd9eee8c5caa4cdbecc0b0f5c0b423
+pkgver=1.0.r20260927
+pkgrel=1
+pkgdesc="Nimbus GTK 3, Metacity and icon themes (Sun/OpenSolaris look and feel)"
+arch=('any')
+url="https://github.com/abdonmorales/nimbus"
+license=('LGPL-2.1-or-later')
+depends=('gtk3' 'hicolor-icon-theme' 'adwaita-icon-theme')
+makedepends=('git' 'autoconf' 'automake' 'libtool' 'intltool' 'gettext'
+             'glib2-devel' 'icon-naming-utils' 'pkgconf')
+source=("nimbus::git+https://github.com/abdonmorales/nimbus.git#commit=${_commit}")
+sha256sums=('SKIP')
+
+prepare() {
+    cd nimbus
+
+    # Drop the GTK 2 engine: no gtk+-2.0 check, no engine/gtk-2.0/images dirs.
+    sed -i \
+        -e '/^PKG_CHECK_MODULES(GTK2/d' \
+        -e '/GTK2_CFLAGS\|GTK2_LIBS\|GTK2_VERSION/d' \
+        -e '/^# remove cairo dependency hack/d' \
+        -e '/gtk-engine\/gtk-2.0\/Makefile/d' \
+        -e '/gtk-engine\/gtk-2.0\/iconrc/d' \
+        -e '/gtk-engine\/images\/Makefile/d' \
+        configure.ac
+    printf 'SUBDIRS = gtk-3.0\n' > gtk-engine/Makefile.am
+
+    NOCONFIGURE=1 ./autogen.sh || autoreconf -fi
+}
+
+build() {
+    cd nimbus
+    ./configure --prefix=/usr --disable-maintainer-mode
+    make
+}
+
+package() {
+    cd nimbus
+    make DESTDIR="${pkgdir}" install
+
+    # The Metatheme index refers to a GTK 2 engine we do not ship; GNOME
+    # only reads the gtk-3.0 directory, the Metacity theme and the icons.
+    rm -rf "${pkgdir}"/usr/lib
+
+    # Upstream inherits from Tango, which Arch does not package; fall back
+    # to Adwaita so GNOME's symbolic icons resolve.
+    sed -i 's/^Inherits=.*/Inherits=Adwaita,hicolor/' \
+        "${pkgdir}"/usr/share/icons/nimbus/index.theme
+}

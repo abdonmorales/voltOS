@@ -1,0 +1,7 @@
+post_install() {
+    /usr/lib/voltos/apply-identity
+}
+
+post_upgrade() {
+    post_install
+}

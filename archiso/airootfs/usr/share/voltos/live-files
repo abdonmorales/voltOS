@@ -1,0 +1,12 @@
+# Files that exist only on the VoltOS live medium.  voltos-install deletes
+# them from the installed system after copying the live root image.
+/etc/mkinitcpio.conf.d/archiso.conf
+/etc/systemd/system/pacman-init.service
+/etc/systemd/system/etc-pacman.d-gnupg.mount
+/etc/systemd/system/multi-user.target.wants/pacman-init.service
+/etc/systemd/system/multi-user.target.wants/voltos-live-setup.service
+/etc/systemd/system/multi-user.target.wants/voltos-autoinstall.service
+/etc/systemd/journald.conf.d/volatile-storage.conf
+/etc/systemd/logind.conf.d/do-not-suspend.conf
+/usr/share/voltos/live-files
+/etc/systemd/system/graphical.target.wants/voltos-live-ready.service
