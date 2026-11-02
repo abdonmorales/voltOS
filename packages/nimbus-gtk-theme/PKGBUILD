@@ -15,7 +15,7 @@ pkgrel=1
 pkgdesc="Nimbus GTK 3, Metacity and icon themes (Sun/OpenSolaris look and feel)"
 arch=('any')
 url="https://github.com/abdonmorales/nimbus"
-license=('LGPL-2.1-or-later')
+license=('LGPL-2.0-or-later')
 depends=('gtk3' 'hicolor-icon-theme' 'adwaita-icon-theme')
 makedepends=('git' 'autoconf' 'automake' 'libtool' 'intltool' 'gettext'
              'glib2-devel' 'icon-naming-utils' 'pkgconf')

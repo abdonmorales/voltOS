@@ -9,7 +9,7 @@ pkgrel=1
 pkgdesc="VoltOS live session: live user, installer shortcut, unattended install"
 arch=('any')
 url="https://github.com/abdonmorales/voltOS"
-license=('unknown')
+license=('MIT')
 depends=('voltos-installer' 'voltos-branding' 'gdm' 'sudo' 'polkit')
 source=('voltos-live-setup' 'voltos-live-setup.service'
         'voltos-autoinstall' 'voltos-autoinstall.service'

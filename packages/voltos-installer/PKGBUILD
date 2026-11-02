@@ -6,7 +6,7 @@ pkgrel=1
 pkgdesc="Guided VoltOS installer: ZFS root, boot environments, ZFSBootMenu"
 arch=('any')
 url="https://github.com/abdonmorales/voltOS"
-license=('unknown')
+license=('MIT')
 depends=('bash' 'dialog' 'gptfdisk' 'dosfstools' 'parted' 'rsync'
          'arch-install-scripts' 'efibootmgr' 'zfs-utils' 'zfsbootmenu-efi'
          'util-linux' 'gnome-console' 'sudo')

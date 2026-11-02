@@ -19,10 +19,10 @@ The first release targets x86_64. The logo is currently Tux.
 
 | Piece | State |
 | --- | --- |
-| Package repository (`packages/`) | Builds on Arch Linux |
-| Live ISO, GNOME + Nimbus (`archiso/`) | A preview build without ZFS boots to the live desktop under UEFI in QEMU |
-| OpenZFS 2.4.4 (`zfs-utils`, `zfs-dkms`) | Recipes included, build not yet verified |
-| Installer to ZFS + ZFSBootMenu | Written, end-to-end test (`make smoke-install`) not yet run |
+| Package repository (`packages/`), incl. OpenZFS 2.4.4 | Builds on Arch Linux |
+| Live ISO, GNOME + Nimbus (`archiso/`) | Builds; boots to the live desktop under UEFI in QEMU |
+| Installer to ZFS + ZFSBootMenu | `make smoke-install` passes: unattended install, then the installed system boots from ZFS through ZFSBootMenu to GNOME's graphical target |
+| Live ISO on BIOS | Built, not yet boot-tested |
 | CI (`.github/workflows/iso.yml`) | Builds, boots, installs and publishes on `v*` tags |
 
 ## Layout
@@ -62,6 +62,26 @@ make docker-iso
 
 Building in QEMU without KVM works, but GNOME is very slow there; use a
 host with `/dev/kvm` for interactive testing.
+
+## Boot loaders
+
+| Stage | Boot loader | Why |
+| --- | --- | --- |
+| Live ISO, BIOS | syslinux | archiso's standard BIOS path for CD/USB |
+| Live ISO, UEFI | systemd-boot | archiso's standard UEFI path; simple, no ZFS needed on the medium |
+| Installed system | ZFSBootMenu (UEFI) | Reads kernels straight from ZFS boot environments |
+
+ZFSBootMenu is a small Linux system packaged as one EFI executable, which
+the firmware starts directly from the EFI system partition. It imports the
+pool, finds every boot environment (and its snapshots), and loads
+`/boot/vmlinuz-linux-lts` and the initramfs from inside the chosen one with
+kexec. Because the kernel lives in the boot environment rather than on the
+ESP, rolling back or cloning a boot environment also rolls back its kernel,
+and no boot-loader configuration has to be regenerated after upgrades.
+Press Escape at its countdown to pick another boot environment or snapshot.
+
+GRUB was not used for installed systems: its own ZFS driver lags OpenZFS
+features, and it has no built-in notion of boot environments.
 
 ## Design notes
 

@@ -78,6 +78,7 @@ xfsprogs
 ntfs-3g
 efibootmgr
 rsync
+pv
 dialog
 sudo
 nano
