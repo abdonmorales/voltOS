@@ -20,9 +20,9 @@ The first release targets x86_64. The logo is currently Tux.
 | Piece | State |
 | --- | --- |
 | Package repository (`packages/`), incl. OpenZFS 2.4.4 | Builds on Arch Linux |
-| Live ISO, GNOME + Nimbus (`archiso/`) | Builds; boots to the live desktop under UEFI in QEMU |
+| Live ISO, GNOME + Nimbus (`archiso/`) | Builds; boots to the live desktop under UEFI in QEMU (CI) |
 | Installer to ZFS + ZFSBootMenu | `make smoke-install` passes: unattended install, then the installed system boots from ZFS through ZFSBootMenu to GNOME's graphical target |
-| Live ISO on BIOS | Built, not yet boot-tested |
+| Live ISO on BIOS | Boots to the live desktop under SeaBIOS in QEMU (CI) |
 | CI (`.github/workflows/iso.yml`) | Builds, boots, installs and publishes on `v*` tags |
 
 ## Layout
