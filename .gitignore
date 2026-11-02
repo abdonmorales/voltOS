@@ -7,3 +7,4 @@
 /packages/*/*.EFI
 /packages/*/LICENSE
 /packages/nimbus-gtk-theme/nimbus/
+/packages/*/*.asc
