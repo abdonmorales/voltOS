@@ -4,4 +4,5 @@
 set -euo pipefail
 pacman -Syu --noconfirm --needed \
     base-devel git archiso sudo \
-    qemu-system-x86 qemu-img edk2-ovmf socat libarchive imagemagick
+    qemu-system-x86 qemu-img edk2-ovmf \
+    socat libarchive imagemagick

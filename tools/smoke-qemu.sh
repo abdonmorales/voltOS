@@ -49,7 +49,7 @@ qemu_boot()
 	local log=$1
 	shift
 	qemu-system-x86_64 -machine q35,accel=$accel -cpu max -smp 4 -m 4G \
-	    -display none -vga virtio -monitor "unix:$tmp/mon,server,nowait" \
+	    -display none -vga std -monitor "unix:$tmp/mon,server,nowait" \
 	    -serial "file:$log" -no-reboot "$@" >"$tmp/qemu.out" 2>&1 &
 	pids+=($!)
 }
@@ -64,8 +64,13 @@ wait_for()
 		sleep 1
 		i=$((i + 1))
 	done
-	echo "smoke-qemu.sh: timed out waiting for /$2/" >&2
-	tail -n 60 "$1" >&2 || true
+	if kill -0 "${pids[-1]}" 2>/dev/null; then
+		echo "smoke-qemu.sh: timed out waiting for /$2/" >&2
+	else
+		echo "smoke-qemu.sh: QEMU exited before /$2/ appeared:" >&2
+		cat "$tmp/qemu.out" >&2 || true
+	fi
+	tail -n 60 "$1" >&2 2>/dev/null || true
 	return 1
 }
 
