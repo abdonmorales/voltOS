@@ -80,6 +80,11 @@ jobs:
           iso=$(ls out/voltos-*-x86_64.iso)
           SMOKE_SCREENSHOT=out/installed.png tools/smoke-qemu.sh install "$iso"
 
+      - name: Install with the graphical installer and boot the result
+        run: |
+          iso=$(ls out/voltos-*-x86_64.iso)
+          SMOKE_SCREENSHOT=out/install-gui.png tools/smoke-qemu.sh install-gui "$iso"
+
       - name: Enable Secure Boot on an installed system and boot with it
         run: |
           iso=$(ls out/voltos-*-x86_64.iso)

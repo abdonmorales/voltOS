@@ -11,7 +11,7 @@
 pkgname=nimbus-gtk-theme
 _commit=3eb29096b0fd9eee8c5caa4cdbecc0b0f5c0b423
 pkgver=1.0.r20260927
-pkgrel=1
+pkgrel=2
 pkgdesc="Nimbus GTK 3, Metacity and icon themes (Sun/OpenSolaris look and feel)"
 arch=('any')
 url="https://github.com/abdonmorales/nimbus"
@@ -52,6 +52,19 @@ package() {
     # The Metatheme index refers to a GTK 2 engine we do not ship; GNOME
     # only reads the gtk-3.0 directory, the Metacity theme and the icons.
     rm -rf "${pkgdir}"/usr/lib
+
+    # libhandy (Disks, other GTK 3 GNOME apps) draws a "decoration-overlay"
+    # node above the window content to round its corners.  Nimbus's global
+    # "* { background-color: inherit; }" made that overlay opaque, hiding
+    # the whole window behind a plain Nimbus-grey sheet.
+    cat >>"${pkgdir}"/usr/share/themes/nimbus/gtk-3.0/gtk-widgets.css <<'CSS'
+
+/* VoltOS: keep libhandy's corner overlay transparent. */
+decoration-overlay {
+    background-color: transparent;
+    background-image: none;
+}
+CSS
 
     # Upstream inherits from Tango, which Arch does not package; fall back
     # to Adwaita so GNOME's symbolic icons resolve.

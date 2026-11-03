@@ -8,6 +8,8 @@
 #   tools/smoke-qemu.sh live-uefi  <iso>   OVMF, live desktop
 #   tools/smoke-qemu.sh live-secureboot <iso>  signed ISO, Secure Boot on
 #                                          (SMOKE_SB_CERT=VoltOS certificate)
+#   tools/smoke-qemu.sh install-gui <iso>  OVMF, install with the graphical
+#                                          installer (test mode), then boot it
 #   tools/smoke-qemu.sh install    <iso>   OVMF, install to a ZFS disk,
 #                                          then boot it via ZFSBootMenu
 #                                          (SMOKE_SECBOOT=1: then enrol keys
@@ -259,6 +261,48 @@ live-secureboot)
 		exit 1
 	}
 	sleep 20
+	screenshot
+	;;
+install-gui)
+	# Install through the graphical installer: boot the live desktop with
+	# an empty disk, start voltos-installer-gtk in its test mode (it fills
+	# in its own pages and presses Install), then boot the installed disk
+	# and wait for the login screen.
+	qemu-img create -f qcow2 "$tmp/disk.qcow2" 20G >/dev/null
+	uefi=$(uefi_args)
+	# shellcheck disable=SC2086
+	qemu_boot "$tmp/serial.log" $uefi -cdrom "$iso" \
+	    -drive "file=$tmp/disk.qcow2,if=virtio,format=qcow2"
+	wait_for "$tmp/serial.log" "$LIVE_RE" "$timeout"
+	env='runuser -u liveuser -- env DISPLAY=:0 XAUTHORITY=/home/liveuser/.Xauthority XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus'
+	guest_sh "$env VOLTOS_INSTALLER_TEST=/dev/vda setsid voltos-installer-gtk >/tmp/installer-gui.log 2>&1 &"
+	sleep 30
+	screenshot progress
+	i=0 result=
+	while [ "$i" -lt "$timeout" ]; do
+		result=$(guest_sh 'cat /tmp/voltos-installer-test.result 2>/dev/null')
+		[ -n "$result" ] && break
+		sleep 10
+		i=$((i + 10))
+	done
+	echo "smoke-qemu.sh: graphical installer result: ${result:-none}"
+	screenshot done
+	case "$result" in
+	ok*) ;;
+	*)
+		guest_sh 'cat /tmp/installer-gui.log; tail -n 40 /var/log/voltos-install.log'
+		exit 1
+		;;
+	esac
+	guest_sh 'systemctl poweroff' >/dev/null
+	wait "${pids[-1]}" || true
+
+	# The installed system: firmware -> ZFSBootMenu -> LightDM.
+	# shellcheck disable=SC2086
+	qemu_boot "$tmp/boot.log" $uefi \
+	    -drive "file=$tmp/disk.qcow2,if=virtio,format=qcow2"
+	wait_greeter "$timeout"
+	sleep 10
 	screenshot
 	;;
 install)

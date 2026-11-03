@@ -9,6 +9,12 @@
 # work stays in voltos-install, which is also what the text installer and
 # the automated tests use.
 #
+# Test mode: with VOLTOS_INSTALLER_TEST=<disk> in the environment the window
+# fills in a throwaway account (user "volt", password "volt"), selects that
+# disk, walks through its pages and starts the installation itself, then
+# writes "ok" or "failed" to /tmp/voltos-installer-test.result.  It erases
+# the disk without asking; tools/smoke-qemu.sh uses it in a VM.
+#
 # SPDX-License-Identifier: MIT
 
 import json
@@ -39,6 +45,9 @@ KEYMAPS = ["us", "uk", "es", "la-latin1", "fr", "de", "it", "br-abnt2",
 STAGES = [("Partitioning", 0.05), ("Creating ZFS pool", 0.12),
           ("Copying the system", 0.20), ("Configuring", 0.75),
           ("Finishing", 0.95)]
+
+TEST_DISK = os.environ.get("VOLTOS_INSTALLER_TEST")
+TEST_RESULT = "/tmp/voltos-installer-test.result"
 
 NAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,62}$")
@@ -129,6 +138,39 @@ class Installer(Adw.ApplicationWindow):
         self.stack.add_named(self.page_progress(), "progress")
         self.stack.add_named(self.page_done(), "done")
         self.show_page("welcome")
+        if TEST_DISK:
+            GLib.timeout_add_seconds(3, self.run_test)
+
+    # --- automated test --------------------------------------------------
+
+    def run_test(self):
+        """Drive the real pages and controls, as a user would."""
+        check = self.disk_checks.get(TEST_DISK)
+        if check is None:
+            self.test_result("failed: disk %s not offered" % TEST_DISK)
+            return False
+        self.show_page("disk")
+        check.set_active(True)
+        self.show_page("account")
+        self.fullname.set_text("Volt Test")
+        self.username.set_text("volt")
+        self.password.set_text("volt")
+        self.password2.set_text("volt")
+        if self.account_problem():
+            self.test_result("failed: " + self.account_problem())
+            return False
+        self.show_page("region")
+        self.show_page("summary")
+        if not self.next.get_sensitive():
+            self.test_result("failed: Install button disabled")
+            return False
+        self.next.emit("clicked")
+        return False
+
+    def test_result(self, text):
+        print("voltos-installer-gtk: test " + text, flush=True)
+        with open(TEST_RESULT, "w") as f:
+            f.write(text + "\n")
 
     # --- pages ---------------------------------------------------------
 
@@ -161,6 +203,7 @@ class Installer(Adw.ApplicationWindow):
             description="The whole disk will be erased.")
         box.append(self.disk_group)
         self.disk_rows = []
+        self.disk_checks = {}
         group = None
         for dev in list_disks():
             check = Gtk.CheckButton()
@@ -176,6 +219,7 @@ class Installer(Adw.ApplicationWindow):
                 subtitle=f"{dev['path']}  {tran}".strip())
             row.add_prefix(check)
             row.set_activatable_widget(check)
+            self.disk_checks[dev["path"]] = check
             self.disk_group.add(row)
             self.disk_rows.append(row)
         if not self.disk_rows:
@@ -423,6 +467,8 @@ class Installer(Adw.ApplicationWindow):
                 os.unlink(self.config_path)
             except OSError:
                 pass
+        if TEST_DISK:
+            self.test_result("ok" if ok else "failed: voltos-install")
         if ok:
             self.bar.set_fraction(1.0)
             self.done_page.set_description(
