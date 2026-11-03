@@ -6,6 +6,12 @@
 #
 #   tools/build-packages.sh [package ...]
 #
+# The repository is for the host's architecture: out/repo on x86_64,
+# out/repo-<arch> elsewhere (aarch64: build inside tools/alarm-buildroot.sh's
+# root).  Packages whose arch=() excludes the host are skipped, so the same
+# list serves both (zfsbootmenu-efi is x86_64-only; VoltOS's own linux-lts
+# build is AArch64-only, x86_64 uses Arch's).
+#
 # Packages are built in dependency order with makepkg.  Build-time
 # dependencies are installed from the Arch repositories; packages that
 # depend on other VoltOS packages only need them at install time.
@@ -17,8 +23,11 @@
 set -euo pipefail
 
 top=$(cd "$(dirname "$0")/.." && pwd)
+carch=$(uname -m)
 repo=$top/out/repo
-order=(nimbus-gtk-theme voltos-branding voltos-desktop zfs-utils zfs-dkms zfsbootmenu-efi
+[ "$carch" = x86_64 ] || repo=$top/out/repo-$carch
+order=(linux-lts-aarch64 nimbus-gtk-theme voltos-branding voltos-desktop zfs-utils zfs-dkms
+       zfsbootmenu-efi perl-boolean zfsbootmenu
        voltos-zfs-snapshots voltos-secureboot voltos-installer voltos-live)
 [ "$#" -gt 0 ] && order=("$@")
 
@@ -41,6 +50,11 @@ pgp=--skippgpcheck
 for pkg in "${order[@]}"; do
 	dir=$top/packages/$pkg
 	[ -f "$dir/PKGBUILD" ] || { echo "no package $pkg" >&2; exit 1; }
+	archs=$(cd "$dir" && bash -c 'source ./PKGBUILD; echo " ${arch[*]} "')
+	if [[ $archs != *" any "* && $archs != *" $carch "* ]]; then
+		echo "==> Skipping $pkg (not for $carch)"
+		continue
+	fi
 	echo "==> Building $pkg"
 	# Install the build-time dependencies (makedepends) from Arch.
 	mapfile -t mk < <(cd "$dir" && bash -c \

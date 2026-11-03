@@ -1,0 +1,16 @@
+# Runs after DKMS (70-) has built the ZFS module and mkinitcpio (90-) the
+# kernel's own initramfs.
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Target = usr/lib/modules/*/vmlinuz
+Target = usr/src/zfs-*/dkms.conf
+Target = usr/share/zfsbootmenu/*
+Target = usr/bin/generate-zbm
+Target = etc/zfsbootmenu/*
+
+[Action]
+Description = Building ZFSBootMenu...
+When = PostTransaction
+Exec = /usr/lib/voltos/voltos-zbm-generate

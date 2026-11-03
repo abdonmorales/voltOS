@@ -1,0 +1,43 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# ZFSBootMenu built on the machine (generate-zbm), for architectures without
+# an upstream release EFI (AArch64).  x86_64 uses zfsbootmenu-efi instead.
+#
+# generate-zbm builds a unified EFI executable from the installed linux-lts
+# kernel, its DKMS-built ZFS module and an mkinitcpio image, using systemd's
+# EFI stub.  The voltos-zbm-generate hook rebuilds it on installed systems
+# whenever the kernel, OpenZFS or ZFSBootMenu change, keeps the copies on the
+# EFI system partition current and re-signs them for Secure Boot.
+
+pkgname=zfsbootmenu
+pkgver=3.1.0
+pkgrel=1
+_commit=7174e420590a270ece3c6426bdb1d5cdd9ef27b0  # tag v3.1.0
+pkgdesc="ZFS boot environment manager, built locally with generate-zbm"
+arch=('aarch64')
+url="https://github.com/zbm-dev/zfsbootmenu"
+license=('MIT')
+depends=('bash' 'perl' 'perl-yaml-pp' 'perl-sort-versions' 'perl-boolean'
+         'fzf' 'kexec-tools' 'mbuffer' 'mkinitcpio' 'systemd' 'binutils'
+         'zfs-utils' 'linux-lts')
+makedepends=('git')
+conflicts=('zfsbootmenu-efi')
+backup=('etc/zfsbootmenu/config.yaml' 'etc/zfsbootmenu/mkinitcpio.conf')
+source=("git+https://github.com/zbm-dev/zfsbootmenu.git#commit=${_commit}"
+        'config.yaml'
+        'voltos-zbm-generate'
+        'voltos-zbm-generate.hook')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+package() {
+    cd zfsbootmenu
+    make DESTDIR="${pkgdir}" core initcpio
+    # VoltOS settings: one EFI executable on the ESP, generic initramfs.
+    install -m644 "${srcdir}"/config.yaml "${pkgdir}"/etc/zfsbootmenu/config.yaml
+    sed -i 's/^HOOKS=.*/HOOKS=(base udev modconf block filesystems keyboard zfsbootmenu)/' \
+        "${pkgdir}"/etc/zfsbootmenu/mkinitcpio.conf
+    install -Dm644 LICENSE "${pkgdir}"/usr/share/licenses/${pkgname}/LICENSE
+    install -Dm755 "${srcdir}"/voltos-zbm-generate "${pkgdir}"/usr/lib/voltos/voltos-zbm-generate
+    install -Dm644 "${srcdir}"/voltos-zbm-generate.hook \
+        "${pkgdir}"/usr/share/libalpm/hooks/96-voltos-zbm-generate.hook
+}

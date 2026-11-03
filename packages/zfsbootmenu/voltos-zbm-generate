@@ -1,0 +1,27 @@
+#!/bin/sh
+# Build ZFSBootMenu for the installed linux-lts kernel into the EFI system
+# partition (EFI/zbm/zfsbootmenu.EFI), refresh the removable-media copy and
+# re-sign for Secure Boot when signing is set up.  The installer runs it
+# once; the pacman hook runs it after kernel, OpenZFS or ZFSBootMenu updates.
+set -e
+esp=/boot/efi
+# /boot/efi is an automount on installed systems; the live medium has none.
+[ -d "$esp/EFI/zbm" ] || { [ "${1:-}" = --install ] && mkdir -p "$esp/EFI/zbm"; } || exit 0
+
+kver=
+for d in /usr/lib/modules/*; do
+	[ "$(cat "$d/pkgbase" 2>/dev/null)" = linux-lts ] && kver=${d##*/}
+done
+[ -n "$kver" ] || { echo "voltos-zbm-generate: linux-lts is not installed" >&2; exit 1; }
+
+generate-zbm --kernel /boot/vmlinuz-linux-lts --kver "$kver"
+
+case $(uname -m) in
+aarch64) fallback=BOOTAA64.EFI ;;
+*) fallback=BOOTX64.EFI ;;
+esac
+install -Dm644 "$esp/EFI/zbm/zfsbootmenu.EFI" "$esp/EFI/BOOT/$fallback"
+echo "voltos: ZFSBootMenu for $kver in $esp/EFI/zbm and $esp/EFI/BOOT/$fallback"
+if command -v sbctl >/dev/null 2>&1 && [ -d /var/lib/sbctl/keys -o -d /usr/share/secureboot/keys ]; then
+	sbctl sign-all
+fi

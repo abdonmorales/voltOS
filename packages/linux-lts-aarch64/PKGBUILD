@@ -1,0 +1,124 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# The VoltOS long-term-support kernel for AArch64.
+#
+# Arch Linux ARM ships only the newest mainline kernel, which OpenZFS does
+# not support yet (OpenZFS 2.4.4 supports Linux 4.18-7.2).  VoltOS builds the
+# same LTS series as Arch's x86_64 linux-lts, with Arch Linux ARM's generic
+# "AArch64 multi-platform" configuration (config, carried forward with
+# olddefconfig), and packages it in Arch's standard layout: the EFI-stub
+# Image goes to /usr/lib/modules/<kver>/vmlinuz and mkinitcpio's hook
+# installs it as /boot/vmlinuz-linux-lts.  The package names match x86_64,
+# so the installer, boot entries and DKMS modules are the same everywhere.
+
+pkgbase=linux-lts
+pkgname=(linux-lts linux-lts-headers)
+_srcname=linux-6.18
+pkgver=6.18.60
+pkgrel=1
+pkgdesc="The LTS Linux kernel and modules (VoltOS, AArch64 multi-platform)"
+arch=('aarch64')
+url="https://www.kernel.org/"
+license=('GPL-2.0-only')
+makedepends=('bc' 'cpio' 'gettext' 'kmod' 'libelf' 'pahole' 'perl' 'python'
+             'tar' 'xz' 'zstd')
+options=('!strip' '!debug')
+source=("https://cdn.kernel.org/pub/linux/kernel/v6.x/${_srcname}.tar.xz"
+        "https://cdn.kernel.org/pub/linux/kernel/v6.x/patch-${pkgver}.xz"
+        'config')
+# From kernel.org's signed sha256sums.asc.
+sha256sums=('9106a4605da9e31ff17659d958782b815f9591ab308d03b0ee21aad6c7dced4b'
+            'ddd360daa10fcfe1c04759fc5254e44254e69b7e95973b0c1dd6e05540534771'
+            'SKIP')
+
+export KBUILD_BUILD_HOST=voltos
+export KBUILD_BUILD_USER=$pkgbase
+export KBUILD_BUILD_TIMESTAMP="$(date -Ru${SOURCE_DATE_EPOCH:+d @$SOURCE_DATE_EPOCH})"
+
+prepare() {
+    cd $_srcname
+    patch -Np1 -i ../patch-${pkgver}
+
+    echo "-$pkgrel" > localversion.10-pkgrel
+    echo "${pkgbase#linux}" > localversion.20-pkgname
+
+    cp ../config .config
+    # Live media and generic UEFI machines: show the firmware framebuffer
+    # until a GPU driver loads, and read archiso's zstd/xz squashfs image.
+    scripts/config --set-str LOCALVERSION "" \
+        --enable SYSFB_SIMPLEFB --enable DRM_SIMPLEDRM \
+        --module SQUASHFS --enable SQUASHFS_ZSTD --enable SQUASHFS_XZ \
+        --enable EFI_STUB --enable EFI
+    make olddefconfig
+    diff -u ../config .config || :
+
+    make -s kernelrelease > version
+    echo "Prepared $pkgbase version $(<version)"
+}
+
+build() {
+    cd $_srcname
+    unset LDFLAGS
+    make all
+}
+
+_package() {
+    pkgdesc="The LTS Linux kernel and modules (VoltOS, AArch64)"
+    depends=('coreutils' 'initramfs' 'kmod')
+    optdepends=('linux-firmware: firmware images needed for some devices'
+                'wireless-regdb: to set the correct wireless channels of your country')
+    provides=(KSMBD-MODULE WIREGUARD-MODULE)
+
+    cd $_srcname
+    local modulesdir="$pkgdir/usr/lib/modules/$(<version)"
+
+    # Used by mkinitcpio to name the kernel and initramfs in /boot.
+    install -Dm644 arch/arm64/boot/Image "$modulesdir/vmlinuz"
+    echo "$pkgbase" | install -Dm644 /dev/stdin "$modulesdir/pkgbase"
+
+    ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
+        DEPMOD=/doesnt/exist modules_install
+    rm -f "$modulesdir"/build
+}
+
+_package-headers() {
+    pkgdesc="Headers and scripts for building modules for the LTS Linux kernel (VoltOS, AArch64)"
+    depends=('pahole')
+
+    cd $_srcname
+    local builddir="$pkgdir/usr/lib/modules/$(<version)/build"
+
+    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
+        localversion.* version vmlinux
+    install -Dt "$builddir/kernel" -m644 kernel/Makefile
+    install -Dt "$builddir/arch/arm64" -m644 arch/arm64/Makefile
+    cp -t "$builddir" -a scripts
+    cp -t "$builddir" -a include
+    cp -t "$builddir/arch/arm64" -a arch/arm64/include
+    install -Dt "$builddir/arch/arm64/kernel" -m644 arch/arm64/kernel/asm-offsets.s
+    mkdir -p "$builddir/arch/arm"
+    cp -t "$builddir/arch/arm" -a arch/arm/include
+    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
+    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
+
+    find . -name 'Kconfig*' -exec install -Dm644 {} "$builddir/{}" \;
+
+    local arch
+    for arch in "$builddir"/arch/*/; do
+        [[ $arch = */arm64/ || $arch = */arm/ ]] && continue
+        rm -r "$arch"
+    done
+    rm -rf "$builddir/Documentation"
+    find -L "$builddir" -type l -delete
+    find "$builddir" -type f -name '*.o' -delete
+
+    mkdir -p "$pkgdir/usr/src"
+    ln -sr "$builddir" "$pkgdir/usr/src/$pkgbase"
+}
+
+for _p in "${pkgname[@]}"; do
+    eval "package_$_p() {
+        $(declare -f "_package${_p#$pkgbase}")
+        _package${_p#$pkgbase}
+    }"
+done

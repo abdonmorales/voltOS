@@ -197,7 +197,8 @@ preflight()
 	[ -d /sys/firmware/efi ] ||
 	    die "VoltOS installs need UEFI firmware; this machine booted in BIOS mode"
 	[ -d "$LIVE_ROOT/usr" ] || die "$LIVE_ROOT not found; run this from the VoltOS live medium"
-	[ -f "$ZBM_EFI" ] || die "ZFSBootMenu ($ZBM_EFI) is missing"
+	[ -f "$ZBM_EFI" ] || [ -x "$LIVE_ROOT/usr/lib/voltos/voltos-zbm-generate" ] ||
+	    die "ZFSBootMenu ($ZBM_EFI, or the zfsbootmenu package) is missing"
 	modprobe zfs || die "the ZFS kernel module could not be loaded"
 	[ -b "$DISK" ] || die "'$DISK' is not a block device"
 	[ "$(lsblk -dno TYPE "$DISK")" = disk ] || die "'$DISK' is not a whole disk"
@@ -382,12 +383,23 @@ MKINIT
 	uuid=$(lsblk -dno UUID "$ESP")
 	echo "UUID=$uuid /boot/efi vfat umask=0077,noauto,x-systemd.automount 0 2" \
 	    >"$TARGET/etc/fstab"
-	install -Dm644 "$ZBM_EFI" "$TARGET/boot/efi/EFI/zbm/zfsbootmenu.EFI"
-	install -Dm644 "$ZBM_EFI" "$TARGET/boot/efi/EFI/BOOT/BOOTX64.EFI"
+	local fallback=BOOTX64.EFI
+	[ "$(uname -m)" != aarch64 ] || fallback=BOOTAA64.EFI
+	if [ -f "$ZBM_EFI" ]; then
+		# x86_64: ZFSBootMenu's release EFI (zfsbootmenu-efi).
+		install -Dm644 "$ZBM_EFI" "$TARGET/boot/efi/EFI/zbm/zfsbootmenu.EFI"
+		install -Dm644 "$ZBM_EFI" "$TARGET/boot/efi/EFI/BOOT/$fallback"
+	else
+		# Other architectures: build it from the installed kernel and ZFS
+		# module (zfsbootmenu package; its hook keeps it current).
+		in_target /usr/lib/voltos/voltos-zbm-generate --install
+		[ -f "$TARGET/boot/efi/EFI/zbm/zfsbootmenu.EFI" ] ||
+		    die "ZFSBootMenu could not be built"
+	fi
 	efibootmgr --create --disk "$DISK" --part 1 \
 	    --label "VoltOS (ZFSBootMenu)" \
 	    --loader '\EFI\zbm\zfsbootmenu.EFI' >>"$LOG" 2>&1 ||
-	    log "efibootmgr failed; the removable-media path EFI/BOOT/BOOTX64.EFI will be used"
+	    log "efibootmgr failed; the removable-media path EFI/BOOT/$fallback will be used"
 }
 
 finish()

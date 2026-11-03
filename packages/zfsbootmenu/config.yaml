@@ -1,0 +1,17 @@
+# ZFSBootMenu image settings for VoltOS (generate-zbm(5)).
+Global:
+  ManageImages: true
+  BootMountPoint: /boot/efi
+  PreHooksDir: /etc/zfsbootmenu/generate-zbm.pre.d
+  PostHooksDir: /etc/zfsbootmenu/generate-zbm.post.d
+  InitCPIO: true
+  InitCPIOConfig: /etc/zfsbootmenu/mkinitcpio.conf
+Components:
+  Enabled: false
+EFI:
+  ImageDir: /boot/efi/EFI/zbm
+  Versions: false
+  Enabled: true
+Kernel:
+  CommandLine: ro quiet loglevel=0
+  Prefix: zfsbootmenu

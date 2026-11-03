@@ -18,7 +18,9 @@
 set -euo pipefail
 
 ESP=/boot/efi
-ZBM_IMAGES=("$ESP/EFI/zbm/zfsbootmenu.EFI" "$ESP/EFI/BOOT/BOOTX64.EFI")
+fallback=BOOTX64.EFI
+[ "$(uname -m)" != aarch64 ] || fallback=BOOTAA64.EFI
+ZBM_IMAGES=("$ESP/EFI/zbm/zfsbootmenu.EFI" "$ESP/EFI/BOOT/$fallback")
 
 die() { echo "voltos-secureboot: $*" >&2; exit 1; }
 

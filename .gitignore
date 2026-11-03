@@ -12,3 +12,5 @@ __pycache__/
 # Secure Boot private keys must never be committed.
 /secureboot-key/
 *.key
+/packages/*/*.xz
+/packages/zfsbootmenu/zfsbootmenu/

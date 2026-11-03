@@ -115,9 +115,64 @@ jobs:
             out/*.png
             out/repo/
 
+  # AArch64: VoltOS for 64-bit ARM UEFI machines, built in an Arch Linux ARM
+  # root.  VoltOS builds its own linux-lts there (Arch Linux ARM only has a
+  # mainline kernel newer than OpenZFS supports) and ZFSBootMenu is built
+  # locally with generate-zbm (there is no upstream AArch64 release EFI).
+  aarch64:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 360
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Create the Arch Linux ARM build root
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq libarchive-tools
+          sudo tools/alarm-buildroot.sh /var/tmp/alarm
+
+      - name: Build packages (linux-lts, Nimbus, OpenZFS, ZFSBootMenu, VoltOS)
+        run: sudo tools/alarm-chroot.sh /var/tmp/alarm 'cd /voltos && tools/build-packages.sh'
+
+      - name: Build the ZFS module with DKMS and ZFSBootMenu with generate-zbm
+        run: |
+          sudo tools/alarm-chroot.sh /var/tmp/alarm '
+            set -e
+            cd /voltos/out/repo-aarch64
+            pacman -U --noconfirm linux-lts-6*.pkg.tar.zst linux-lts-headers-*.pkg.tar.zst \
+              zfs-utils-*.pkg.tar.zst zfs-dkms-*.pkg.tar.zst \
+              perl-boolean-*.pkg.tar.zst zfsbootmenu-*.pkg.tar.zst
+            dkms status
+            find /usr/lib/modules -name "zfs.ko*" | grep .
+            mkdir -p /boot/efi/EFI/zbm
+            /usr/lib/voltos/voltos-zbm-generate
+            ls -l /boot/efi/EFI/zbm /boot/efi/EFI/BOOT
+            rm -rf /boot/efi/EFI
+            pacman -Rns --noconfirm zfsbootmenu perl-boolean zfs-dkms zfs-utils \
+              linux-lts-headers linux-lts'
+
+      - name: Build the ISO
+        run: sudo tools/alarm-chroot.sh /var/tmp/alarm 'cd /voltos && tools/build-iso.sh'
+
+      - name: Checksums
+        run: |
+          cd out
+          sha256sum voltos-*-aarch64.iso > SHA256SUMS-aarch64
+
+      - name: Upload ISO and package repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: voltos-aarch64
+          if-no-files-found: error
+          path: |
+            out/voltos-*-aarch64.iso
+            out/SHA256SUMS-aarch64
+            out/repo-aarch64/
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, aarch64]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -126,10 +181,14 @@ jobs:
         with:
           name: voltos-x86_64
           path: artifacts
+      - uses: actions/download-artifact@v4
+        with:
+          name: voltos-aarch64
+          path: artifacts
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           gh release create "$GITHUB_REF_NAME" --title "VoltOS $GITHUB_REF_NAME" \
-            --generate-notes artifacts/voltos-*-x86_64.iso artifacts/SHA256SUMS
+            --generate-notes artifacts/voltos-*.iso artifacts/SHA256SUMS*

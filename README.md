@@ -20,7 +20,8 @@ VoltOS is an Arch Linux–based desktop distribution with:
   machine-owner keys (plus Microsoft's) and signs ZFSBootMenu and the kernels;
   updates are re-signed automatically.
 
-The first release targets x86_64. The logo is currently Tux.
+VoltOS is built for x86_64 (UEFI and BIOS) and, as a newer port, AArch64
+(64-bit ARM with UEFI). The logo is currently Tux.
 
 ## Status
 
@@ -30,6 +31,8 @@ The first release targets x86_64. The logo is currently Tux.
 | Live ISO, MATE + Nimbus (`archiso/`) | New: switched from GNOME to MATE; being re-verified in CI |
 | Installer to ZFS + ZFSBootMenu | `make smoke-install`: unattended install, then the installed system boots from ZFS through ZFSBootMenu to the login screen |
 | Live ISO on BIOS | Boots to the live desktop under SeaBIOS in QEMU (CI) |
+| Graphical installer | CI installs through the GUI (test mode), then boots the result to the login screen |
+| AArch64 | New: packages and ISO built in CI on an Arch Linux ARM root; not yet boot-tested |
 | CI (`.github/workflows/iso.yml`) | Builds, boots, installs and publishes on `v*` tags |
 
 ## Layout
@@ -45,10 +48,15 @@ packages/
   voltos-zfs-snapshots/  pacman hook: snapshot before every transaction
   voltos-secureboot/     Secure Boot enrolment and signing (sbctl)
   zfs-utils/, zfs-dkms/  OpenZFS 2.4.4 (from the AUR recipes)
-  zfsbootmenu-efi/       ZFSBootMenu 3.1.0 release EFI
+  zfsbootmenu-efi/       ZFSBootMenu 3.1.0 release EFI (x86_64)
+  zfsbootmenu/           ZFSBootMenu built with generate-zbm (AArch64)
+  perl-boolean/          Perl module generate-zbm needs
+  linux-lts-aarch64/     the LTS kernel for AArch64
 tools/
-  build-packages.sh      build packages into out/repo
-  build-iso.sh           build out/voltos-YYYY.MM.DD-x86_64.iso
+  build-packages.sh      build packages into out/repo (out/repo-aarch64)
+  build-iso.sh           build out/voltos-YYYY.MM.DD-<arch>.iso
+  alarm-buildroot.sh     create an Arch Linux ARM root to build AArch64 in
+  alarm-chroot.sh        run a command in that root
   smoke-qemu.sh          boot / install tests in QEMU
   sign-iso.sh            sign the ISO for Secure Boot (shim + VoltOS key)
   make-secureboot-key.sh create the VoltOS Secure Boot key (run once)
@@ -70,6 +78,14 @@ On any other Linux host with Docker:
 
 ```sh
 make docker-iso
+```
+
+For AArch64, on an AArch64 Linux host (or x86_64 with qemu-user-static
+binfmt support):
+
+```sh
+sudo tools/alarm-buildroot.sh /var/tmp/alarm
+sudo tools/alarm-chroot.sh /var/tmp/alarm 'cd /voltos && tools/build-packages.sh && tools/build-iso.sh'
 ```
 
 Building and testing in QEMU without KVM works, but the desktop is slow
@@ -94,6 +110,28 @@ Press Escape at its countdown to pick another boot environment or snapshot.
 
 GRUB was not used for installed systems: its own ZFS driver lags OpenZFS
 features, and it has no built-in notion of boot environments.
+
+## AArch64
+
+Arch Linux has no official AArch64 port, so VoltOS for ARM sits on
+[Arch Linux ARM](https://archlinuxarm.org) with three differences:
+
+- **Kernel.** Arch Linux ARM ships only the newest mainline kernel, which
+  OpenZFS does not support yet. VoltOS builds the same `linux-lts` series as
+  x86_64 for AArch64 (Arch Linux ARM's generic multi-platform configuration),
+  under the same package names, so the installer and DKMS work unchanged.
+- **ZFSBootMenu.** There is no upstream AArch64 release EFI. The
+  `zfsbootmenu` package runs `generate-zbm` on the installed system, using the
+  installed kernel, its ZFS module and systemd's EFI stub, and a pacman hook
+  rebuilds it after kernel or OpenZFS updates (and re-signs it when Secure
+  Boot signing is set up).
+- **Boot.** The live medium boots with UEFI only (systemd-boot, the
+  removable-media path `EFI/BOOT/BOOTAA64.EFI`); installed systems boot
+  ZFSBootMenu from the same paths as on x86_64.
+
+`archiso` and `dkms` are architecture-independent packages that Arch Linux
+ARM does not carry; `tools/alarm-buildroot.sh` takes them from Arch Linux and
+checks their signatures against `archlinux-keyring`.
 
 ## Design notes
 
