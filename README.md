@@ -37,6 +37,7 @@ VoltOS is built for x86_64 (UEFI and BIOS) and, as a newer port, AArch64
 | Live ISO on BIOS | Boots to the live desktop under SeaBIOS in QEMU (CI) |
 | Graphical installer (OpenSolaris gui-install on GTK 3) | CI installs through the GUI (test mode), then boots the result to the login screen |
 | AArch64 | Experimental: packages and ISO built in CI on an Arch Linux ARM root (CI artifact only, not in releases); not yet boot-tested |
+| Updates (`[voltos]` repository) | Signed packages published by CI to GitHub releases after the tests pass; the install test checks that the installed system verifies them |
 | CI (`.github/workflows/iso.yml`) | Builds, boots, installs and publishes the x86_64 ISO on `v*` tags (0.x tags as pre-releases) |
 
 ## Layout
@@ -52,6 +53,7 @@ packages/
   voltos-live/           live user, autologin helpers, unattended install
   voltos-zfs-snapshots/  pacman hook: snapshot before every transaction
   voltos-secureboot/     Secure Boot enrolment and signing (sbctl)
+  voltos-keyring/        the VoltOS package signing key, for pacman-key
   zfs-utils/, zfs-dkms/  OpenZFS 2.4.4 (from the AUR recipes)
   zfsbootmenu-efi/       ZFSBootMenu 3.1.0 release EFI (x86_64)
   zfsbootmenu/           ZFSBootMenu built with generate-zbm (AArch64)
@@ -65,6 +67,8 @@ tools/
   smoke-qemu.sh          boot / install tests in QEMU
   sign-iso.sh            sign the ISO for Secure Boot (shim + VoltOS key)
   make-secureboot-key.sh create the VoltOS Secure Boot key (run once)
+  make-repo-key.sh       create the VoltOS package signing key (run once)
+  publish-repo.sh        publish the package repository (CI)
 ```
 
 ## Building
@@ -221,6 +225,56 @@ the medium, confirm, and reboot. After that the medium (and later releases
 signed with the same key) boots normally. Without the secrets the ISO is
 unsigned and still boots wherever Secure Boot is off. CI boots the signed
 ISO with Secure Boot enforced (`tools/smoke-qemu.sh live-secureboot`).
+
+## Updates
+
+Installed systems get VoltOS's own packages (OpenZFS, ZFSBootMenu, Nimbus,
+the `voltos-*` packages, and on AArch64 the kernel) from the `[voltos]`
+repository, which the installer adds to `/etc/pacman.conf` ahead of `[core]`:
+
+```ini
+[voltos]
+SigLevel = Required DatabaseRequired
+Server = https://github.com/abdonmorales/voltOS/releases/download/repo-$arch
+```
+
+Everything else comes from Arch Linux (Arch Linux ARM on AArch64) as usual,
+so `pacman -Syu` updates both.
+
+The repository is the files of two GitHub releases, `repo-x86_64` and
+`repo-aarch64`, which CI updates on every push to `main` once that
+architecture's build and tests have passed (`tools/publish-repo.sh`). A
+package file that is already published is never replaced, so **to ship a
+change, bump the package's `pkgver` or `pkgrel`**; a rebuild of an unchanged
+version is not published. Old versions are removed when the database stops
+listing them.
+
+Packages and the database are signed with the VoltOS package key; the
+`voltos-keyring` package carries its public half and `pacman-key --populate`
+trusts it. CI needs one secret, `VOLTOS_REPO_KEY`. Create it once, on your own
+machine:
+
+```sh
+tools/make-repo-key.sh                       # -> repo-key/voltos-repo.{key,asc}
+gh secret set VOLTOS_REPO_KEY --repo abdonmorales/voltOS < repo-key/voltos-repo.key
+```
+
+Keep `voltos-repo.key` offline after that: anyone holding it can publish
+packages that every VoltOS system installs. If the key is ever replaced, bump
+`voltos-keyring`'s `pkgver`. Without the secret (forks, local builds) the
+packages are unsigned, there is no `voltos-keyring`, and installed systems do
+not get the `[voltos]` repository.
+
+A system installed before the repository existed can add it by hand (check
+the fingerprint against the one `tools/make-repo-key.sh` printed):
+
+```sh
+curl -fLO https://github.com/abdonmorales/voltOS/releases/download/repo-$(uname -m)/voltos-repo.asc
+sudo pacman-key --add voltos-repo.asc
+sudo pacman-key --lsign-key <fingerprint>
+# add the [voltos] section above to /etc/pacman.conf, before [core], then:
+sudo pacman -Sy voltos-keyring
+```
 
 ## Credits
 

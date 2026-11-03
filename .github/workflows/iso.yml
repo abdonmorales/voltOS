@@ -14,6 +14,9 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
+    # contents: write publishes the package repository (main only).
+    permissions:
+      contents: write
     container:
       image: archlinux:latest
       # mkarchiso mounts file systems; QEMU uses /dev/kvm when present.
@@ -31,8 +34,20 @@ jobs:
       - name: Install build and test dependencies
         run: tools/install-build-deps.sh
 
+      # Signs the packages and builds voltos-keyring when the repository has
+      # the VOLTOS_REPO_KEY secret (tools/make-repo-key.sh).  Without it the
+      # repository is unsigned and nothing is published.
       - name: Build packages (Nimbus, OpenZFS, ZFSBootMenu, VoltOS)
-        run: tools/build-packages.sh
+        env:
+          REPO_KEY: ${{ secrets.VOLTOS_REPO_KEY }}
+        run: |
+          if [ -n "$REPO_KEY" ]; then
+            (umask 077; printf '%s\n' "$REPO_KEY" > "$RUNNER_TEMP/repo.key")
+            export VOLTOS_REPO_KEY_FILE="$RUNNER_TEMP/repo.key"
+            echo "REPO_SIGNED=1" >> "$GITHUB_ENV"
+          fi
+          tools/build-packages.sh
+          rm -f "$RUNNER_TEMP/repo.key"
 
       - name: Build the ISO
         run: tools/build-iso.sh
@@ -75,9 +90,12 @@ jobs:
           SMOKE_SCREENSHOT=out/live-uefi.png tools/smoke-qemu.sh live-uefi "$iso"
           tools/smoke-qemu.sh live-bios "$iso"
 
+      # With a signed repository, the installed system must also fetch and
+      # verify updates from it (the [voltos] repository).
       - name: Install to ZFS and boot through ZFSBootMenu
         run: |
           iso=$(ls out/voltos-*-x86_64.iso)
+          [ "${REPO_SIGNED:-0}" = 1 ] && export SMOKE_REPO=out/repo
           SMOKE_SCREENSHOT=out/installed.png tools/smoke-qemu.sh install "$iso"
 
       - name: Install with the graphical installer and boot the result
@@ -115,6 +133,21 @@ jobs:
             out/*.png
             out/repo/
 
+      # Installed systems update VoltOS's packages from this release
+      # (tools/publish-repo.sh), only after every test above passed.
+      - name: Publish the package repository
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.REPO_SIGNED == '1'
+        env:
+          REPO_KEY: ${{ secrets.VOLTOS_REPO_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          pacman -S --needed --noconfirm github-cli
+          (umask 077; printf '%s\n' "$REPO_KEY" > "$RUNNER_TEMP/repo.key")
+          VOLTOS_REPO_KEY_FILE="$RUNNER_TEMP/repo.key" \
+            tools/publish-repo.sh all out/repo repo-x86_64
+          rm -f "$RUNNER_TEMP/repo.key"
+
   # AArch64: VoltOS for 64-bit ARM UEFI machines, built in an Arch Linux ARM
   # root.  VoltOS builds its own linux-lts there (Arch Linux ARM only has a
   # mainline kernel newer than OpenZFS supports) and ZFSBootMenu is built
@@ -122,6 +155,8 @@ jobs:
   aarch64:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 360
+    permissions:
+      contents: write
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -132,8 +167,21 @@ jobs:
           sudo apt-get install -yq libarchive-tools
           sudo tools/alarm-buildroot.sh /var/tmp/alarm
 
+      # The key file sits in the checkout (bind-mounted at /voltos) only
+      # while it is needed; out/ is not part of any artifact path.
       - name: Build packages (linux-lts, Nimbus, OpenZFS, ZFSBootMenu, VoltOS)
-        run: sudo tools/alarm-chroot.sh /var/tmp/alarm 'cd /voltos && tools/build-packages.sh'
+        env:
+          REPO_KEY: ${{ secrets.VOLTOS_REPO_KEY }}
+        run: |
+          key=
+          if [ -n "$REPO_KEY" ]; then
+            sudo install -d -m 700 out/.key
+            printf '%s\n' "$REPO_KEY" | sudo tee out/.key/repo.key >/dev/null
+            key=VOLTOS_REPO_KEY_FILE=/voltos/out/.key/repo.key
+            echo "REPO_SIGNED=1" >> "$GITHUB_ENV"
+          fi
+          sudo tools/alarm-chroot.sh /var/tmp/alarm "cd /voltos && $key tools/build-packages.sh"
+          sudo rm -rf out/.key
 
       - name: Build the ZFS module with DKMS and ZFSBootMenu with generate-zbm
         run: |
@@ -174,6 +222,25 @@ jobs:
             out/voltos-*-aarch64.iso
             out/SHA256SUMS-aarch64
             out/repo-aarch64/
+
+      # As on x86_64, after the build checks above.  gh runs on the runner;
+      # repo-add (in "prepare") runs in the Arch Linux ARM root.
+      - name: Publish the package repository
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.REPO_SIGNED == '1'
+        env:
+          REPO_KEY: ${{ secrets.VOLTOS_REPO_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          sudo chown -R "$(id -u)" out/repo-aarch64
+          tools/publish-repo.sh list out/repo-aarch64 repo-aarch64
+          sudo install -d -m 700 out/.key
+          printf '%s\n' "$REPO_KEY" | sudo tee out/.key/repo.key >/dev/null
+          sudo tools/alarm-chroot.sh /var/tmp/alarm \
+            'cd /voltos && VOLTOS_REPO_KEY_FILE=/voltos/out/.key/repo.key tools/publish-repo.sh prepare out/repo-aarch64 repo-aarch64'
+          sudo rm -rf out/.key
+          sudo chown -R "$(id -u)" out/repo-aarch64
+          tools/publish-repo.sh upload out/repo-aarch64 repo-aarch64
 
   # Releases publish the x86_64 ISO.  AArch64 is still experimental (built
   # in CI, not yet boot-tested there), so its ISO stays a CI artifact of the

@@ -20,13 +20,18 @@
 # signatures are not checked because a fresh build host has no keys for
 # the OpenZFS release managers (pass VOLTOS_PGP=1 to require them).
 #
+# With VOLTOS_REPO_KEY_FILE set to the package signing key (tools/make-repo-key.sh;
+# the VOLTOS_REPO_KEY secret in CI), every package and the database are signed
+# and voltos-keyring is built with the key's public half.  Without it the
+# repository is unsigned and voltos-keyring is skipped.
+#
 set -euo pipefail
 
 top=$(cd "$(dirname "$0")/.." && pwd)
 carch=$(uname -m)
 repo=$top/out/repo
 [ "$carch" = x86_64 ] || repo=$top/out/repo-$carch
-order=(linux-lts-aarch64 nimbus-gtk-theme voltos-branding voltos-desktop zfs-utils zfs-dkms
+order=(voltos-keyring linux-lts-aarch64 nimbus-gtk-theme voltos-branding voltos-desktop zfs-utils zfs-dkms
        zfsbootmenu-efi perl-boolean zfsbootmenu
        voltos-zfs-snapshots voltos-secureboot voltos-installer voltos-gui-install
        voltos-live)
@@ -44,6 +49,16 @@ else
 	SUDO=sudo
 fi
 
+# shellcheck source=tools/repo-key.sh
+. "$top/tools/repo-key.sh"
+repo_key_import
+trap repo_key_cleanup EXIT
+if [ -n "$REPO_KEY" ]; then
+	gpg --batch --export "$REPO_KEY" >"$top/packages/voltos-keyring/voltos.gpg"
+	echo "$REPO_KEY:4:" >"$top/packages/voltos-keyring/voltos-trusted"
+	chmod 644 "$top/packages/voltos-keyring/voltos.gpg" "$top/packages/voltos-keyring/voltos-trusted"
+fi
+
 mkdir -p "$repo"
 pgp=--skippgpcheck
 [ "${VOLTOS_PGP:-0}" = 1 ] && pgp=
@@ -54,6 +69,10 @@ for pkg in "${order[@]}"; do
 	archs=$(cd "$dir" && bash -c 'source ./PKGBUILD; echo " ${arch[*]} "')
 	if [[ $archs != *" any "* && $archs != *" $carch "* ]]; then
 		echo "==> Skipping $pkg (not for $carch)"
+		continue
+	fi
+	if [ "$pkg" = voltos-keyring ] && [ -z "$REPO_KEY" ]; then
+		echo "==> Skipping $pkg (no signing key)"
 		continue
 	fi
 	echo "==> Building $pkg"
@@ -67,10 +86,13 @@ for pkg in "${order[@]}"; do
 	    --noconfirm $pgp)
 	for f in "$dir"/*.pkg.tar.zst; do
 		cp "$f" "$repo/"
+		[ -z "$REPO_KEY" ] || repo_sign "$repo/${f##*/}"
 	done
 done
 
 rm -f "$repo"/voltos.db* "$repo"/voltos.files*
-repo-add -q -n -R "$repo/voltos.db.tar.gz" "$repo"/*.pkg.tar.zst
+sign=()
+[ -z "$REPO_KEY" ] || sign=(--sign --key "$REPO_KEY")
+repo-add -q -n -R "${sign[@]}" "$repo/voltos.db.tar.gz" "$repo"/*.pkg.tar.zst
 echo "==> Repository: $repo"
 ls -1 "$repo"

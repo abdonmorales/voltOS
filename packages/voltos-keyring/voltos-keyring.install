@@ -1,0 +1,11 @@
+post_install() {
+	# Only once pacman's keyring exists; a new system populates every
+	# keyring (this one included) when it runs pacman-key --init/--populate.
+	if usr/bin/pacman-key -l >/dev/null 2>&1; then
+		usr/bin/pacman-key --populate voltos
+	fi
+}
+
+post_upgrade() {
+	post_install
+}

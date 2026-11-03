@@ -31,6 +31,14 @@ trap 'rm -rf "$profile"' EXIT
 cp -a "$top/archiso/." "$profile/"
 sed -i "s|@VOLTOS_REPO@|$repo|" "$profile/pacman.conf"
 
+# voltos-keyring only exists when the packages were signed
+# (build-packages.sh with the signing key); unsigned builds go without it,
+# and their installed systems without the [voltos] update repository.
+if ! ls "$repo"/voltos-keyring-*.pkg.tar.zst >/dev/null 2>&1; then
+	echo "build-iso.sh: unsigned repository; the ISO has no voltos-keyring" >&2
+	sed -i '/^voltos-keyring$/d' "$profile/packages.x86_64"
+fi
+
 case $carch in
 x86_64) ;;
 aarch64)

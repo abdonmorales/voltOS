@@ -326,6 +326,37 @@ in_target()
 	run arch-chroot "$TARGET" "$@"
 }
 
+# VoltOS's own packages (OpenZFS, ZFSBootMenu, Nimbus, the voltos-* packages,
+# and on AArch64 the kernel) are updated from the [voltos] repository that CI
+# publishes (tools/publish-repo.sh).  It goes before [core] so VoltOS's build
+# wins where both have a package.  Media built without the signing key have
+# no voltos-keyring, and their systems are left without it.
+VOLTOS_REPO_URL='https://github.com/abdonmorales/voltOS/releases/download/repo-$arch'
+
+enable_voltos_repo()
+{
+	local conf=$TARGET/etc/pacman.conf
+	if [ ! -f "$TARGET/usr/share/pacman/keyrings/voltos.gpg" ]; then
+		log "No VoltOS signing key on this medium: updates for VoltOS packages are not enabled"
+		return 0
+	fi
+	grep -q '^\[voltos\]' "$conf" && return 0
+	awk -v url="$VOLTOS_REPO_URL" '
+		!done && /^\[core\]/ {
+			print "# VoltOS packages, signed by the VoltOS key (voltos-keyring)."
+			print "[voltos]"
+			print "SigLevel = Required DatabaseRequired"
+			print "Server = " url
+			print ""
+			done = 1
+		}
+		{ print }' "$conf" >"$conf.new"
+	grep -q '^\[voltos\]' "$conf.new" || die "could not add [voltos] to pacman.conf"
+	cat "$conf.new" >"$conf"
+	rm -f "$conf.new"
+	log "Enabled the [voltos] update repository"
+}
+
 configure()
 {
 	local uuid
@@ -380,6 +411,7 @@ MKINIT
 	# Every keyring the system ships: archlinux on x86_64; archlinuxarm (and
 	# archlinux, for the few Arch packages VoltOS uses) on AArch64.
 	in_target pacman-key --populate
+	enable_voltos_repo
 
 	# EFI system partition and ZFSBootMenu.
 	install -d "$TARGET/boot/efi"

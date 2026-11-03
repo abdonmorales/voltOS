@@ -17,7 +17,10 @@
 #                                          again with Secure Boot enforced)
 #
 # Environment: SMOKE_TIMEOUT (seconds per boot, default 900 - QEMU without
-# KVM is slow), SMOKE_SCREENSHOT (save a PNG of the desktop here), KVM=0/1.
+# KVM is slow), SMOKE_SCREENSHOT (save a PNG of the desktop here), KVM=0/1,
+# SMOKE_REPO=<dir> (install: the signed repository the ISO was built from;
+# the installed system must have [voltos] enabled and fetch and verify
+# updates from it, standing in for the published repository).
 #
 set -euo pipefail
 
@@ -153,6 +156,41 @@ screenshot()
 		cp "$tmp/shot.ppm" "${out%.*}.ppm"
 	fi
 	echo "smoke-qemu.sh: screenshot $out"
+}
+
+# check_updates <repo dir>: the installed system has the [voltos] repository
+# and the VoltOS key, and pacman downloads and verifies the signed database
+# and a package from <repo dir> (served to the guest over QEMU's user
+# network, as the published repository would be).
+check_updates()
+{
+	local out http
+	python3 -m http.server 8089 --bind 127.0.0.1 --directory "$1" \
+	    >"$tmp/http.log" 2>&1 &
+	http=$!
+	sleep 2
+	out=$(guest_sh '
+		set -e
+		grep -A3 "^\[voltos\]" /etc/pacman.conf
+		pacman-key --list-keys "VoltOS Package Signing Key" >/dev/null
+		printf "[options]\nArchitecture = auto\n[voltos]\nSigLevel = Required DatabaseRequired\nServer = http://10.0.2.2:8089\n" >/tmp/repo-test.conf
+		mkdir -p /tmp/repo-test/cache
+		pacman --config /tmp/repo-test.conf --dbpath /tmp/repo-test -Sy >/dev/null
+		f=$(pacman --config /tmp/repo-test.conf --dbpath /tmp/repo-test --cachedir /tmp/repo-test/cache -Sddp voltos-branding)
+		curl -fsS -o /tmp/repo-test/p "$f"
+		curl -fsS -o /tmp/repo-test/p.sig "$f.sig"
+		pacman-key --verify /tmp/repo-test/p.sig /tmp/repo-test/p 2>&1 | tail -n 1
+		echo UPDATES_OK' 2>&1)
+	kill "$http" 2>/dev/null || true
+	printf '%s\n' "$out"
+	case $out in
+	*'[voltos]'*UPDATES_OK*) echo "smoke-qemu.sh: [voltos] updates verify on the installed system" ;;
+	*)
+		echo "smoke-qemu.sh: the installed system cannot verify [voltos] updates" >&2
+		cat "$tmp/http.log" >&2
+		exit 1
+		;;
+	esac
 }
 
 # check_sessions: MATE must be installed as the default session and GNOME
@@ -337,6 +375,7 @@ install)
 	wait_greeter "$timeout"
 	sleep 10
 	screenshot
+	[ -z "${SMOKE_REPO:-}" ] || check_updates "$SMOKE_REPO"
 
 	if [ "${SMOKE_SECBOOT:-0}" = 1 ]; then
 		# Enrol the machine owner's keys and sign the boot chain from

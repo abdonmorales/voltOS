@@ -1,0 +1,23 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# The key VoltOS signs its packages and repository database with, for
+# pacman-key.  voltos.gpg and voltos-trusted are written by
+# tools/build-packages.sh from the signing key it is given (the
+# VOLTOS_REPO_KEY secret in CI); without a key this package is not built.
+# Bump pkgver when the key changes.
+
+pkgname=voltos-keyring
+pkgver=1
+pkgrel=1
+pkgdesc="VoltOS package signing key for pacman"
+arch=('any')
+url="https://github.com/abdonmorales/voltOS"
+license=('MIT')
+install=voltos-keyring.install
+
+package() {
+    local dir="$pkgdir/usr/share/pacman/keyrings"
+    install -Dm644 "$startdir/voltos.gpg" "$dir/voltos.gpg"
+    install -Dm644 "$startdir/voltos-trusted" "$dir/voltos-trusted"
+    install -Dm644 /dev/null "$dir/voltos-revoked"
+}

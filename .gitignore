@@ -14,3 +14,7 @@ __pycache__/
 *.key
 /packages/*/*.xz
 /packages/zfsbootmenu/zfsbootmenu/
+# Package signing keys (tools/make-repo-key.sh) and what CI derives from them.
+/repo-key/
+/packages/voltos-keyring/voltos.gpg
+/packages/voltos-keyring/voltos-trusted
