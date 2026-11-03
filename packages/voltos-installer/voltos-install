@@ -377,7 +377,9 @@ MKINIT
 	# Fresh pacman keyring for the installed system.
 	rm -rf "$TARGET/etc/pacman.d/gnupg"
 	in_target pacman-key --init
-	in_target pacman-key --populate archlinux
+	# Every keyring the system ships: archlinux on x86_64; archlinuxarm (and
+	# archlinux, for the few Arch packages VoltOS uses) on AArch64.
+	in_target pacman-key --populate
 
 	# EFI system partition and ZFSBootMenu.
 	install -d "$TARGET/boot/efi"
