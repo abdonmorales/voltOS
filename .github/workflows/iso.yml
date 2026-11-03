@@ -161,8 +161,9 @@ jobs:
 
       - name: Checksums
         run: |
+          # out/ was written as root inside the build root.
           cd out
-          sha256sum voltos-*-aarch64.iso > SHA256SUMS-aarch64
+          sha256sum voltos-*-aarch64.iso | sudo tee SHA256SUMS-aarch64
 
       - name: Upload ISO and package repository
         uses: actions/upload-artifact@v4
