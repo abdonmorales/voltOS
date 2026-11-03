@@ -168,22 +168,30 @@ check_sessions()
 	done
 }
 
-# app_screenshots: open the file manager (Caja), a GTK 3 utility (Disks) and
-# the graphical installer in the live MATE session and photograph each, to
-# check the Nimbus styling.  Best effort: never fails the test.
+# app_screenshots: open the graphical installer, a GTK 3 utility (Disks)
+# and the file manager (Caja) in the live MATE session, one after another,
+# and photograph each to check the Nimbus styling.  Caja goes last because
+# its window belongs to the desktop's Caja process and is not easily closed.
+# Each app's output goes to /tmp/smoke-<app>.log in the guest and is shown
+# when the app is not running.  Best effort: never fails the test.
 app_screenshots()
 {
 	local env='runuser -u liveuser -- env DISPLAY=:0 XAUTHORITY=/home/liveuser/.Xauthority XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus'
+	local app shot
 	[ -n "${SMOKE_SCREENSHOT:-}" ] || return 0
-	guest_sh "$env setsid caja --no-desktop /home/liveuser >/dev/null 2>&1 &"
-	sleep "${SMOKE_APP_WAIT:-25}"
-	screenshot files
-	guest_sh "pkill -f 'caja --no-desktop'; $env setsid gnome-disks >/dev/null 2>&1 &"
-	sleep "${SMOKE_APP_WAIT:-25}"
-	screenshot disks
-	guest_sh "pkill -f gnome-disks; $env setsid voltos-installer-gtk >/dev/null 2>&1 &"
-	sleep "${SMOKE_APP_WAIT:-25}"
-	screenshot installer
+	for app in voltos-installer-gtk:installer gnome-disks:disks \
+	    "caja --no-desktop /home/liveuser":files; do
+		shot=${app##*:}
+		app=${app%:*}
+		guest_sh "$env setsid $app >/tmp/smoke-$shot.log 2>&1 &"
+		sleep "${SMOKE_APP_WAIT:-25}"
+		screenshot "$shot"
+		if [ -z "$(guest_sh "pgrep -f '${app%% *}'")" ]; then
+			echo "smoke-qemu.sh: $app is not running; its output:"
+			guest_sh "cat /tmp/smoke-$shot.log"
+		fi
+		[ "$shot" = files ] || guest_sh "pkill -f '${app%% *}'" >/dev/null
+	done
 }
 
 uefi_args()
