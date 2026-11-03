@@ -4,13 +4,13 @@
 # installed system (see /usr/share/voltos/live-files on the ISO).
 
 pkgname=voltos-live
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc="VoltOS live session: live user, installer shortcut, unattended install"
 arch=('any')
 url="https://github.com/abdonmorales/voltOS"
 license=('MIT')
-depends=('voltos-installer' 'voltos-branding' 'gdm' 'sudo' 'polkit')
+depends=('voltos-installer' 'voltos-desktop' 'lightdm' 'sudo' 'polkit')
 source=('voltos-live-setup' 'voltos-live-setup.service'
         'voltos-autoinstall' 'voltos-autoinstall.service'
         'voltos-live-ready' 'voltos-live-ready.service'

@@ -12,4 +12,4 @@ Actions=text-mode;
 
 [Desktop Action text-mode]
 Name=Install in Text Mode
-Exec=kgx --title "Install VoltOS" -- sudo /usr/bin/voltos-install
+Exec=voltos-install-text

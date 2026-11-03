@@ -1,5 +1,6 @@
 # --- VoltOS ---
 voltos-branding
+voltos-desktop
 voltos-installer
 voltos-live
 voltos-zfs-snapshots
@@ -26,32 +27,52 @@ dkms
 zfs-dkms
 zfs-utils
 
-# --- GNOME desktop ---
-gdm
-gnome-shell
-gnome-session
-gnome-settings-daemon
-gnome-control-center
-gnome-console
-gnome-text-editor
-gnome-system-monitor
-gnome-disk-utility
-gnome-calculator
-gnome-tweaks
-gnome-shell-extensions
-gnome-keyring
-gnome-backgrounds
-gnome-menus
-nautilus
-sushi
-file-roller
-loupe
-papers
-xdg-user-dirs-gtk
-xdg-desktop-portal-gnome
-gvfs
+# --- MATE desktop (GNOME 2 lineage, as on OpenIndiana) ---
+lightdm
+lightdm-gtk-greeter
+xorg-server
+xf86-input-libinput
+caja
+caja-open-terminal
+marco
+mate-backgrounds
+mate-control-center
+mate-desktop
+mate-icon-theme
+mate-menus
+mate-notification-daemon
+mate-panel
+mate-polkit
+mate-session-manager
+mate-settings-daemon
+mate-themes
+mate-applets
+mate-calc
+mate-media
+mate-power-manager
+mate-screensaver
+mate-system-monitor
+mate-terminal
+mate-utils
+mozo
+atril
+engrampa
+eom
+pluma
+network-manager-applet
+
+# --- GNOME Flashback (Metacity): fallback session in the greeter ---
+gnome-flashback
+gnome-panel
+metacity
+
+# --- Desktop components ---
 gvfs-mtp
 gvfs-smb
+gnome-disk-utility
+gnome-keyring
+xdg-user-dirs-gtk
+gvfs
 firefox
 noto-fonts
 noto-fonts-emoji

@@ -6,6 +6,7 @@
 /etc/systemd/system/multi-user.target.wants/pacman-init.service
 /etc/systemd/system/multi-user.target.wants/voltos-live-setup.service
 /etc/systemd/system/multi-user.target.wants/voltos-autoinstall.service
+/etc/lightdm/lightdm.conf.d/90-voltos-live.conf
 /etc/systemd/journald.conf.d/volatile-storage.conf
 /etc/systemd/logind.conf.d/do-not-suspend.conf
 /usr/share/voltos/live-files

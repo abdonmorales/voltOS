@@ -18,7 +18,7 @@ set -euo pipefail
 
 top=$(cd "$(dirname "$0")/.." && pwd)
 repo=$top/out/repo
-order=(nimbus-gtk-theme voltos-branding zfs-utils zfs-dkms zfsbootmenu-efi
+order=(nimbus-gtk-theme voltos-branding voltos-desktop zfs-utils zfs-dkms zfsbootmenu-efi
        voltos-zfs-snapshots voltos-secureboot voltos-installer voltos-live)
 [ "$#" -gt 0 ] && order=("$@")
 

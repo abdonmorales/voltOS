@@ -1,5 +1,6 @@
 # VoltOS desktop defaults: the Sun/OpenSolaris Nimbus look and feel.
-# Users can still change any of these in Settings or GNOME Tweaks.
+# These org.gnome.desktop keys are read by GNOME Flashback and by GTK
+# applications under any desktop; voltos-desktop adds the MATE settings.
 
 [org.gnome.desktop.interface]
 gtk-theme='nimbus'
@@ -11,11 +12,3 @@ accent-color='slate'
 [org.gnome.desktop.wm.preferences]
 theme='nimbus'
 button-layout='appmenu:minimize,maximize,close'
-
-[org.gnome.shell]
-enabled-extensions=['user-theme@gnome-shell-extensions.gcampax.github.com']
-favorite-apps=['org.gnome.Nautilus.desktop', 'firefox.desktop', 'org.gnome.Console.desktop', 'org.gnome.TextEditor.desktop', 'org.gnome.Settings.desktop']
-
-# Nimbus GNOME Shell theme (shipped in /usr/share/themes/nimbus/gnome-shell).
-[org.gnome.shell.extensions.user-theme]
-name='nimbus'

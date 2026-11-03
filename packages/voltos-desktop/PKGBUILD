@@ -1,0 +1,22 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+
+pkgname=voltos-desktop
+pkgver=2026.11
+pkgrel=1
+pkgdesc="VoltOS desktop: MATE (default) and GNOME Flashback with Nimbus, LightDM greeter"
+arch=('any')
+url="https://github.com/abdonmorales/voltOS"
+license=('MIT')
+depends=('voltos-branding' 'mate-panel' 'marco' 'lightdm' 'lightdm-gtk-greeter'
+         'gnome-flashback' 'metacity')
+source=('91_voltos-mate.gschema.override' '50-voltos.conf' '50-voltos-greeter.conf')
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+package() {
+    install -Dm644 91_voltos-mate.gschema.override \
+        "${pkgdir}"/usr/share/glib-2.0/schemas/91_voltos-mate.gschema.override
+    install -Dm644 50-voltos.conf \
+        "${pkgdir}"/usr/share/lightdm/lightdm.conf.d/50-voltos.conf
+    install -Dm644 50-voltos-greeter.conf \
+        "${pkgdir}"/usr/share/lightdm/lightdm-gtk-greeter.conf.d/50-voltos.conf
+}

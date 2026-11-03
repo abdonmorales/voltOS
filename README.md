@@ -2,9 +2,12 @@
 
 VoltOS is an Arch Linux–based desktop distribution with:
 
-- **The Nimbus look and feel.** GNOME uses the Sun/OpenSolaris Nimbus GTK 3
-  theme, window-manager theme and icon set by default, packaged from
-  [abdonmorales/nimbus](https://github.com/abdonmorales/nimbus).
+- **A GNOME 2-lineage desktop with the Nimbus look.** The desktop is
+  [MATE](https://mate-desktop.org), the continuation of GNOME 2 that
+  OpenIndiana also ships, with the Sun/OpenSolaris Nimbus GTK theme, Metacity
+  window theme and icon set from
+  [abdonmorales/nimbus](https://github.com/abdonmorales/nimbus). LightDM
+  offers **GNOME Flashback (Metacity)** as a fallback session.
 - **A ZFS root with boot environments.** The system is installed on OpenZFS
   and booted by [ZFSBootMenu](https://zfsbootmenu.org). Every pacman
   transaction is preceded by a snapshot of the running boot environment, so
@@ -24,8 +27,8 @@ The first release targets x86_64. The logo is currently Tux.
 | Piece | State |
 | --- | --- |
 | Package repository (`packages/`), incl. OpenZFS 2.4.4 | Builds on Arch Linux |
-| Live ISO, GNOME + Nimbus (`archiso/`) | Builds; boots to the live desktop under UEFI in QEMU (CI) |
-| Installer to ZFS + ZFSBootMenu | `make smoke-install` passes: unattended install, then the installed system boots from ZFS through ZFSBootMenu to GNOME's graphical target |
+| Live ISO, MATE + Nimbus (`archiso/`) | New: switched from GNOME to MATE; being re-verified in CI |
+| Installer to ZFS + ZFSBootMenu | `make smoke-install`: unattended install, then the installed system boots from ZFS through ZFSBootMenu to the login screen |
 | Live ISO on BIOS | Boots to the live desktop under SeaBIOS in QEMU (CI) |
 | CI (`.github/workflows/iso.yml`) | Builds, boots, installs and publishes on `v*` tags |
 
@@ -35,7 +38,8 @@ The first release targets x86_64. The logo is currently Tux.
 archiso/                 live/install medium (archiso profile)
 packages/
   nimbus-gtk-theme/      Nimbus GTK 3, Metacity and icon themes
-  voltos-branding/       os-release identity, Tux logo, GNOME defaults
+  voltos-branding/       os-release identity, Tux logo, shared Nimbus defaults
+  voltos-desktop/        MATE + GNOME Flashback defaults, LightDM greeter
   voltos-installer/      graphical and text installers (voltos-install)
   voltos-live/           live user, autologin helpers, unattended install
   voltos-zfs-snapshots/  pacman hook: snapshot before every transaction
@@ -66,8 +70,8 @@ On any other Linux host with Docker:
 make docker-iso
 ```
 
-Building in QEMU without KVM works, but GNOME is very slow there; use a
-host with `/dev/kvm` for interactive testing.
+Building and testing in QEMU without KVM works, but the desktop is slow
+there; use a host with `/dev/kvm` for interactive testing.
 
 ## Boot loaders
 
@@ -110,15 +114,18 @@ features, and it has no built-in notion of boot environments.
 - **Identity.** `filesystem` owns `/usr/lib/os-release` and `/etc/issue`;
   `voltos-branding` re-applies the VoltOS versions from a pacman hook
   whenever they change.
-- **GNOME and Nimbus.** GTK 3 applications and icons follow Nimbus. The GNOME
-  Shell top bar, menus and quick settings use a Nimbus shell theme
-  (`/usr/share/themes/nimbus/gnome-shell`, enabled through the user-theme
-  extension) layered over GNOME's own light theme. GTK 4/libadwaita
-  applications ignore GTK themes, so new accounts get
-  `~/.config/gtk-4.0/gtk.css` mapping libadwaita's colours to Nimbus's
-  palette; delete it for stock libadwaita. GTK 4/libadwaita applications
-  keep their own widget shapes; only the colours change. Arch no longer
-  ships GTK 2, so Nimbus's GTK 2 engine is not built.
+- **Desktop.** MATE is the default session: Marco draws window frames with
+  the Nimbus Metacity theme, and MATE's GTK 3 applications, Caja's desktop
+  and the panel follow the Nimbus GTK theme and icons (Nimbus ships MATE
+  styling). The Applications menu carries the VoltOS logo. LightDM's GTK
+  greeter uses Nimbus too. GNOME Flashback (gnome-panel + Metacity) is the
+  fallback session, picked from the greeter's session menu. Both run on
+  X11. The few GTK 4/libadwaita programs (such as the installer) get
+  Nimbus colours from `~/.config/gtk-4.0/gtk.css` in new accounts.
+- **GNOME 2 itself.** A GNOME 2.32 desktop on GTK 2 (with Nimbus's original
+  GTK 2 engine) is planned as a separate effort once this distribution is
+  complete. Arch no longer ships GTK 2, so it will come from VoltOS's own
+  packages.
 - **Secure Boot.** Installed systems: firmware -> signed ZFSBootMenu ->
   signed kernel (ZFSBootMenu's locked-down kernel only kexecs kernels signed
   by a key in the firmware db, so `voltos-secureboot` signs both). Put the

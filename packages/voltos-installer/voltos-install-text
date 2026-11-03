@@ -1,0 +1,10 @@
+#!/bin/sh
+# Open the text-mode installer in whatever terminal the desktop has.
+cmd="sudo /usr/bin/voltos-install"
+if command -v mate-terminal >/dev/null 2>&1; then
+	exec mate-terminal --title="Install VoltOS" -- $cmd
+elif command -v kgx >/dev/null 2>&1; then
+	exec kgx --title "Install VoltOS" -- $cmd
+else
+	exec xterm -T "Install VoltOS" -e $cmd
+fi

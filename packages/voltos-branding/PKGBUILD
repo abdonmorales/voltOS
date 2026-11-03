@@ -2,12 +2,12 @@
 
 pkgname=voltos-branding
 pkgver=2026.11
-pkgrel=2
-pkgdesc="VoltOS identity: os-release, logo and Nimbus desktop defaults"
+pkgrel=3
+pkgdesc="VoltOS identity: os-release, logo and shared Nimbus defaults"
 arch=('any')
 url="https://github.com/abdonmorales/voltOS"
 license=('MIT')
-depends=('filesystem' 'nimbus-gtk-theme' 'glib2' 'gnome-shell-extensions')
+depends=('filesystem' 'nimbus-gtk-theme' 'glib2')
 makedepends=('librsvg')
 install=voltos-branding.install
 source=('os-release'
@@ -17,9 +17,8 @@ source=('os-release'
         'issue'
         'voltos-logo.svg'
         'AUTHORS-logo.txt'
-        'gnome-shell.css'
         'gtk4-nimbus.css')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     install -Dm644 os-release "${pkgdir}"/usr/share/voltos/os-release
@@ -29,10 +28,7 @@ package() {
         "${pkgdir}"/usr/share/glib-2.0/schemas/90_voltos.gschema.override
     install -Dm644 issue "${pkgdir}"/usr/share/voltos/issue
 
-    # Nimbus for GNOME Shell (enabled through the user-theme extension)
-    # and for GTK 4/libadwaita apps of newly created accounts.
-    install -Dm644 gnome-shell.css \
-        "${pkgdir}"/usr/share/themes/nimbus/gnome-shell/gnome-shell.css
+    # Nimbus colours for the GTK 4/libadwaita apps of new accounts.
     install -Dm644 gtk4-nimbus.css \
         "${pkgdir}"/etc/skel/.config/gtk-4.0/gtk.css
     install -Dm755 apply-identity "${pkgdir}"/usr/lib/voltos/apply-identity

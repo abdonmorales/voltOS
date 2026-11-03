@@ -304,9 +304,12 @@ default_image="/boot/initramfs-$pkgbase.img"
 PRESET
 	done
 
-	# GDM's stock configuration, without the live session's autologin.
-	printf '# GDM configuration storage\n\n[daemon]\n\n[security]\n\n[xdmcp]\n\n[chooser]\n\n[debug]\n' \
-	    >"$TARGET/etc/gdm/custom.conf"
+	# GDM's stock configuration, without a live session's autologin
+	# (LightDM's live autologin is a drop-in listed in live-files).
+	if [ -d "$TARGET/etc/gdm" ]; then
+		printf '# GDM configuration storage\n\n[daemon]\n\n[security]\n\n[xdmcp]\n\n[chooser]\n\n[debug]\n' \
+		    >"$TARGET/etc/gdm/custom.conf"
+	fi
 
 	install -d -m755 "$TARGET/etc/zfs"
 	run cp /etc/hostid "$TARGET/etc/hostid"
@@ -361,7 +364,10 @@ MKINIT
 	echo '%wheel ALL=(ALL:ALL) ALL' >"$TARGET/etc/sudoers.d/10-wheel"
 	chmod 440 "$TARGET/etc/sudoers.d/10-wheel"
 
-	in_target systemctl enable NetworkManager.service gdm.service \
+	# The display manager the live system uses (LightDM for VoltOS).
+	local dm=lightdm.service
+	[ -f "$TARGET/usr/lib/systemd/system/lightdm.service" ] || dm=gdm.service
+	in_target systemctl enable NetworkManager.service "$dm" \
 	    zfs-import-cache.service zfs-import.target zfs-mount.service \
 	    zfs-zed.service zfs.target
 

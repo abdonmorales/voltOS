@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Boot the VoltOS ISO in QEMU and check that it reaches the graphical
-# GNOME live session.  Optionally run the unattended installer and boot
+# MATE live session.  Optionally run the unattended installer and boot
 # the installed system through ZFSBootMenu.
 #
 #   tools/smoke-qemu.sh live-bios  <iso>   SeaBIOS, live desktop
@@ -113,21 +113,22 @@ for _ in range(60):
 PY
 }
 
-# wait_greeter <seconds>: wait until GDM shows its login screen, i.e. a
-# greeter-class session owned by the gdm user exists in logind.
+# wait_greeter <seconds>: wait until the display manager shows its login
+# screen, i.e. a greeter-class session exists in logind (LightDM's greeter
+# runs as the lightdm user, GDM's as gdm).
 wait_greeter()
 {
 	local i=0 out
 	while [ "$i" -lt "$1" ]; do
 		out=$(guest_sh 'for s in $(loginctl list-sessions --no-legend | awk "{print \$1}"); do loginctl show-session "$s" -p Class -p Name -p Type | tr "\n" " "; echo; done')
-		if printf '%s\n' "$out" | grep 'Class=greeter' | grep -q 'Name=gdm'; then
-			echo "smoke-qemu.sh: GDM login screen is up ($out)"
+		if printf '%s\n' "$out" | grep -q 'Class=greeter'; then
+			echo "smoke-qemu.sh: login screen is up ($out)"
 			return 0
 		fi
 		sleep 5
 		i=$((i + 5))
 	done
-	echo "smoke-qemu.sh: no GDM greeter session after $1 s" >&2
+	echo "smoke-qemu.sh: no greeter session after $1 s" >&2
 	echo "last logind sessions: $out" >&2
 	return 1
 }
@@ -150,17 +151,32 @@ screenshot()
 	echo "smoke-qemu.sh: screenshot $out"
 }
 
-# app_screenshots: open a GTK 4/libadwaita app (Files), a GTK 3 app (Disks)
-# and the graphical installer in the live session and photograph each, to
+# check_sessions: MATE must be installed as the default session and GNOME
+# Flashback (Metacity) as the fallback offered by the greeter.
+check_sessions()
+{
+	local list
+	list=$(guest_sh 'ls /usr/share/xsessions')
+	printf 'smoke-qemu.sh: sessions: %s\n' "$(echo $list)"
+	for want in mate.desktop gnome-flashback-metacity.desktop; do
+		printf '%s\n' "$list" | grep -qx "$want" || {
+			echo "smoke-qemu.sh: session $want is missing" >&2
+			exit 1
+		}
+	done
+}
+
+# app_screenshots: open the file manager (Caja), a GTK 3 utility (Disks) and
+# the graphical installer in the live MATE session and photograph each, to
 # check the Nimbus styling.  Best effort: never fails the test.
 app_screenshots()
 {
-	local env='runuser -u liveuser -- env XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus'
+	local env='runuser -u liveuser -- env DISPLAY=:0 XAUTHORITY=/home/liveuser/.Xauthority XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus'
 	[ -n "${SMOKE_SCREENSHOT:-}" ] || return 0
-	guest_sh "$env setsid nautilus --new-window >/dev/null 2>&1 &"
+	guest_sh "$env setsid caja --no-desktop /home/liveuser >/dev/null 2>&1 &"
 	sleep "${SMOKE_APP_WAIT:-25}"
 	screenshot files
-	guest_sh "pkill -f nautilus; $env setsid gnome-disks >/dev/null 2>&1 &"
+	guest_sh "pkill -f 'caja --no-desktop'; $env setsid gnome-disks >/dev/null 2>&1 &"
 	sleep "${SMOKE_APP_WAIT:-25}"
 	screenshot disks
 	guest_sh "pkill -f gnome-disks; $env setsid voltos-installer-gtk >/dev/null 2>&1 &"
@@ -185,8 +201,8 @@ uefi_args()
 	     "-drive if=pflash,format=raw,unit=1,file=$tmp/vars.fd"
 }
 
-# The live session reports on the serial port once GDM has logged the live
-# user into GNOME (voltos-live-ready.service).  The installed system boots
+# The live session reports on the serial port once LightDM has logged the
+# live user into MATE (voltos-live-ready.service).  The installed system boots
 # with a serial console (voltos.autoinstall.serial=1), so systemd's own
 # status line shows when its graphical target is reached.
 LIVE_RE='VOLTOS_LIVE_READY'
@@ -196,6 +212,7 @@ case "$mode" in
 live-bios)
 	qemu_boot "$tmp/serial.log" -cdrom "$iso"
 	wait_for "$tmp/serial.log" "$LIVE_RE" "$timeout"
+	check_sessions
 	sleep 30
 	screenshot
 	app_screenshots
@@ -204,6 +221,7 @@ live-uefi)
 	# shellcheck disable=SC2046
 	qemu_boot "$tmp/serial.log" $(uefi_args) -cdrom "$iso"
 	wait_for "$tmp/serial.log" "$LIVE_RE" "$timeout"
+	check_sessions
 	sleep 30
 	screenshot
 	app_screenshots
@@ -231,7 +249,7 @@ install)
 	fi
 	wait "${pids[-1]}" || true
 
-	# Second boot: firmware -> ZFSBootMenu -> zroot/ROOT/voltos -> GDM.
+	# Second boot: firmware -> ZFSBootMenu -> zroot/ROOT/voltos -> LightDM.
 	# shellcheck disable=SC2086
 	qemu_boot "$tmp/boot.log" $uefi \
 	    -drive "file=$tmp/disk.qcow2,if=virtio,format=qcow2"

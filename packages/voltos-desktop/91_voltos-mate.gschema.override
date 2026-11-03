@@ -1,0 +1,37 @@
+# VoltOS desktop: MATE (the GNOME 2 continuation, as on OpenIndiana)
+# and the GNOME Flashback fallback session, both with Nimbus.
+
+[org.mate.interface]
+gtk-theme='nimbus'
+icon-theme='nimbus'
+
+[org.mate.Marco.general]
+theme='nimbus'
+button-layout='menu:minimize,maximize,close'
+
+[org.mate.background]
+picture-filename=''
+picture-options='none'
+color-shading-type='vertical-gradient'
+primary-color='#5d7ea3'
+secondary-color='#2b4766'
+
+[org.mate.caja.desktop]
+computer-icon-visible=true
+home-icon-visible=true
+trash-icon-visible=true
+
+# The Applications menu shows the VoltOS logo, like the OpenSolaris panel.
+[org.mate.panel.menubar]
+icon-name='voltos-logo'
+
+# GNOME Flashback (Metacity) fallback session.
+[org.gnome.metacity.theme]
+name='nimbus'
+type='metacity'
+
+[org.gnome.desktop.background]
+picture-options='none'
+color-shading-type='vertical'
+primary-color='#5d7ea3'
+secondary-color='#2b4766'
