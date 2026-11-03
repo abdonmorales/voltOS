@@ -9,3 +9,6 @@
 /packages/nimbus-gtk-theme/nimbus/
 /packages/*/*.asc
 __pycache__/
+# Secure Boot private keys must never be committed.
+/secureboot-key/
+*.key

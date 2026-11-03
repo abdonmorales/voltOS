@@ -5,4 +5,5 @@ set -euo pipefail
 pacman -Syu --noconfirm --needed \
     base-devel git archiso sudo \
     qemu-system-x86 qemu-img edk2-ovmf \
-    socat libarchive imagemagick python
+    socat libarchive imagemagick python \
+    sbsigntools mtools dosfstools openssl virt-firmware

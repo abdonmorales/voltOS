@@ -50,6 +50,8 @@ tools/
   build-packages.sh      build packages into out/repo
   build-iso.sh           build out/voltos-YYYY.MM.DD-x86_64.iso
   smoke-qemu.sh          boot / install tests in QEMU
+  sign-iso.sh            sign the ISO for Secure Boot (shim + VoltOS key)
+  make-secureboot-key.sh create the VoltOS Secure Boot key (run once)
 ```
 
 ## Building
@@ -129,12 +131,34 @@ features, and it has no built-in notion of boot environments.
 - **Secure Boot.** Installed systems: firmware -> signed ZFSBootMenu ->
   signed kernel (ZFSBootMenu's locked-down kernel only kexecs kernels signed
   by a key in the firmware db, so `voltos-secureboot` signs both). Put the
-  firmware in Setup Mode first. The live ISO itself does not boot with Secure
-  Boot on yet: that needs a Microsoft-signed shim and a VoltOS signing key.
+  firmware in Setup Mode first. The live ISO: see below.
 - **Unattended installs.** Booting the live medium with
   `voltos.autoinstall=/dev/DISK` installs to that disk without asking, with
   user `volt` / password `volt`. It exists for CI and mass deployment; never
   use it on a machine whose disk you need.
+
+## Secure Boot for the live ISO
+
+CI signs the ISO when the repository has two Actions secrets,
+`VOLTOS_SB_KEY` and `VOLTOS_SB_CERT`. Create them once, on your own machine:
+
+```sh
+tools/make-secureboot-key.sh                 # -> secureboot-key/voltos-sb.{key,crt,cer}
+gh secret set VOLTOS_SB_KEY  --repo abdonmorales/voltOS < secureboot-key/voltos-sb.key
+gh secret set VOLTOS_SB_CERT --repo abdonmorales/voltOS < secureboot-key/voltos-sb.crt
+```
+
+Keep `voltos-sb.key` offline after that; anyone holding it can sign software
+that machines trusting the VoltOS key will boot.
+
+`tools/sign-iso.sh` turns the built ISO's UEFI boot path into
+Microsoft-signed shim (Fedora's build) -> systemd-boot and kernel signed with
+the VoltOS key. On a PC with Secure Boot on, the first boot stops in shim's
+MokManager: choose *Enroll key from disk*, pick `VOLTOS-SECUREBOOT.cer` from
+the medium, confirm, and reboot. After that the medium (and later releases
+signed with the same key) boots normally. Without the secrets the ISO is
+unsigned and still boots wherever Secure Boot is off. CI boots the signed
+ISO with Secure Boot enforced (`tools/smoke-qemu.sh live-secureboot`).
 
 ## Credits
 
@@ -143,4 +167,5 @@ features, and it has no built-in notion of boot environments.
 - OpenZFS packaging recipes adapted from the AUR `zfs-utils` and `zfs-dkms`
   packages (maintainers credited in each `PKGBUILD`).
 - ZFSBootMenu: the zbm-dev project (MIT).
+- shim: the rhboot project, Microsoft-signed build from Fedora.
 - Tux: Larry Ewing and The GIMP (see `packages/voltos-branding`).

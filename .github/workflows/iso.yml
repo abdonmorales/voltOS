@@ -37,6 +37,38 @@ jobs:
       - name: Build the ISO
         run: tools/build-iso.sh
 
+      # Signs the ISO for Secure Boot when the repository has the
+      # VOLTOS_SB_KEY / VOLTOS_SB_CERT secrets (tools/make-secureboot-key.sh).
+      # Forks and pull requests without them get an unsigned ISO.
+      - name: Sign for Secure Boot
+        env:
+          SB_KEY: ${{ secrets.VOLTOS_SB_KEY }}
+          SB_CERT: ${{ secrets.VOLTOS_SB_CERT }}
+        run: |
+          if [ -z "$SB_KEY" ] || [ -z "$SB_CERT" ]; then
+            echo "No Secure Boot secrets: the ISO stays unsigned."
+            exit 0
+          fi
+          umask 077
+          printf '%s\n' "$SB_KEY" > "$RUNNER_TEMP/sb.key"
+          printf '%s\n' "$SB_CERT" > "$RUNNER_TEMP/sb.crt"
+          iso=$(ls out/voltos-*-x86_64.iso)
+          VOLTOS_SB_KEY="$RUNNER_TEMP/sb.key" VOLTOS_SB_CERT="$RUNNER_TEMP/sb.crt" \
+            tools/sign-iso.sh "$iso" "$iso.signed"
+          mv "$iso.signed" "$iso"
+          rm -f "$RUNNER_TEMP/sb.key"
+          echo "SB_SIGNED=1" >> "$GITHUB_ENV"
+
+      - name: Boot the signed ISO with Secure Boot enforced
+        if: env.SB_SIGNED == '1'
+        env:
+          SB_CERT: ${{ secrets.VOLTOS_SB_CERT }}
+        run: |
+          printf '%s\n' "$SB_CERT" > "$RUNNER_TEMP/sb.crt"
+          iso=$(ls out/voltos-*-x86_64.iso)
+          SMOKE_SB_CERT="$RUNNER_TEMP/sb.crt" SMOKE_SCREENSHOT=out/live-secureboot.png \
+            tools/smoke-qemu.sh live-secureboot "$iso"
+
       - name: Boot the live desktop (UEFI and BIOS)
         run: |
           iso=$(ls out/voltos-*-x86_64.iso)
