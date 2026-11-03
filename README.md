@@ -36,8 +36,8 @@ VoltOS is built for x86_64 (UEFI and BIOS) and, as a newer port, AArch64
 | Installer to ZFS + ZFSBootMenu | `make smoke-install`: unattended install, then the installed system boots from ZFS through ZFSBootMenu to the login screen |
 | Live ISO on BIOS | Boots to the live desktop under SeaBIOS in QEMU (CI) |
 | Graphical installer (OpenSolaris gui-install on GTK 3) | CI installs through the GUI (test mode), then boots the result to the login screen |
-| AArch64 | New: packages and ISO built in CI on an Arch Linux ARM root; not yet boot-tested |
-| CI (`.github/workflows/iso.yml`) | Builds, boots, installs and publishes on `v*` tags |
+| AArch64 | Experimental: packages and ISO built in CI on an Arch Linux ARM root (CI artifact only, not in releases); not yet boot-tested |
+| CI (`.github/workflows/iso.yml`) | Builds, boots, installs and publishes the x86_64 ISO on `v*` tags (0.x tags as pre-releases) |
 
 ## Layout
 

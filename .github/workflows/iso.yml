@@ -175,9 +175,13 @@ jobs:
             out/SHA256SUMS-aarch64
             out/repo-aarch64/
 
+  # Releases publish the x86_64 ISO.  AArch64 is still experimental (built
+  # in CI, not yet boot-tested there), so its ISO stays a CI artifact of the
+  # aarch64 job and is not attached to releases.  0.x tags, and tags with a
+  # suffix such as v1.0.0-rc1, are published as pre-releases.
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build, aarch64]
+    needs: [build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -186,14 +190,13 @@ jobs:
         with:
           name: voltos-x86_64
           path: artifacts
-      - uses: actions/download-artifact@v4
-        with:
-          name: voltos-aarch64
-          path: artifacts
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "$GITHUB_REF_NAME" --title "VoltOS $GITHUB_REF_NAME" \
-            --generate-notes artifacts/voltos-*.iso artifacts/SHA256SUMS*
+          pre=
+          case "$GITHUB_REF_NAME" in v0.*|*-*) pre=--prerelease ;; esac
+          gh release create "$GITHUB_REF_NAME" $pre --title "VoltOS $GITHUB_REF_NAME" \
+            --notes "VoltOS for x86_64 (UEFI and BIOS). AArch64 is experimental and not part of this release." \
+            --generate-notes artifacts/voltos-*-x86_64.iso artifacts/SHA256SUMS
