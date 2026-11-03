@@ -15,7 +15,7 @@ pkgbase=linux-lts
 pkgname=(linux-lts linux-lts-headers)
 _srcname=linux-6.18
 pkgver=6.18.60
-pkgrel=2
+pkgrel=3
 pkgdesc="The LTS Linux kernel and modules (VoltOS, AArch64 multi-platform)"
 arch=('aarch64')
 url="https://www.kernel.org/"
@@ -26,7 +26,7 @@ options=('!strip' '!debug')
 source=("https://cdn.kernel.org/pub/linux/kernel/v6.x/${_srcname}.tar.xz"
         "https://cdn.kernel.org/pub/linux/kernel/v6.x/patch-${pkgver}.xz"
         'config'
-        '0001-efi-keep-screen_info-for-kexec.patch')
+        '0001-efi-pass-the-firmware-framebuffer-to-kexec.patch')
 # From kernel.org's signed sha256sums.asc.
 sha256sums=('9106a4605da9e31ff17659d958782b815f9591ab308d03b0ee21aad6c7dced4b'
             'ddd360daa10fcfe1c04759fc5254e44254e69b7e95973b0c1dd6e05540534771'
@@ -40,9 +40,9 @@ export KBUILD_BUILD_TIMESTAMP="$(date -Ru${SOURCE_DATE_EPOCH:+d @$SOURCE_DATE_EP
 prepare() {
     cd $_srcname
     patch -Np1 -i ../patch-${pkgver}
-    # ZFSBootMenu starts the installed kernel with kexec; keep the firmware
-    # framebuffer's description so that kernel still has a display.
-    patch -Np1 -i ../0001-efi-keep-screen_info-for-kexec.patch
+    # ZFSBootMenu starts the installed kernel with kexec; pass it the
+    # firmware framebuffer so it has a display without a GPU driver.
+    patch -Np1 -i ../0001-efi-pass-the-firmware-framebuffer-to-kexec.patch
 
     echo "-$pkgrel" > localversion.10-pkgrel
     echo "${pkgbase#linux}" > localversion.20-pkgname

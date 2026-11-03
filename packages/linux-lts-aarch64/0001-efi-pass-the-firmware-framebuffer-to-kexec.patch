@@ -1,0 +1,39 @@
+--- a/drivers/firmware/efi/efi-init.c
++++ b/drivers/firmware/efi/efi-init.c
+@@ -76,7 +76,10 @@
+ 			return;
+ 		}
+ 		screen_info = *si;
+-		memset(si, 0, sizeof(*si));
++		/*
++		 * VoltOS: keep the table for a kernel started with kexec
++		 * (see setup_graphics() in libstub/efi-stub.c).
++		 */
+ 		early_memunmap(si, sizeof(*si));
+ 
+ 		if (memblock_is_map_memory(screen_info.lfb_base))
+--- a/drivers/firmware/efi/libstub/efi-stub.c
++++ b/drivers/firmware/efi/libstub/efi-stub.c
+@@ -64,6 +64,22 @@
+ 		return NULL;
+ 
+ 	*si = tmp;
++
++	/*
++	 * VoltOS: on arm64 the stub fills in the kernel's screen_info
++	 * directly, and nothing describes the firmware framebuffer to a
++	 * kernel started later with kexec, which then has no display unless
++	 * it has a GPU driver.  ZFSBootMenu boots the installed kernel that
++	 * way, so also publish a copy as the screen_info configuration table
++	 * (ACPI reclaim memory, kept across kexec), which every kernel's
++	 * efi_init() reads.  x86 passes it through kexec in boot_params.
++	 */
++	if (IS_ENABLED(CONFIG_ARM64)) {
++		struct screen_info *copy = __alloc_screen_info();
++
++		if (copy)
++			*copy = tmp;
++	}
+ 	return si;
+ }
+ 
