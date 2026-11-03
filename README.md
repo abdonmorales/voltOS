@@ -10,8 +10,12 @@ VoltOS is an Arch Linux–based desktop distribution with:
   transaction is preceded by a snapshot of the running boot environment, so
   any upgrade can be rolled back from the boot menu, the way Solaris and
   illumos boot environments work.
-- **Its own installer.** `voltos-install` is a guided installer that copies
-  the tested live system onto the ZFS pool, so it works offline.
+- **Its own installer.** A graphical installer (GTK 4/libadwaita) on the live
+  desktop, with a text-mode fallback. Both run `voltos-install`, which copies
+  the tested live system onto the ZFS pool, so installing works offline.
+- **Secure Boot, with your own keys.** `sudo voltos-secureboot enable` enrols
+  machine-owner keys (plus Microsoft's) and signs ZFSBootMenu and the kernels;
+  updates are re-signed automatically.
 
 The first release targets x86_64. The logo is currently Tux.
 
@@ -32,9 +36,10 @@ archiso/                 live/install medium (archiso profile)
 packages/
   nimbus-gtk-theme/      Nimbus GTK 3, Metacity and icon themes
   voltos-branding/       os-release identity, Tux logo, GNOME defaults
-  voltos-installer/      voltos-install and its desktop launcher
+  voltos-installer/      graphical and text installers (voltos-install)
   voltos-live/           live user, autologin helpers, unattended install
   voltos-zfs-snapshots/  pacman hook: snapshot before every transaction
+  voltos-secureboot/     Secure Boot enrolment and signing (sbctl)
   zfs-utils/, zfs-dkms/  OpenZFS 2.4.4 (from the AUR recipes)
   zfsbootmenu-efi/       ZFSBootMenu 3.1.0 release EFI
 tools/
@@ -51,7 +56,8 @@ On Arch Linux:
 sudo tools/install-build-deps.sh
 sudo make iso            # packages, then the ISO in out/
 make smoke               # boot the live desktop under UEFI in QEMU
-make smoke-install       # unattended ZFS install, then boot it
+make smoke-install       # unattended ZFS install, then boot it to the login screen
+SMOKE_SECBOOT=1 make smoke-install   # ...then enable Secure Boot and boot again
 ```
 
 On any other Linux host with Docker:
@@ -104,12 +110,20 @@ features, and it has no built-in notion of boot environments.
 - **Identity.** `filesystem` owns `/usr/lib/os-release` and `/etc/issue`;
   `voltos-branding` re-applies the VoltOS versions from a pacman hook
   whenever they change.
-- **GNOME and Nimbus.** GTK 3 applications and icons follow Nimbus.
-  GTK 4/libadwaita applications
-  (most core GNOME apps) and the GNOME Shell panel ignore GTK themes by
-  design; they use the slate accent colour instead. A Nimbus GNOME Shell
-  theme and libadwaita styling are future work. Arch no longer ships GTK 2,
-  so Nimbus's GTK 2 engine is not built.
+- **GNOME and Nimbus.** GTK 3 applications and icons follow Nimbus. The GNOME
+  Shell top bar, menus and quick settings use a Nimbus shell theme
+  (`/usr/share/themes/nimbus/gnome-shell`, enabled through the user-theme
+  extension) layered over GNOME's own light theme. GTK 4/libadwaita
+  applications ignore GTK themes, so new accounts get
+  `~/.config/gtk-4.0/gtk.css` mapping libadwaita's colours to Nimbus's
+  palette; delete it for stock libadwaita. GTK 4/libadwaita applications
+  keep their own widget shapes; only the colours change. Arch no longer
+  ships GTK 2, so Nimbus's GTK 2 engine is not built.
+- **Secure Boot.** Installed systems: firmware -> signed ZFSBootMenu ->
+  signed kernel (ZFSBootMenu's locked-down kernel only kexecs kernels signed
+  by a key in the firmware db, so `voltos-secureboot` signs both). Put the
+  firmware in Setup Mode first. The live ISO itself does not boot with Secure
+  Boot on yet: that needs a Microsoft-signed shim and a VoltOS signing key.
 - **Unattended installs.** Booting the live medium with
   `voltos.autoinstall=/dev/DISK` installs to that disk without asking, with
   user `volt` / password `volt`. It exists for CI and mass deployment; never

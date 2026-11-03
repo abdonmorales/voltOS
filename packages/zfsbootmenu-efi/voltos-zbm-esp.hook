@@ -1,0 +1,10 @@
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Target = usr/share/zfsbootmenu/zfsbootmenu.EFI
+
+[Action]
+Description = Updating ZFSBootMenu on the EFI system partition...
+When = PostTransaction
+Exec = /usr/lib/voltos/voltos-zbm-esp

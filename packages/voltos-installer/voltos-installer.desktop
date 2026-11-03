@@ -4,7 +4,12 @@ Name=Install VoltOS
 GenericName=System Installer
 Comment=Install VoltOS on this computer with a ZFS root
 Icon=voltos-logo
-Exec=kgx --title "Install VoltOS" -- sudo /usr/bin/voltos-install
+Exec=voltos-installer-gtk
 Terminal=false
 Categories=System;
 Keywords=install;installer;zfs;
+Actions=text-mode;
+
+[Desktop Action text-mode]
+Name=Install in Text Mode
+Exec=kgx --title "Install VoltOS" -- sudo /usr/bin/voltos-install

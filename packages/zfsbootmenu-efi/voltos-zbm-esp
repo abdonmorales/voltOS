@@ -1,0 +1,16 @@
+#!/bin/sh
+# Copy an updated ZFSBootMenu to the EFI system partition of an installed
+# VoltOS system (the installer put it at EFI/zbm and EFI/BOOT), and re-sign
+# it when Secure Boot signing is set up.
+src=/usr/share/zfsbootmenu/zfsbootmenu.EFI
+esp=/boot/efi
+[ -f "$src" ] || exit 0
+# /boot/efi is an automount; touching it mounts it.  Live media have none.
+[ -d "$esp/EFI/zbm" ] || exit 0
+for dst in "$esp/EFI/zbm/zfsbootmenu.EFI" "$esp/EFI/BOOT/BOOTX64.EFI"; do
+	[ -f "$dst" ] && install -m644 "$src" "$dst" && echo "voltos: updated $dst"
+done
+if command -v sbctl >/dev/null 2>&1 && [ -d /var/lib/sbctl/keys -o -d /usr/share/secureboot/keys ]; then
+	sbctl sign-all
+fi
+exit 0

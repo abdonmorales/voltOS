@@ -1,0 +1,72 @@
+#!/bin/bash
+#
+# voltos-secureboot: turn on UEFI Secure Boot for an installed VoltOS system.
+#
+#   voltos-secureboot status    show firmware and signing state
+#   voltos-secureboot enable    create keys, enroll them, sign the boot chain
+#
+# VoltOS boots firmware -> ZFSBootMenu (EFI) -> kernel in the boot
+# environment (kexec).  With Secure Boot on, the firmware only starts a
+# signed ZFSBootMenu, and ZFSBootMenu's locked-down kernel only kexecs
+# kernels signed by a key in the firmware db.  So both the ZFSBootMenu
+# images on the ESP and every /boot/vmlinuz-* are signed with the machine
+# owner's own key (sbctl), and sbctl's pacman hook re-signs them on update.
+#
+# Microsoft's certificates are enrolled alongside the VoltOS key so GPU
+# option ROMs and other operating systems keep working.
+#
+set -euo pipefail
+
+ESP=/boot/efi
+ZBM_IMAGES=("$ESP/EFI/zbm/zfsbootmenu.EFI" "$ESP/EFI/BOOT/BOOTX64.EFI")
+
+die() { echo "voltos-secureboot: $*" >&2; exit 1; }
+
+need_root() { [ "$(id -u)" -eq 0 ] || die "run as root (sudo voltos-secureboot $1)"; }
+
+status() {
+	[ -d /sys/firmware/efi ] || die "this system did not boot with UEFI"
+	sbctl status
+	echo
+	sbctl verify || true
+}
+
+enable() {
+	need_root enable
+	[ -d /sys/firmware/efi ] || die "this system did not boot with UEFI"
+	ls "$ESP/EFI" >/dev/null 2>&1 || die "$ESP is not mounted"
+
+	if sbctl status --json | grep -q '"setup_mode": *false'; then
+		cat >&2 <<'MSG'
+voltos-secureboot: the firmware is not in Setup Mode, so new keys cannot be
+enrolled.  Restart into the firmware settings, find Secure Boot, choose
+"Reset to Setup Mode" (or "Clear all Secure Boot keys"), leave Secure Boot
+disabled, boot VoltOS again and re-run:  sudo voltos-secureboot enable
+MSG
+		exit 1
+	fi
+
+	[ -d /var/lib/sbctl/keys ] || [ -d /usr/share/secureboot/keys ] ||
+	    sbctl create-keys
+	sbctl enroll-keys --microsoft
+
+	for img in "${ZBM_IMAGES[@]}" /boot/vmlinuz-*; do
+		[ -f "$img" ] || continue
+		sbctl sign --save "$img"
+	done
+	sbctl verify
+
+	cat <<'MSG'
+
+Secure Boot keys are enrolled and the boot chain is signed.  Restart, enable
+Secure Boot in the firmware settings, and VoltOS will boot with it on.
+Kernel and ZFSBootMenu updates are re-signed automatically.
+MSG
+}
+
+command -v sbctl >/dev/null || die "sbctl is not installed"
+case "${1:-status}" in
+status) status ;;
+enable) enable ;;
+*) echo "usage: voltos-secureboot status|enable" >&2; exit 2 ;;
+esac

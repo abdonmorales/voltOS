@@ -19,7 +19,7 @@ set -euo pipefail
 top=$(cd "$(dirname "$0")/.." && pwd)
 repo=$top/out/repo
 order=(nimbus-gtk-theme voltos-branding zfs-utils zfs-dkms zfsbootmenu-efi
-       voltos-zfs-snapshots voltos-installer voltos-live)
+       voltos-zfs-snapshots voltos-secureboot voltos-installer voltos-live)
 [ "$#" -gt 0 ] && order=("$@")
 
 if [ "$(id -u)" -eq 0 ]; then

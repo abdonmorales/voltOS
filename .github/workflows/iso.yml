@@ -48,6 +48,20 @@ jobs:
           iso=$(ls out/voltos-*-x86_64.iso)
           SMOKE_SCREENSHOT=out/installed.png tools/smoke-qemu.sh install "$iso"
 
+      - name: Enable Secure Boot on an installed system and boot with it
+        run: |
+          iso=$(ls out/voltos-*-x86_64.iso)
+          SMOKE_SECBOOT=1 SMOKE_SCREENSHOT=out/secureboot.png \
+            tools/smoke-qemu.sh install "$iso"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          if-no-files-found: ignore
+          path: out/*.png
+
       - name: Checksums
         run: |
           cd out

@@ -1,0 +1,32 @@
+/*
+ * Nimbus palette for GTK 4 / libadwaita applications (VoltOS).
+ *
+ * libadwaita ignores GTK themes, but it reads ~/.config/gtk-4.0/gtk.css.
+ * VoltOS copies this file there for new accounts (/etc/skel).  Only the
+ * light appearance is changed; delete the file to get stock libadwaita.
+ */
+@media (prefers-color-scheme: light) {
+  :root {
+    --accent-bg-color: #39698a;
+    --accent-fg-color: #ffffff;
+    --accent-color: #2f5f80;
+    --window-bg-color: #e8e9ed;
+    --window-fg-color: #000000;
+    --view-bg-color: #ffffff;
+    --view-fg-color: #000000;
+    --headerbar-bg-color: #dcdee4;
+    --headerbar-fg-color: #000000;
+    --headerbar-border-color: #a3a7b0;
+    --sidebar-bg-color: #e1e3e8;
+    --secondary-sidebar-bg-color: #e4e6ea;
+    --popover-bg-color: #f4f5f7;
+    --dialog-bg-color: #e8e9ed;
+    --card-bg-color: #ffffff;
+  }
+}
+
+/* Named colours, for applications that still use @define-color. */
+@define-color accent_bg_color #39698a;
+@define-color accent_color #2f5f80;
+@define-color window_bg_color #e8e9ed;
+@define-color headerbar_bg_color #dcdee4;

@@ -8,6 +8,9 @@
 #   tools/smoke-qemu.sh live-uefi  <iso>   OVMF, live desktop
 #   tools/smoke-qemu.sh install    <iso>   OVMF, install to a ZFS disk,
 #                                          then boot it via ZFSBootMenu
+#                                          (SMOKE_SECBOOT=1: then enrol keys
+#                                          with voltos-secureboot and boot
+#                                          again with Secure Boot enforced)
 #
 # Environment: SMOKE_TIMEOUT (seconds per boot, default 900 - QEMU without
 # KVM is slow), SMOKE_SCREENSHOT (save a PNG of the desktop here), KVM=0/1.
@@ -33,6 +36,11 @@ fi
 
 ovmf_code=
 ovmf_vars=
+ovmf_secboot=
+for c in /usr/share/edk2/x64/OVMF_CODE.secboot.4m.fd \
+    /usr/share/OVMF/OVMF_CODE_4M.secboot.fd; do
+	[ -f "$c" ] && { ovmf_secboot=$c; break; }
+done
 for c in /usr/share/edk2/x64/OVMF_CODE.4m.fd /usr/share/OVMF/OVMF_CODE_4M.fd \
     /usr/share/edk2-ovmf/x64/OVMF_CODE.fd; do
 	[ -f "$c" ] && { ovmf_code=$c; break; }
@@ -48,8 +56,12 @@ qemu_boot()
 {
 	local log=$1
 	shift
+	rm -f "$tmp/qga"
 	qemu-system-x86_64 -machine q35,accel=$accel -cpu max -smp 4 -m 4G \
 	    -display none -vga std -monitor "unix:$tmp/mon,server,nowait" \
+	    -device virtio-serial \
+	    -chardev "socket,path=$tmp/qga,server=on,wait=off,id=qga0" \
+	    -device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0 \
 	    -serial "file:$log" -no-reboot "$@" >"$tmp/qemu.out" 2>&1 &
 	pids+=($!)
 }
@@ -74,23 +86,101 @@ wait_for()
 	return 1
 }
 
+# guest_sh <command>: run a shell command in the guest through the QEMU
+# guest agent and print its output (empty if the agent is not up yet).
+guest_sh()
+{
+	python3 -I - "$tmp/qga" "$1" <<'PY' 2>/dev/null || true
+import base64, json, socket, sys, time
+sock, cmd = sys.argv[1], sys.argv[2]
+def call(f, req):
+    f.write(json.dumps(req) + "\n"); f.flush()
+    while True:
+        r = json.loads(f.readline())
+        if "return" in r or "error" in r:
+            return r
+s = socket.socket(socket.AF_UNIX); s.settimeout(30); s.connect(sock)
+f = s.makefile("rw")
+call(f, {"execute": "guest-sync", "arguments": {"id": 7}})
+pid = call(f, {"execute": "guest-exec", "arguments": {"path": "/bin/sh",
+      "arg": ["-c", cmd], "capture-output": True}})["return"]["pid"]
+for _ in range(60):
+    st = call(f, {"execute": "guest-exec-status", "arguments": {"pid": pid}})["return"]
+    if st.get("exited"):
+        sys.stdout.write(base64.b64decode(st.get("out-data", "")).decode())
+        break
+    time.sleep(1)
+PY
+}
+
+# wait_greeter <seconds>: wait until GDM shows its login screen, i.e. a
+# greeter-class session owned by the gdm user exists in logind.
+wait_greeter()
+{
+	local i=0 out
+	while [ "$i" -lt "$1" ]; do
+		out=$(guest_sh 'for s in $(loginctl list-sessions --no-legend | awk "{print \$1}"); do loginctl show-session "$s" -p Class -p Name -p Type | tr "\n" " "; echo; done')
+		if printf '%s\n' "$out" | grep 'Class=greeter' | grep -q 'Name=gdm'; then
+			echo "smoke-qemu.sh: GDM login screen is up ($out)"
+			return 0
+		fi
+		sleep 5
+		i=$((i + 5))
+	done
+	echo "smoke-qemu.sh: no GDM greeter session after $1 s" >&2
+	echo "last logind sessions: $out" >&2
+	return 1
+}
+
+# screenshot [suffix]: save the screen to $SMOKE_SCREENSHOT (with -suffix
+# inserted before the extension when given).
 screenshot()
 {
+	local out
 	[ -n "${SMOKE_SCREENSHOT:-}" ] || return 0
+	out=$SMOKE_SCREENSHOT
+	[ -n "${1:-}" ] && out="${SMOKE_SCREENSHOT%.*}-$1.${SMOKE_SCREENSHOT##*.}"
 	echo "screendump $tmp/shot.ppm" | socat - "UNIX-CONNECT:$tmp/mon" >/dev/null
 	sleep 2
 	if command -v magick >/dev/null; then
-		magick "$tmp/shot.ppm" "$SMOKE_SCREENSHOT"
+		magick "$tmp/shot.ppm" "$out"
 	else
-		cp "$tmp/shot.ppm" "${SMOKE_SCREENSHOT%.*}.ppm"
+		cp "$tmp/shot.ppm" "${out%.*}.ppm"
 	fi
-	echo "smoke-qemu.sh: screenshot $SMOKE_SCREENSHOT"
+	echo "smoke-qemu.sh: screenshot $out"
+}
+
+# app_screenshots: open a GTK 4/libadwaita app (Files), a GTK 3 app (Disks)
+# and the graphical installer in the live session and photograph each, to
+# check the Nimbus styling.  Best effort: never fails the test.
+app_screenshots()
+{
+	local env='runuser -u liveuser -- env XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus'
+	[ -n "${SMOKE_SCREENSHOT:-}" ] || return 0
+	guest_sh "$env setsid nautilus --new-window >/dev/null 2>&1 &"
+	sleep "${SMOKE_APP_WAIT:-25}"
+	screenshot files
+	guest_sh "pkill -f nautilus; $env setsid gnome-disks >/dev/null 2>&1 &"
+	sleep "${SMOKE_APP_WAIT:-25}"
+	screenshot disks
+	guest_sh "pkill -f gnome-disks; $env setsid voltos-installer-gtk >/dev/null 2>&1 &"
+	sleep "${SMOKE_APP_WAIT:-25}"
+	screenshot installer
 }
 
 uefi_args()
 {
 	[ -n "$ovmf_code" ] || { echo "OVMF not found (install edk2-ovmf)" >&2; exit 1; }
 	cp "$ovmf_vars" "$tmp/vars.fd"
+	if [ "${SMOKE_SECBOOT:-0}" = 1 ]; then
+		# Secure Boot capable firmware, no keys enrolled (Setup Mode).
+		# The variable store must be SMM-protected for it to work.
+		[ -n "$ovmf_secboot" ] || { echo "secure boot OVMF not found" >&2; exit 1; }
+		echo "-machine smm=on -global driver=cfi.pflash01,property=secure,value=on" \
+		     "-drive if=pflash,format=raw,unit=0,readonly=on,file=$ovmf_secboot" \
+		     "-drive if=pflash,format=raw,unit=1,file=$tmp/vars.fd"
+		return
+	fi
 	echo "-drive if=pflash,format=raw,unit=0,readonly=on,file=$ovmf_code" \
 	     "-drive if=pflash,format=raw,unit=1,file=$tmp/vars.fd"
 }
@@ -108,6 +198,7 @@ live-bios)
 	wait_for "$tmp/serial.log" "$LIVE_RE" "$timeout"
 	sleep 30
 	screenshot
+	app_screenshots
 	;;
 live-uefi)
 	# shellcheck disable=SC2046
@@ -115,6 +206,7 @@ live-uefi)
 	wait_for "$tmp/serial.log" "$LIVE_RE" "$timeout"
 	sleep 30
 	screenshot
+	app_screenshots
 	;;
 install)
 	# Boot the ISO's kernel directly so the unattended-install option can
@@ -144,8 +236,35 @@ install)
 	qemu_boot "$tmp/boot.log" $uefi \
 	    -drive "file=$tmp/disk.qcow2,if=virtio,format=qcow2"
 	wait_for "$tmp/boot.log" "$INSTALLED_RE" "$timeout"
-	sleep 30
+	wait_greeter "$timeout"
+	sleep 10
 	screenshot
+
+	if [ "${SMOKE_SECBOOT:-0}" = 1 ]; then
+		# Enrol the machine owner's keys and sign the boot chain from
+		# inside the installed system, then boot with Secure Boot on.
+		out=$(guest_sh 'voltos-secureboot enable 2>&1; echo "rc=$?"')
+		printf '%s\n' "$out"
+		printf '%s\n' "$out" | grep -q '^rc=0$' || {
+			echo "smoke-qemu.sh: voltos-secureboot enable failed" >&2
+			exit 1
+		}
+		guest_sh 'systemctl poweroff' >/dev/null
+		wait "${pids[-1]}" || true
+		# shellcheck disable=SC2086
+		qemu_boot "$tmp/sb.log" $uefi \
+		    -drive "file=$tmp/disk.qcow2,if=virtio,format=qcow2"
+		wait_for "$tmp/sb.log" "$INSTALLED_RE" "$timeout"
+		wait_greeter "$timeout"
+		sb=$(guest_sh 'sbctl status 2>&1')
+		printf '%s\n' "$sb"
+		printf '%s\n' "$sb" | grep -Eq 'Secure Boot:.*Enabled' || {
+			echo "smoke-qemu.sh: Secure Boot is not enabled after reboot" >&2
+			exit 1
+		}
+		echo "smoke-qemu.sh: booted with Secure Boot enforced"
+		screenshot secureboot
+	fi
 	;;
 *)
 	echo "unknown mode $mode" >&2
