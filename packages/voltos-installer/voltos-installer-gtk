@@ -24,7 +24,13 @@ import subprocess
 import sys
 import tempfile
 
-import gi
+# The installer runs on whatever graphics the live medium found: virtual
+# machines, nomodeset, firmware framebuffers.  GTK 4's GPU renderers can draw
+# an empty window there (no text, missing icons), so use the software cairo
+# renderer unless the user picked one.
+os.environ.setdefault("GSK_RENDERER", "cairo")
+
+import gi  # noqa: E402
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
