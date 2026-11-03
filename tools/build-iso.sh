@@ -37,6 +37,10 @@ aarch64)
 	sed -e '/^zfsbootmenu-efi$/c zfsbootmenu' \
 	    -e '/^\(amd-ucode\|intel-ucode\|syslinux\|memtest86+\|memtest86+-efi\)$/d' \
 	    "$profile/packages.x86_64" >"$profile/packages.aarch64"
+	# Arch Linux ARM signs its packages with its own keys.
+	echo archlinuxarm-keyring >>"$profile/packages.aarch64"
+	# memdisk is syslinux's (BIOS) RAM-disk helper; it does not exist here.
+	sed -i 's/ memdisk / /' "$profile/airootfs/etc/mkinitcpio.conf.d/archiso.conf"
 	rm "$profile/packages.x86_64"
 	sed -i -e 's/^arch=.*/arch="aarch64"/' \
 	    -e "s/^bootmodes=.*/bootmodes=('uefi.systemd-boot')/" \
