@@ -8,3 +8,4 @@
 /packages/*/LICENSE
 /packages/nimbus-gtk-theme/nimbus/
 /packages/*/*.asc
+__pycache__/
