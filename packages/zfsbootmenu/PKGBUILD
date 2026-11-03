@@ -11,7 +11,7 @@
 
 pkgname=zfsbootmenu
 pkgver=3.1.0
-pkgrel=1
+pkgrel=2
 _commit=7174e420590a270ece3c6426bdb1d5cdd9ef27b0  # tag v3.1.0
 pkgdesc="ZFS boot environment manager, built locally with generate-zbm"
 arch=('aarch64')
@@ -22,6 +22,8 @@ depends=('bash' 'perl' 'perl-yaml-pp' 'perl-sort-versions' 'perl-boolean'
          'zfs-utils' 'linux-lts')
 makedepends=('git')
 conflicts=('zfsbootmenu-efi')
+# Either ZFSBootMenu package satisfies VoltOS's boot loader dependency.
+provides=('voltos-zbm')
 backup=('etc/zfsbootmenu/config.yaml' 'etc/zfsbootmenu/mkinitcpio.conf')
 source=("git+https://github.com/zbm-dev/zfsbootmenu.git#commit=${_commit}"
         'config.yaml'

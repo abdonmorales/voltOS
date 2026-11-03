@@ -9,10 +9,9 @@ url="https://github.com/abdonmorales/voltOS"
 license=('MIT')
 depends=('bash' 'dialog' 'gptfdisk' 'dosfstools' 'parted' 'rsync'
          'arch-install-scripts' 'efibootmgr' 'zfs-utils'
-         'util-linux' 'sudo' 'polkit')
-# ZFSBootMenu: zfsbootmenu-efi (x86_64) or zfsbootmenu (built locally).
-optdepends=('zfsbootmenu-efi: ZFSBootMenu release EFI (x86_64)'
-            'zfsbootmenu: ZFSBootMenu built with generate-zbm (AArch64)')
+         'util-linux' 'sudo' 'polkit'
+         # ZFSBootMenu: zfsbootmenu-efi (x86_64) or zfsbootmenu (AArch64)
+         'voltos-zbm')
 source=('voltos-install' 'voltos-install-text')
 sha256sums=('SKIP' 'SKIP')
 

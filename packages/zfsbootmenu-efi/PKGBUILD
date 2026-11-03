@@ -8,9 +8,11 @@
 pkgname=zfsbootmenu-efi
 pkgver=3.1.0
 _kver=6.18
-pkgrel=2
+pkgrel=3
 pkgdesc="ZFSBootMenu release EFI executable (boot loader for ZFS boot environments)"
 arch=('x86_64')
+# Either ZFSBootMenu package satisfies VoltOS's boot loader dependency.
+provides=('voltos-zbm')
 url="https://github.com/zbm-dev/zfsbootmenu"
 license=('MIT')
 options=('!strip')
