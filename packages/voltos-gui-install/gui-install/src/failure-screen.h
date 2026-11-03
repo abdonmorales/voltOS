@@ -34,7 +34,7 @@ extern "C" {
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
-#include <glade/glade.h>
+#include "glade-compat.h"
 
 #define	INSTALLLOGNODE "textviewdialog"
 

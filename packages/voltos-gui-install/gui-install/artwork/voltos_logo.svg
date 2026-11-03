@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- VoltOS wordmark for the installer's side bar (Tux: see voltos-branding). -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="155" height="41" viewBox="0 0 155 41">
+  <image x="0" y="1" width="34" height="39" xlink:href="voltos-logo.svg"/>
+  <text x="40" y="29" font-family="Adwaita Sans, DejaVu Sans, sans-serif"
+        font-size="25" letter-spacing="0.5">
+    <tspan fill="#5d7ea3" font-weight="600">Volt</tspan><tspan fill="#595a5e" font-weight="300">OS</tspan>
+  </text>
+  <path d="M41 35 C 75 41, 120 39, 152 27" fill="none" stroke="#7a7b7f" stroke-width="2.2"
+        stroke-linecap="round"/>
+</svg>

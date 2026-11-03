@@ -296,7 +296,7 @@ language_init(GtkWidget *treeview)
 		LanguageWindow.langs[i].index = i;
 
 		LanguageWindow.langs[i].markup = g_markup_printf_escaped(
-				"<span font_desc=\"Arial Bold\">%s</span>",
+				"<span font=\"Arial Bold\">%s</span>",
 				orchestrator_om_language_get_name(info));
 		gtk_list_store_append(liststore, &iter);
 		gtk_list_store_set(liststore, &iter,

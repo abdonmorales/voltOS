@@ -1,17 +1,14 @@
-Welcome to the OpenIndiana Installer
+Welcome to the VoltOS Installer
 
 
-This screen enables you to initiate an interactive installation of the OpenIndiana Operating System (OS).
+This installer puts VoltOS on a disk of this computer. It copies the live system you are running, so everything you see here is what gets installed, and no network connection is needed.
 
-CAUTION: This installation overwrites the whole disk if one of the following is true.
-		a) You are installing to the whole disk.
-		b) The disk was not previously partitioned.
-However, if you choose to install to a Solaris partition on the disk, the installation can be set to overwrite only that partition. Other existing partitions need not be changed. 
+CAUTION: VoltOS is installed on a whole disk. Everything on the disk you choose is erased.
 
-To view the online help for any screen in this installer, select the Help, "?", button on that installer panel. For complete installation instructions, select the Getting Started With OpenIndiana icon on the Live CD desktop and refer to the section in that Getting Started document that covers installing to your system. This Getting Started document also includes a link to the current Release Notes. 
+VoltOS uses a ZFS file system with boot environments. Before every software update a snapshot of the system is taken, and the boot menu (ZFSBootMenu) can start any earlier boot environment or snapshot, so a bad update can always be undone.
 
-CAUTION: This installation does not upgrade an existing OpenIndiana OS. Instead, this installation of the OpenIndiana OS overwrites an existing OpenIndiana OS with the new version of the OpenIndiana OS. If you want to upgrade an existing OpenIndiana OS, use the pkg(1) command or the Package Manager application instead of this installer. For upgrade instructions, select the Getting Started With OpenIndiana icon on the Live CD desktop, and refer to the section in that Getting Started document that covers upgrading your system. 
+To view the help for any screen of this installer, select the Help button on that screen.
 
-Note: You can choose to end the installation on any panel by selecting the Quit button. 
+This installer does not upgrade an existing VoltOS installation. To update an installed system, run "sudo pacman -Syu" on it.
 
-	
+Note: You can end the installation on any screen up to Installation by selecting the Quit button.

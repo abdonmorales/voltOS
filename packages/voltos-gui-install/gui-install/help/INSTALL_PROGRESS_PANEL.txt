@@ -1,7 +1,11 @@
 Installing
 
 
-A progress bar displays during the installation of the OpenIndiana OS.
+VoltOS is being installed. The installer:
 
+  1. partitions the disk and creates the ZFS pool and boot environment,
+  2. copies the system,
+  3. configures it (time zone, locale, your account, the computer name),
+  4. installs the boot menu, ZFSBootMenu, on the EFI system partition.
 
-CAUTION: Do not interrupt an installation in progress.
+Copying the system takes the longest. Wait for the installation to finish; do not turn off the computer.

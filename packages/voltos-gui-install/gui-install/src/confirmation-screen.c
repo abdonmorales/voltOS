@@ -27,7 +27,6 @@
 #endif
 
 #include <gtk/gtk.h>
-#include <glade/glade-build.h>
 #include "installation-profile.h"
 #include "interface-globals.h"
 #include "confirmation-screen.h"
@@ -38,12 +37,12 @@
 #include "language-screen.h"
 #include "installation-screen.h"
 
-gchar *ConfirmSectionHeaderMarkup = "<span font_desc=\"Arial Bold\">%s</span>";
+gchar *ConfirmSectionHeaderMarkup = "<span font=\"Arial Bold\">%s</span>";
 gchar *ConfirmSectionDetailMarkup =
-	"<span font_desc=\"Arial Bold\">&#8226; </span><span font_desc=\"Arial\">%s</span>";
+	"<span font=\"Arial Bold\">&#8226; </span><span font=\"Arial\">%s</span>";
 gchar *ConfirmSectionWarningMarkup = "<span size=\"smaller\">%s</span>";
 gchar *ConfirmSectionIndentDetailMarkup =
-	"<span font_desc=\"Arial Bold\">    &#8226; </span><span font_desc=\"Arial\">%s</span>";
+	"<span font=\"Arial Bold\">    &#8226; </span><span font=\"Arial\">%s</span>";
 
 void
 confirmation_window_init(void)
@@ -391,7 +390,7 @@ confirmation_screen_set_contents(void)
 			add_detail_hbox(
 				MainWindow.ConfirmationWindow.softwarevbox,
 				FALSE, FALSE,
-				_("OpenIndiana"),
+				DISTRO_NAME,
 				NULL);
 
 			/* Timezone Information */
@@ -451,13 +450,11 @@ confirmation_screen_set_contents(void)
 			gtk_widget_show(
 				MainWindow.ConfirmationWindow.accountvbox);
 
-			if (!InstallationProfile.rootpassword) {
-				add_detail_hbox(
-					MainWindow.ConfirmationWindow.accountvbox,
-					TRUE, FALSE,
-					_("Root Account:"),
-					_("A Root password is not defined. The system is unsecured."));
-			}
+			/* VoltOS: root is locked; the user administers with sudo. */
+			add_detail_hbox(
+				MainWindow.ConfirmationWindow.accountvbox,
+				FALSE, FALSE,
+				_("Root Account: locked (use sudo)"), NULL);
 
 			if (!InstallationProfile.loginname) {
 				add_detail_hbox(
@@ -468,7 +465,7 @@ confirmation_screen_set_contents(void)
 			} else {
 				tmpStr =
 					g_strdup_printf(
-						_("User Account: %s"),
+						_("User Account: %s (administrator)"),
 						InstallationProfile.loginname);
 				add_detail_hbox(
 					MainWindow.ConfirmationWindow.accountvbox,

@@ -28,41 +28,23 @@
 #endif
 
 #include <gtk/gtk.h>
-#include <gconf/gconf-client.h>
 #include "window-graphics.h"
 
+/*
+ * VoltOS: the original read the window size from GConf keys that the
+ * live medium set for its screen; GTK 3 has no GConf, so use the default
+ * size, shrunk to fit small screens.
+ */
 void
 window_graphics_set_size_properties(GtkWidget *window)
 {
-	GConfClient *client = NULL;
-	GError *error = NULL;
-	gint width = 0;
-	gint height = 0;
+	GdkScreen *screen = gtk_widget_get_screen(window);
+	gint width = DEFWIDTH, height = DEFHEIGHT;
 
-	client = gconf_client_get_default();
-	if (!client) {
-		g_warning("Failed to connect to gconf database.\n"
-			"Using fallback values for window width and height");
-		width = DEFWIDTH;
-		height = DEFHEIGHT;
-	} else {
-		width = gconf_client_get_int(client,
-			GCONF_WIDTH_KEY,
-			&error);
-		height = gconf_client_get_int(client,
-			GCONF_HEIGHT_KEY,
-			&error);
-		if (width == 0 || height == 0 || error != NULL) {
-			g_warning("Connected to gconf database but could not retrieve"
-				"window geometry schema values.\n"
-				"Using fallback values");
-			width = DEFWIDTH;
-			height = DEFHEIGHT;
-		}
-		gconf_client_clear_cache(client);
-		g_object_unref(G_OBJECT(client));
+	if (screen != NULL) {
+		width = MIN(width, gdk_screen_get_width(screen) - 40);
+		height = MIN(height, gdk_screen_get_height(screen) - 80);
 	}
-
 	gtk_window_set_default_size(GTK_WINDOW(window), width, height);
 }
 
@@ -82,7 +64,7 @@ window_graphics_dialog_set_wm_properties(GtkWidget *dialog)
 		gtk_widget_realize(dialog);
 	}
 
-	gdkwindow = dialog->window;
+	gdkwindow = gtk_widget_get_window(dialog);
 
 	if (gdkwindow) {
 		gdk_window_set_functions(gdkwindow,
@@ -100,7 +82,7 @@ window_graphics_dialog_set_properties(GtkWidget *dialog)
 		window_graphics_dialog_set_wm_properties(dialog);
 	}
 
-	gdkwindow = dialog->window;
+	gdkwindow = gtk_widget_get_window(dialog);
 	if (gdkwindow) {
 		gdk_window_raise(gdkwindow);
 	}

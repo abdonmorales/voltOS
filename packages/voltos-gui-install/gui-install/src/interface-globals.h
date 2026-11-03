@@ -34,7 +34,7 @@ extern "C" {
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
-#include <glade/glade.h>
+#include "glade-compat.h"
 #include <welcome-screen.h>
 #include <users-screen.h>
 #include <datetimezone-screen.h>
@@ -70,12 +70,12 @@ extern "C" {
 #define	HELP_WELCOME_FILENAME			"WELCOME_PANEL.txt"
 
 /* Text paths */
-#define	LICENSE_AGREEMENT_PATH		"/usr/lib/install/data/os/5.11/licenses"
+#define	LICENSE_AGREEMENT_PATH		TEXTDIR
 #define	HELP_PATH					TEXTDIR "/help"
 #define	INSTALL_PROGRESS_PATH		TEXTDIR "/installmessages"
 /* Install log path is a constant */
-#define	INSTALL_LOG_FULLPATH		"/tmp/install_log"
-#define	UPGRADE_LOG_FULLPATH		"/a/var/sadm/install_data/upgrade_log"
+#define	INSTALL_LOG_FULLPATH		"/tmp/gui-install.log"
+#define	UPGRADE_LOG_FULLPATH		"/tmp/gui-install.log"
 
 /* Glade XML root node definitions */
 #define	ROOTNODE "mainwindow"

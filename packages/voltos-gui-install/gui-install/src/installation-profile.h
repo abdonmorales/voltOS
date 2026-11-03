@@ -35,6 +35,7 @@ extern "C" {
 #include <config.h>
 #endif
 #include <orchestrator-wrappers.h>
+#include <libzoneinfo.h>
 
 typedef enum {
 	INSTALLATION_TYPE_INITIAL_INSTALL
@@ -45,16 +46,10 @@ typedef struct _InstallationProfileType {
 	InstallationType installationtype;
 	/* install */
 	const gchar *diskname;
-	/* upgrade */
-	const gchar *slicename;
 	gchar *disktype;
 	gfloat disksize;
 	gfloat installpartsize;
-	disk_parts_t *partitions;
-
 	disk_info_t *dinfo;
-	upgrade_info_t *uinfo;
-	char *releasename;
 
 	struct tz_continent *continent;
 	struct tz_country *country;

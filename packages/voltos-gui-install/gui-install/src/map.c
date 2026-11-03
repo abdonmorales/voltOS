@@ -32,6 +32,9 @@
 #include "map.h"
 
 #define ZOOM_IN_SCALE 1.3
+/* VoltOS: a little smaller than the original 0.64, for GTK 3's taller
+ * date and time controls under the map. */
+#define MAP_SCALE 0.58
 
 enum {
 	TIMEZONE_ADDED,
@@ -77,6 +80,9 @@ struct _MapPrivate
 	continent_item *continents;
 	int nctnt;
 
+	/* cairo context of the draw in progress (VoltOS: GTK 3 drawing) */
+	cairo_t *cr;
+
 	/* seleted timezone */
 	timezone_item *selected_zone;
 	/* hovered timzone */
@@ -90,12 +96,19 @@ G_DEFINE_TYPE(Map, map, GTK_TYPE_DRAWING_AREA)
 
 static void	map_class_init(MapClass *klass);
 static void	map_init(Map *map);
-static void	map_destroy(GtkObject *object);
 static void map_finalize(GObject *object);
+#if GTK_CHECK_VERSION(3, 0, 0)
+static void	map_get_preferred_width(GtkWidget *widget,
+				gint *minimum, gint *natural);
+static void	map_get_preferred_height(GtkWidget *widget,
+				gint *minimum, gint *natural);
+static gboolean	map_draw(GtkWidget *widget, cairo_t *cr);
+#else
 static void	map_size_request(GtkWidget *widget,
 				GtkRequisition *requisition);
 static gint	map_expose(GtkWidget *widget,
 				GdkEventExpose *event);
+#endif
 static void scale_map(Map *map);
 static void update_rectangle(Map *map, gboolean update_timezone);
 static void zoom(Map *map, gdouble scale);
@@ -104,17 +117,23 @@ static void	map_timezone_cleanup(Map *map);
 static void
 map_class_init(MapClass *klass)
 {
-	GtkObjectClass *object_class;
+	GObjectClass *object_class;
 	GtkWidgetClass *widget_class;
 
-	parent_class = gtk_type_class(GTK_TYPE_WIDGET);
+	parent_class = g_type_class_peek_parent(klass);
 
-	object_class = (GtkObjectClass *)klass;
-	object_class->destroy = map_destroy;
+	object_class = G_OBJECT_CLASS(klass);
+	object_class->finalize = map_finalize;
 
 	widget_class = (GtkWidgetClass *)klass;
+#if GTK_CHECK_VERSION(3, 0, 0)
+	widget_class->draw = map_draw;
+	widget_class->get_preferred_width = map_get_preferred_width;
+	widget_class->get_preferred_height = map_get_preferred_height;
+#else
 	widget_class->expose_event = map_expose;
 	widget_class->size_request = map_size_request;
+#endif
 
 	signals[TIMEZONE_ADDED] =
 		g_signal_new ("timezone-added",
@@ -143,16 +162,6 @@ map_init(Map *map)
 }
 
 static void
-map_destroy(GtkObject *object)
-{
-	g_return_if_fail(object != NULL);
-	g_return_if_fail(IS_MAP(object));
-
-	if (GTK_OBJECT_CLASS(parent_class)->destroy)
-		(*GTK_OBJECT_CLASS(parent_class)->destroy)(object);
-}
-
-static void
 map_finalize(GObject *object)
 {
 	Map *map;
@@ -166,39 +175,39 @@ map_finalize(GObject *object)
 
 	if (priv) {
 		if (priv->pixbuf) {
-			gdk_pixbuf_unref(priv->pixbuf);
+			g_object_unref(priv->pixbuf);
 			priv->pixbuf = NULL;
 		}
 
 		if (priv->hand) {
-			gdk_pixbuf_unref(priv->hand);
+			g_object_unref(priv->hand);
 			priv->hand = NULL;
 		}
 
 		if (priv->hand_cursor) {
-			gdk_cursor_unref(priv->hand_cursor);
+			g_object_unref(priv->hand_cursor);
 			priv->hand_cursor = NULL;
 		}
 
 		if (priv->magnifier) {
-			gdk_pixbuf_unref(priv->magnifier);
+			g_object_unref(priv->magnifier);
 			priv->magnifier = NULL;
 		}
 
 		if (priv->magnifier_cursor) {
-			gdk_cursor_unref(priv->magnifier_cursor);
+			g_object_unref(priv->magnifier_cursor);
 			priv->magnifier_cursor = NULL;
 		}
 
 		for (gint i = 0; i < POINT_STATE; i++) {
-			for (gint j = 0; i < ZOOM_STATE; j++) {
-				gdk_pixbuf_unref(priv->city_pixbuf[i][j]);
+			for (gint j = 0; j < ZOOM_STATE; j++) {
+				g_object_unref(priv->city_pixbuf[i][j]);
 				priv->city_pixbuf[i][j] = NULL;
 			}
 		}
 
 		if (priv->scaled_pixbuf) {
-			gdk_pixbuf_unref(priv->scaled_pixbuf);
+			g_object_unref(priv->scaled_pixbuf);
 			priv->scaled_pixbuf = NULL;
 		}
 
@@ -215,6 +224,23 @@ map_finalize(GObject *object)
 		G_OBJECT_CLASS(parent_class)->finalize(object);
 }
 
+#if GTK_CHECK_VERSION(3, 0, 0)
+static void
+map_get_preferred_width(GtkWidget *widget, gint *minimum, gint *natural)
+{
+	MapPrivate *priv = MAP(widget)->priv;
+
+	*minimum = *natural = gdk_pixbuf_get_width(priv->pixbuf) * MAP_SCALE;
+}
+
+static void
+map_get_preferred_height(GtkWidget *widget, gint *minimum, gint *natural)
+{
+	MapPrivate *priv = MAP(widget)->priv;
+
+	*minimum = *natural = gdk_pixbuf_get_height(priv->pixbuf) * MAP_SCALE;
+}
+#else
 static void
 map_size_request(GtkWidget *widget,
 				GtkRequisition *requisition)
@@ -227,31 +253,46 @@ map_size_request(GtkWidget *widget,
 	priv = MAP(widget)->priv;
 	if (GTK_WIDGET_VISIBLE(widget)) {
 		requisition->width =
-			gdk_pixbuf_get_width(priv->pixbuf) * 0.64; 
+			gdk_pixbuf_get_width(priv->pixbuf) * MAP_SCALE;
 		requisition->height =
-			gdk_pixbuf_get_height(priv->pixbuf) * 0.64;
+			gdk_pixbuf_get_height(priv->pixbuf) * MAP_SCALE;
 	}
+}
+#endif
+
+/*
+ * Copy a w x h block of pixbuf at (sx, sy) to (dx, dy) of the drawing in
+ * progress (VoltOS: replaces gdk_draw_pixbuf()).
+ */
+static void
+blit(cairo_t *cr, GdkPixbuf *pixbuf, gint sx, gint sy, gint dx, gint dy,
+    gint w, gint h)
+{
+	if (w <= 0 || h <= 0)
+		return;
+	cairo_save(cr);
+	cairo_rectangle(cr, dx, dy, w, h);
+	cairo_clip(cr);
+	gdk_cairo_set_source_pixbuf(cr, pixbuf, dx - sx, dy - sy);
+	cairo_paint(cr);
+	cairo_restore(cr);
 }
 
 static void
 draw_point(Map *map, gint x, gint y, GdkPixbuf *pixbuf)
 {
-	GtkWidget *widget;
-
 	g_return_if_fail(IS_MAP(map));
 
-	widget = GTK_WIDGET(map);
-
-	gdk_draw_pixbuf(widget->window,
-			widget->style->black_gc,
-			pixbuf,
-			0, 0,
-			x - gdk_pixbuf_get_width(pixbuf) / 2,
-			y - gdk_pixbuf_get_height(pixbuf) / 2,
-			gdk_pixbuf_get_width(pixbuf),
-			gdk_pixbuf_get_height(pixbuf),
-			GDK_RGB_DITHER_NORMAL,
-			0, 0);
+	/* Outside a draw, schedule one; the point is drawn there. */
+	if (map->priv->cr == NULL) {
+		gtk_widget_queue_draw(GTK_WIDGET(map));
+		return;
+	}
+	blit(map->priv->cr, pixbuf, 0, 0,
+	    x - gdk_pixbuf_get_width(pixbuf) / 2,
+	    y - gdk_pixbuf_get_height(pixbuf) / 2,
+	    gdk_pixbuf_get_width(pixbuf),
+	    gdk_pixbuf_get_height(pixbuf));
 }
 
 static void
@@ -279,7 +320,7 @@ do_redraw(Map *map)
 {
 	MapPrivate *priv;
 	GtkWidget *widget;
-	GtkAllocation *allocation;
+	GtkAllocation *allocation, alloc;
 	gint x, y;
 	gint width, height;
 	gint rwidth, rheight;
@@ -292,7 +333,8 @@ do_redraw(Map *map)
 		return;
 
 	widget = GTK_WIDGET(map);
-	allocation = &widget->allocation;
+	gtk_widget_get_allocation(widget, &alloc);
+	allocation = &alloc;
 	rwidth = width =
 		gdk_pixbuf_get_width(priv->scaled_pixbuf);
 	rxoff = priv->xoffset;
@@ -313,52 +355,31 @@ do_redraw(Map *map)
 		height = allocation->height;
 	}
 
-	gdk_window_clear_area(widget->window,
-			0, 0,
-			widget->allocation.width,
-			widget->allocation.height);
-	gdk_draw_pixbuf(widget->window,
-			widget->style->black_gc,
-			priv->scaled_pixbuf,
-			rxoff, ryoff,
-			x, y,
-			(rwidth - rxoff), (rheight - ryoff),
-			GDK_RGB_DITHER_NORMAL,
-			0, 0);
+	if (priv->cr == NULL) {
+		gtk_widget_queue_draw(widget);
+		return;
+	}
+	cairo_save(priv->cr);
+	cairo_set_source_rgb(priv->cr, 1.0, 1.0, 1.0);
+	cairo_paint(priv->cr);
+	cairo_restore(priv->cr);
+	blit(priv->cr, priv->scaled_pixbuf, rxoff, ryoff, x, y,
+	    (rwidth - rxoff), (rheight - ryoff));
 	if (rxoff + width > rwidth) {
-		gdk_draw_pixbuf(widget->window,
-				widget->style->black_gc,
-				priv->scaled_pixbuf,
-				0, ryoff,
-				x + (rwidth - rxoff), y,
-				(width + rxoff - rwidth),
-				(rheight - ryoff),
-				GDK_RGB_DITHER_NORMAL,
-				0, 0);
+		blit(priv->cr, priv->scaled_pixbuf, 0, ryoff,
+		    x + (rwidth - rxoff), y,
+		    (width + rxoff - rwidth), (rheight - ryoff));
 	}
 	if (ryoff + height > rheight) {
-		gdk_draw_pixbuf(widget->window,
-				widget->style->black_gc,
-				priv->scaled_pixbuf,
-				rxoff, 0,
-				x, (y + (rheight - ryoff)),
-				(rwidth - rxoff),
-				(height + ryoff - rheight),
-				GDK_RGB_DITHER_NORMAL,
-				0, 0);
+		blit(priv->cr, priv->scaled_pixbuf, rxoff, 0,
+		    x, (y + (rheight - ryoff)),
+		    (rwidth - rxoff), (height + ryoff - rheight));
 	}
 	if (rxoff + width > rwidth &&
 			ryoff + height > rheight) {
-		gdk_draw_pixbuf(widget->window,
-				widget->style->black_gc,
-				priv->scaled_pixbuf,
-				0, 0,
-				(x + (rwidth - rxoff)),
-				(y + (rheight - ryoff)),
-				(width + rxoff - rwidth),
-				(height + ryoff - rheight),
-				GDK_RGB_DITHER_NORMAL,
-				0, 0);
+		blit(priv->cr, priv->scaled_pixbuf, 0, 0,
+		    (x + (rwidth - rxoff)), (y + (rheight - ryoff)),
+		    (width + rxoff - rwidth), (height + ryoff - rheight));
 	}
 }
 
@@ -380,7 +401,7 @@ scale_pixbuf(Map *map, gdouble scale)
 	width = gdk_pixbuf_get_width(priv->pixbuf) * priv->scale;
 	height = gdk_pixbuf_get_height(priv->pixbuf) * priv->scale;
 	if (priv->scaled_pixbuf)
-		gdk_pixbuf_unref(priv->scaled_pixbuf);
+		g_object_unref(priv->scaled_pixbuf);
 	priv->scaled_pixbuf =
 		gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8,
 				width, height);
@@ -410,7 +431,7 @@ scale_map(Map *map)
 		if (parent && priv->zoom_out_scale == 0.0) {
 			gdouble scale;
 
-			scale = (gdouble) parent->allocation.width /
+			scale = (gdouble) gtk_widget_get_allocated_width(parent) /
 				gdk_pixbuf_get_width(map->priv->pixbuf);
 			if (scale > ZOOM_IN_SCALE)
 				priv->zoom_out_scale = ZOOM_IN_SCALE;
@@ -432,28 +453,41 @@ update_rectangle(Map *map, gboolean update_timezone)
 	}
 }
 
-static gboolean
-map_expose(GtkWidget *widget, GdkEventExpose *event)
+static void
+map_paint(GtkWidget *widget, cairo_t *cr)
 {
-	MapPrivate *priv;
-
-	g_return_val_if_fail(widget != NULL, FALSE);
-	g_return_val_if_fail(IS_MAP(widget), FALSE);
-	g_return_val_if_fail(event != NULL, FALSE);
-
-	if (event->count > 0)
-		return FALSE;
-
-	priv = MAP(widget)->priv;
+	MapPrivate *priv = MAP(widget)->priv;
 
 	if (priv->scaled_pixbuf &&
 			(gdk_pixbuf_get_height(priv->scaled_pixbuf) <
-			widget->allocation.height))
+			gtk_widget_get_allocated_height(widget)))
 		priv->yoffset = 0;
+	priv->cr = cr;
 	update_rectangle(MAP(widget), TRUE);
+	priv->cr = NULL;
+}
 
+#if GTK_CHECK_VERSION(3, 0, 0)
+static gboolean
+map_draw(GtkWidget *widget, cairo_t *cr)
+{
+	map_paint(widget, cr);
 	return TRUE;
 }
+#else
+static gboolean
+map_expose(GtkWidget *widget, GdkEventExpose *event)
+{
+	cairo_t *cr;
+
+	if (event->count > 0)
+		return FALSE;
+	cr = gdk_cairo_create(widget->window);
+	map_paint(widget, cr);
+	cairo_destroy(cr);
+	return TRUE;
+}
+#endif
 
 GtkWidget*
 map_new(void)
@@ -494,14 +528,14 @@ map_new(void)
 	if (!pixbuf || !hand || !magnifier ||
 			!city_normal_l || !city_mouseover_l || !city_selected_l ||
 			!city_normal_s || !city_mouseover_s || !city_selected_s) {
-		gdk_pixbuf_unref(pixbuf);
-		gdk_pixbuf_unref(hand);
-		gdk_pixbuf_unref(city_normal_l);
-		gdk_pixbuf_unref(city_mouseover_l);
-		gdk_pixbuf_unref(city_selected_l);
-		gdk_pixbuf_unref(city_normal_s);
-		gdk_pixbuf_unref(city_mouseover_s);
-		gdk_pixbuf_unref(city_selected_s);
+		g_object_unref(pixbuf);
+		g_object_unref(hand);
+		g_object_unref(city_normal_l);
+		g_object_unref(city_mouseover_l);
+		g_object_unref(city_selected_l);
+		g_object_unref(city_normal_s);
+		g_object_unref(city_mouseover_s);
+		g_object_unref(city_selected_s);
 		return NULL;
 	}
 
@@ -552,8 +586,7 @@ zoom(Map *map, gdouble scale)
 
 	scale_pixbuf(map, scale);
 
-	map_draw_timezones(map);
-	gdk_window_invalidate_rect(widget->window, &widget->allocation, FALSE);
+	gtk_widget_queue_draw(widget);
 }
 
 void
@@ -627,12 +660,12 @@ map_draw_timezone(Map *map, timezone_item *zone)
 	if (y + 3 > height)
 		y -= 3;
 
-	if (GTK_WIDGET(map)->allocation.width > width)
-		origx = (GTK_WIDGET(map)->allocation.width - width) / 2;
+	if (gtk_widget_get_allocated_width(GTK_WIDGET(map)) > width)
+		origx = (gtk_widget_get_allocated_width(GTK_WIDGET(map)) - width) / 2;
 	else
 		origx = 0;
-	if (GTK_WIDGET(map)->allocation.height > height)
-		origy = (GTK_WIDGET(map)->allocation.height - height) /2;
+	if (gtk_widget_get_allocated_height(GTK_WIDGET(map)) > height)
+		origy = (gtk_widget_get_allocated_height(GTK_WIDGET(map)) - height) /2;
 	else
 		origy = 0;
 	x = (x - priv->xoffset + width) % width + origx;
@@ -955,12 +988,12 @@ map_get_closest_timezone(Map *map, gint x, gint y, gint *distance)
 
 	width = gdk_pixbuf_get_width(priv->scaled_pixbuf);
 	height = gdk_pixbuf_get_height(priv->scaled_pixbuf);
-	if (GTK_WIDGET(map)->allocation.width > width)
-		origx = (GTK_WIDGET(map)->allocation.width - width) / 2;
+	if (gtk_widget_get_allocated_width(GTK_WIDGET(map)) > width)
+		origx = (gtk_widget_get_allocated_width(GTK_WIDGET(map)) - width) / 2;
 	else
 		origx = 0;
-	if (GTK_WIDGET(map)->allocation.height > height)
-		origy = (GTK_WIDGET(map)->allocation.height - height) /2;
+	if (gtk_widget_get_allocated_height(GTK_WIDGET(map)) > height)
+		origy = (gtk_widget_get_allocated_height(GTK_WIDGET(map)) - height) /2;
 	else
 		origy = 0;
 	x = (x - origx + priv->xoffset) % width;
@@ -1013,8 +1046,8 @@ map_update_offset_with_scale(Map *map, gdouble x, gdouble y)
 	else
 		scale = priv->zoom_out_scale / ZOOM_IN_SCALE;
 
-	awidth = GTK_WIDGET(map)->allocation.width;
-	aheight = GTK_WIDGET(map)->allocation.height;
+	awidth = gtk_widget_get_allocated_width(GTK_WIDGET(map));
+	aheight = gtk_widget_get_allocated_height(GTK_WIDGET(map));
 
 	/*
 	 * width and height of the worldmap before zooming
@@ -1095,8 +1128,8 @@ map_update_offset(Map *map, gdouble newx, gdouble newy)
 	if (yoff != 0) {
 		if (priv->yoffset - yoff < 0)
 			priv->yoffset = 0;
-		else if ((priv->yoffset -yoff) > height - widget->allocation.height)
-			priv->yoffset = height - widget->allocation.height;
+		else if ((priv->yoffset -yoff) > height - gtk_widget_get_allocated_height(widget))
+			priv->yoffset = height - gtk_widget_get_allocated_height(widget);
 		else
 			priv->yoffset =
 				(priv->yoffset - yoff + height) % height;
@@ -1121,9 +1154,9 @@ map_set_cursor(Map *map)
 
 	if (map->priv->zoom == ZOOM_OUT) {
 		if (map->priv->scale < ZOOM_IN_SCALE)
-			gdk_window_set_cursor(GTK_WIDGET(map)->window, map->priv->magnifier_cursor);
+			gdk_window_set_cursor(gtk_widget_get_window(GTK_WIDGET(map)), map->priv->magnifier_cursor);
 	} else
-		gdk_window_set_cursor(GTK_WIDGET(map)->window, map->priv->hand_cursor);
+		gdk_window_set_cursor(gtk_widget_get_window(GTK_WIDGET(map)), map->priv->hand_cursor);
 }
 
 void
@@ -1131,7 +1164,7 @@ map_set_hand_cursor(Map *map)
 {
 	g_return_if_fail(IS_MAP(map));
 
-	gdk_window_set_cursor(GTK_WIDGET(map)->window, map->priv->hand_cursor);
+	gdk_window_set_cursor(gtk_widget_get_window(GTK_WIDGET(map)), map->priv->hand_cursor);
 }
 
 void
@@ -1140,7 +1173,7 @@ map_set_magnifier_cursor(Map *map)
 	g_return_if_fail(IS_MAP(map));
 
 	if (map->priv->scale < ZOOM_IN_SCALE)
-		gdk_window_set_cursor(GTK_WIDGET(map)->window, map->priv->magnifier_cursor);
+		gdk_window_set_cursor(gtk_widget_get_window(GTK_WIDGET(map)), map->priv->magnifier_cursor);
 }
 
 void
@@ -1148,5 +1181,5 @@ map_set_default_cursor(Map *map)
 {
 	g_return_if_fail(IS_MAP(map));
 
-	gdk_window_set_cursor(GTK_WIDGET(map)->window, NULL);
+	gdk_window_set_cursor(gtk_widget_get_window(GTK_WIDGET(map)), NULL);
 }

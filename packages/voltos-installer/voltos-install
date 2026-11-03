@@ -23,7 +23,7 @@
 # Usage:
 #   voltos-install                    interactive (dialog)
 #   voltos-install --config FILE      unattended; FILE holds KEY=value lines:
-#                                     DISK HOSTNAME USERNAME PASSWORD
+#                                     DISK HOSTNAME USERNAME FULLNAME PASSWORD
 #                                     TIMEZONE LOCALE KEYMAP POOL REBOOT
 #                                     CMDLINE (kernel command line)
 #
@@ -39,6 +39,7 @@ LOG=/var/log/voltos-install.log
 DISK=""
 HOSTNAME_="voltos"
 USERNAME=""
+FULLNAME=""
 PASSWORD=""
 TIMEZONE="UTC"
 LOCALE="en_US.UTF-8"
@@ -97,6 +98,7 @@ read_config()
 		DISK) DISK=$value ;;
 		HOSTNAME) HOSTNAME_=$value ;;
 		USERNAME) USERNAME=$value ;;
+		FULLNAME) FULLNAME=$value ;;
 		PASSWORD) PASSWORD=$value ;;
 		TIMEZONE) TIMEZONE=$value ;;
 		LOCALE) LOCALE=$value ;;
@@ -345,7 +347,7 @@ HOSTS
 
 	# Live-medium-only packages (live user, autologin, unattended install).
 	local livepkgs
-	livepkgs=$(arch-chroot "$TARGET" pacman -Qq voltos-live mkinitcpio-archiso 2>/dev/null || true)
+	livepkgs=$(arch-chroot "$TARGET" pacman -Qq voltos-live voltos-gui-install mkinitcpio-archiso 2>/dev/null || true)
 	[ -z "$livepkgs" ] || in_target pacman -Rdd --noconfirm $livepkgs
 
 	# Initramfs with ZFS: the zfs hook imports the pool and mounts the
@@ -357,7 +359,7 @@ MKINIT
 	in_target mkinitcpio -P
 
 	# Accounts: the user administers the system through sudo; root is locked.
-	in_target useradd -m -G wheel -s /bin/bash "$USERNAME"
+	in_target useradd -m -G wheel -s /bin/bash -c "$FULLNAME" "$USERNAME"
 	printf '%s:%s\n' "$USERNAME" "$PASSWORD" |
 	    arch-chroot "$TARGET" chpasswd >>"$LOG" 2>&1 ||
 	    die "could not set the password"

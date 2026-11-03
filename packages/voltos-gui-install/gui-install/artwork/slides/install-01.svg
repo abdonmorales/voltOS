@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="590" height="369" viewBox="0 0 590 369">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5d7ea3"/><stop offset="1" stop-color="#2b4766"/>
+    </linearGradient>
+  </defs>
+  <rect width="590" height="369" rx="6" fill="url(#bg)"/>
+  <text x="40" y="70" font-family="Adwaita Sans, DejaVu Sans, sans-serif" font-size="26"
+        font-weight="600" fill="#ffffff">Thank you for choosing VoltOS</text>
+  <rect x="40" y="88" width="80" height="3" fill="#f0c040"/>
+  <text x="40" y="140" font-family="Adwaita Sans, DejaVu Sans, sans-serif" font-size="17"
+        fill="#e8eef5"><tspan x="40" dy="0">VoltOS is an Arch Linux-based desktop system with the</tspan><tspan x="40" dy="24">look of the classic Sun desktop, a ZFS root file system</tspan><tspan x="40" dy="24">and boot environments.</tspan><tspan x="40" dy="24"></tspan><tspan x="40" dy="24">Installation takes a few minutes.</tspan></text>
+  <text x="550" y="345" text-anchor="end" font-family="Adwaita Sans, DejaVu Sans, sans-serif"
+        font-size="15" fill="#c8d4e2"><tspan font-weight="600">Volt</tspan>OS</text>
+</svg>

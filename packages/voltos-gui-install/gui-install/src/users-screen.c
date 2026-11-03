@@ -30,13 +30,14 @@
 #include <gdk/gdkkeysyms.h>
 #include <ctype.h>
 #include <pwd.h>
+#include <sys/param.h>
 #include <netdb.h>
 #include "installation-profile.h"
 #include "interface-globals.h"
 #include "users-screen.h"
 #include "callbacks.h"
 
-gchar *PasswordErrorMarkup = N_("<span size=\"smaller\"><span font_desc=\"Bold\">Error: </span>%s</span>");
+gchar *PasswordErrorMarkup = N_("<span size=\"smaller\"><span font=\"Bold\">Error: </span>%s</span>");
 
 static gboolean
 is_str_empty(gchar *str)
@@ -196,6 +197,9 @@ users_load_widgets(void)
 	GtkWidget *loginnamelabel;
 	GtkWidget *hostnamelabel;
 
+	/* VoltOS: no root password (root is locked); see users_validate(). */
+	gtk_widget_hide(glade_xml_get_widget(MainWindow.userswindowxml,
+	    "rootframe"));
 	MainWindow.UsersWindow.userstoplevel = glade_xml_get_widget(
 													MainWindow.userswindowxml,
 													"userstoplevel");
@@ -371,7 +375,7 @@ users_validate_login_name(gboolean check_changed)
 			 * root, daemon, nobody, bin, sys etc...
 			 */
 			pw_buffer = g_new0(gchar, pwbuflen);
-			p = getpwnam_r(loginname, &password, pw_buffer, pwbuflen);
+			(void) getpwnam_r(loginname, &password, pw_buffer, pwbuflen, &p);
 
 			if (p != NULL) {
 				/*
@@ -714,31 +718,27 @@ users_validate(void)
 		}
 	}
 
-	if (!root_password_entered()) {
-		ret_val =
-			gui_install_prompt_dialog(
-				TRUE,
-				TRUE,
-				FALSE,
-				GTK_MESSAGE_WARNING,
-				_("No root password"),
-				_("A root password has not been defined. The system is completely unsecured.\nClick Cancel to set a root password."));
-		if (!ret_val) {
-			users_clear_info_warning_labels();
-			users_entry_unselect_text(
-				MainWindow.UsersWindow.hostnameentry);
-			gtk_widget_grab_focus(
-				MainWindow.UsersWindow.rootpassword1entry);
-			users_entry_select_text(
-				MainWindow.UsersWindow.rootpassword1entry);
-			return (ret_val);
-		}
+	/*
+	 * VoltOS: root is locked on installed systems; the account created
+	 * here administers the system with sudo, so it is required.
+	 */
+	if (!user_account_entered() ||
+	    is_str_empty((gchar *) gtk_entry_get_text(
+	    GTK_ENTRY(MainWindow.UsersWindow.userpassword1entry)))) {
+		gui_install_prompt_dialog(FALSE, FALSE, FALSE,
+		    GTK_MESSAGE_ERROR,
+		    _("A user account is required"),
+		    _(DISTRO_NAME " has no root password: the account created "
+		    "here administers the system with sudo. Enter a log-in "
+		    "name and a password."));
+		gtk_widget_grab_focus(MainWindow.UsersWindow.usernameentry);
+		return (FALSE);
 	}
 
 	if (host_name_empty) {
 		gtk_entry_set_text(
 		    GTK_ENTRY(MainWindow.UsersWindow.hostnameentry),
-		    "openindiana");
+		    "voltos");
 		ret_val = gui_install_prompt_dialog(
 		    TRUE,
 		    TRUE,
@@ -759,7 +759,7 @@ users_validate(void)
 		/* user has chosen to continue to summary screen */
 		if (!user_account_entered()) {
 			/* Ensure other user account fields are blanked out */
-			if (!user_account_entered) {
+			if (!user_account_entered()) {
 				if (!username_empty) {
 					gtk_entry_set_text(
 						GTK_ENTRY(MainWindow.UsersWindow.usernameentry),
@@ -975,7 +975,7 @@ users_validate_host_name(gboolean check_changed)
 		if (is_str_empty(hostname)) {
 			gtk_entry_set_text(
 					GTK_ENTRY(MainWindow.UsersWindow.hostnameentry),
-					"openindiana");
+					"voltos");
 		}
 		gtk_widget_grab_focus(
 				MainWindow.UsersWindow.hostnameentry);

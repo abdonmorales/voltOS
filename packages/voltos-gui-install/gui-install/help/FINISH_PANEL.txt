@@ -1,14 +1,8 @@
-Finish
+Finished
 
 
-After the installation is complete, this panel provides a link to a summary log for your review. 
+VoltOS is installed. Select Reboot, and remove the installation medium when the computer restarts.
 
-Procedure
+The computer starts ZFSBootMenu, which starts VoltOS after a short countdown. Press Escape during the countdown to choose another boot environment or a snapshot.
 
-You can either quit or reboot from this panel. 
-
-	* After a successful installation, to start the installed system, select Reboot. The reboot process might take a few minutes.
-
-	Note – Eject the Live CD as the next boot begins. Or, select the "Boot from Hard Disk" option on the GRUB menu.
-
-	* To exit, select Quit and shutdown your system.
+To review what the installer did, select the installation log.

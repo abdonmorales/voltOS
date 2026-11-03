@@ -1,13 +1,6 @@
 Installation Failed
 
 
-This panel displays if the OpenIndiana OS installation failed.
+The installation did not complete. Select the installation log to see what went wrong; the complete log is also in /var/log/voltos-install.log on the live system.
 
-
-Procedures
-
-1. Optional: Select the link  to view the installation log in a separate window.
-
-2. Select Quit to exit this panel. 
-
-
+Disks other than the one you selected were not changed.

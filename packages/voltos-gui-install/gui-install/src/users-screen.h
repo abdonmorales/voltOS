@@ -36,7 +36,7 @@ extern "C" {
 #include <config.h>
 #endif
 #include <glib.h>
-#include <glade/glade.h>
+#include "glade-compat.h"
 
 typedef struct _UsersWindowXML {
 	GtkWidget *userstoplevel;

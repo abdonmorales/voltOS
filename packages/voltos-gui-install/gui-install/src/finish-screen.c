@@ -30,13 +30,13 @@
 #include <glib.h>
 #include <glib/gi18n.h>
 #include <gdk/gdkkeysyms.h>
-#include <glade/glade.h>
+#include "glade-compat.h"
 #include "interface-globals.h"
 #include "help-dialog.h"
 #include "finish-screen.h"
 #include "window-graphics.h"
 
-static const gchar *labelmarkup = "<span font_desc=\"Bold\">%s</span>";
+static const gchar *labelmarkup = "<span font=\"Bold\">%s</span>";
 static const gchar *buttonmarkup = "<span foreground=\"#5582a3\">%s</span>";
 
 void
@@ -160,10 +160,10 @@ finish_screen_set_contents(void)
 	switch (InstallationProfile.installationtype) {
 		case INSTALLATION_TYPE_INITIAL_INSTALL:
 			labelstr = g_strdup_printf(labelmarkup,
-			    _("OpenIndiana installation is complete. Review the "
-			    "OpenIndiana installation log for more information"));
+			    _(DISTRO_NAME " installation is complete. Review the "
+			    DISTRO_NAME " installation log for more information"));
 			buttonstr = g_strdup_printf(buttonmarkup,
-			    _("OpenIndiana installation log"));
+			    _(DISTRO_NAME " installation log"));
 			break;
 	}
 	gtk_label_set_label(GTK_LABEL(

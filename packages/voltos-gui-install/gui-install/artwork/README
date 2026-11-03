@@ -1,0 +1,5 @@
+Sources of the installer's VoltOS artwork, rendered with rsvg-convert:
+
+  voltos_logo.svg   -> ../pixmaps/voltos_logo.png  (needs voltos-logo.svg,
+                       the Tux logo from packages/voltos-branding, next to it)
+  slides/*.svg      -> ../slides/*.png  (installation slideshow)

@@ -1,0 +1,20 @@
+VoltOS is free software. The installed system is made of many programs,
+each under its own licence; the licence of every package is in
+/usr/share/licenses on the installed system.
+
+The main parts:
+
+  - VoltOS's own packages and scripts: MIT licence.
+  - The Linux kernel: GNU General Public License, version 2.
+  - OpenZFS: Common Development and Distribution License (CDDL) 1.0.
+  - ZFSBootMenu: MIT licence.
+  - The MATE desktop, GNOME Flashback and most applications: GNU General
+    Public License and GNU Lesser General Public License.
+  - This installer: based on the OpenSolaris installer (Caiman) from Sun
+    Microsystems and Oracle, CDDL 1.0, with VoltOS's changes under the MIT
+    licence.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT, TO THE EXTENT
+PERMITTED BY THE LICENCES ABOVE.

@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Install VoltOS
+GenericName=System Installer
+Comment=Install VoltOS on this computer (ZFS root, boot environments)
+Icon=voltos-logo
+Exec=gui-install
+Terminal=false
+Categories=System;
+Keywords=install;installer;zfs;
+Actions=text-mode;
+
+[Desktop Action text-mode]
+Name=Install in Text Mode
+Exec=voltos-install-text

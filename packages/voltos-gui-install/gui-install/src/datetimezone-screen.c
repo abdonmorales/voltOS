@@ -38,7 +38,7 @@
 
 #include <errno.h>
 #include <glib.h>
-#include <glade/glade.h>
+#include "glade-compat.h"
 #include "callbacks.h"
 #include "interface-globals.h"
 #include "datetimezone-screen.h"
@@ -687,10 +687,24 @@ datetimezone_set_system_clock(gboolean reallysetit)
 	/* Preserve the seconds value since the GUI doesn't let you set it */
 	newtime->tm_sec = oldtime->tm_sec;
 	newsystemtime = mktime(newtime);
-	/* Set the time for real */
-	if (stime(&newsystemtime) < 0) {
-		g_warning("Failed to set system clock: %s",
-			g_strerror(errno));
+	/*
+	 * Set the time for real (VoltOS: through systemd-timedated, which
+	 * also updates the hardware clock).  Leave a clock that is already
+	 * right, and synchronised over the network, alone.
+	 */
+	if (ABS(newsystemtime - oldsystemtime) > 120) {
+		gchar *when = g_strdup_printf("@%lld", (long long)newsystemtime);
+		gchar *ntp_off[] = { "timedatectl", "set-ntp", "false", NULL };
+		gchar *set[] = { "timedatectl", "set-time", when, NULL };
+		gint status = 0;
+
+		(void) g_spawn_sync(NULL, ntp_off, NULL, G_SPAWN_SEARCH_PATH,
+		    NULL, NULL, NULL, NULL, NULL, NULL);
+		if (!g_spawn_sync(NULL, set, NULL, G_SPAWN_SEARCH_PATH, NULL,
+		    NULL, NULL, NULL, &status, NULL) ||
+		    !g_spawn_check_wait_status(status, NULL))
+			g_warning("Failed to set the system clock");
+		g_free(when);
 	}
 }
 

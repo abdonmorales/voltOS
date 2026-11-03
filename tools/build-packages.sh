@@ -28,7 +28,8 @@ repo=$top/out/repo
 [ "$carch" = x86_64 ] || repo=$top/out/repo-$carch
 order=(linux-lts-aarch64 nimbus-gtk-theme voltos-branding voltos-desktop zfs-utils zfs-dkms
        zfsbootmenu-efi perl-boolean zfsbootmenu
-       voltos-zfs-snapshots voltos-secureboot voltos-installer voltos-live)
+       voltos-zfs-snapshots voltos-secureboot voltos-installer voltos-gui-install
+       voltos-live)
 [ "$#" -gt 0 ] && order=("$@")
 
 if [ "$(id -u)" -eq 0 ]; then

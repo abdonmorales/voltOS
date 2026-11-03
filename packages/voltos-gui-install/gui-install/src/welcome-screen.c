@@ -44,45 +44,11 @@
 #include "welcome-screen.h"
 #include "help-dialog.h"
 
-#define	XDG_OPEN "/usr/bin/xdg-open"
-#define	RELFILE "/etc/release"
-#define	RELEASENOTESURLFORMAT \
-    "https://docs.openindiana.org/release-notes/%s-release-notes/"
-#define	FALLBACKURL "https://docs.openindiana.org/release-notes/latest-changes/"
-#define	MAXVERLEN 10
-#define	MAXURLSIZE 100
-
-static gboolean
-extract_version(char *version, size_t sz)
-{
-	FILE *fl;
-	char buf[1024], *s;
-	gboolean status = FALSE;
-
-	fl = fopen(RELFILE, "r");
-
-	if (fl != NULL) {
-		if (fgets(buf, sizeof(buf), fl) != NULL) {
-			char *t;
-			int n;
-
-			s=buf;
-			while (isblank(*s))
-				s++;
-			/* Looking for third word in "OpenIndiana Hipster VERSION" string */
-			t = strtok(s, " ");
-			for (n = 0; n < 2 && t!= NULL; n++)
-				t = strtok(NULL, " ");
-			if (t != NULL) {
-				snprintf(version, sz, t);
-				status = TRUE;
-			}
-		}
-		fclose(fl);
-	}
-	return status;
-}
-
+/*
+ * VoltOS: the release notes are the project's release page; open it in the
+ * user's browser (the installer runs as the live user, not as root).
+ */
+#define	RELEASENOTESURL DISTRO_URL "/releases"
 
 /*
  * Signal handler connected up by Glade XML signal autoconnect
@@ -92,69 +58,12 @@ gboolean
 on_releasenotesbutton_clicked(GtkWidget *widget,
 		gpointer user_data)
 {
-	GError *error = NULL;
-	gboolean result;
-	uid_t suid;
-	int pid;
+	gchar *argv[] = { "xdg-open", RELEASENOTESURL, NULL };
 
-	result = FALSE;
-	/* The installer will typically be run as root under sudo,
-           but we don't want to run browser as root */
-
-	suid = geteuid();
-	if (suid == 0) {
-		char *sudo_uid;
-
-		sudo_uid = getenv("SUDO_UID");
-		if (sudo_uid)
-			suid = strtol(sudo_uid, (char**)NULL, 10);
-	}
-	pid = fork();
-	if (pid == 0) {
-		char version[MAXVERLEN];
-		char url[MAXURLSIZE];
-
-		if (suid > 0 && suid != geteuid()) {
-			struct passwd *pw;
-
-			setuid(suid);
-			pw = getpwuid(suid);
-			if (pw != NULL) {
-				if (pw->pw_name != NULL) {
-					setenv("USERNAME", pw->pw_name, 1);
-					setenv("LOGNAME", pw->pw_name, 1);
-				}
-				if (pw->pw_dir != NULL) {
-					setenv("HOME", pw->pw_dir, 1);
-				}
-			}
-		}
-		if (extract_version(version, MAXVERLEN)) {
-			snprintf(url, MAXURLSIZE, RELEASENOTESURLFORMAT, version);
-		} else {
-			snprintf(url, MAXURLSIZE, FALLBACKURL);
-		}
-		execl(XDG_OPEN, XDG_OPEN, url, (char *)0);
-
-		exit(-1);
-	} else if (pid > 0) {
-		int status;
-
-		waitpid(pid, &status, 0);
-		if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-			result = TRUE;
-		}
-	}
-
-	if (result != TRUE) {
-		gui_install_prompt_dialog(
-			FALSE,
-			FALSE,
-			FALSE,
-			GTK_MESSAGE_ERROR,
-			_("Unable to display release notes"),
-			NULL);
-		g_error_free(error);
+	if (!g_spawn_async(NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL,
+	    NULL, NULL)) {
+		gui_install_prompt_dialog(FALSE, FALSE, FALSE, GTK_MESSAGE_ERROR,
+		    _("Unable to display release notes"), RELEASENOTESURL);
 	}
 	return (TRUE);
 }

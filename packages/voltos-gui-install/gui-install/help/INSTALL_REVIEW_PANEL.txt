@@ -1,16 +1,6 @@
 Installation
 
 
-This panel enables you to review and confirm installation specifications.
+Review the settings below before installing. Select Back to change them.
 
-
-Procedure
-
-1. Review your installation selections.
-
-2. Optional: Use the back button to make changes.
-
-3. Click Install. A progress bar displays during the installation.
-
-	CAUTION: The installation begins when you click Install. Do not interrupt an installation in progress.
-	
+When you select Install, the disk shown is erased and VoltOS is installed on it. The installation cannot be stopped once it has started.

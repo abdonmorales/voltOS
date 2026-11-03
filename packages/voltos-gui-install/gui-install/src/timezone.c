@@ -69,7 +69,6 @@ G_DEFINE_TYPE(Timezone, timezone, GTK_TYPE_VBOX)
 
 static void	timezone_class_init(TimezoneClass *klass);
 static void	timezone_init(Timezone *timezone);
-static void	timezone_destroy(GtkObject *object);
 static void timezone_finalize(GObject *object);
 static gboolean	on_button_pressed(GtkWidget *widget,
 		GdkEventButton *event, gpointer user_data);
@@ -90,15 +89,12 @@ static void	timezone_get_current_tz(Timezone *timezone,
 static void
 timezone_class_init(TimezoneClass *klass)
 {
-	GtkObjectClass *object_class;
-	GtkWidgetClass *widget_class;
+	GObjectClass *object_class;
 
-	parent_class = gtk_type_class(GTK_TYPE_WIDGET);
+	parent_class = g_type_class_peek_parent(klass);
 
-	object_class = (GtkObjectClass *)klass;
-	object_class->destroy = timezone_destroy;
-
-	widget_class = (GtkWidgetClass *)klass;
+	object_class = G_OBJECT_CLASS(klass);
+	object_class->finalize = timezone_finalize;
 
 	select_label = _("- Select -");
 }
@@ -109,35 +105,22 @@ on_query_tooltip(GtkWidget *widget, gint x, gint y,
 			gpointer user_data)
 {
 	timezone_item *tz;
+	const char *name;
+	gchar *city;
 
 	tz = map_get_closest_timezone(MAP(widget), x, y, NULL);
-	if (tz) {
-		char *str;
-
-		if (tz->timezone->tz_oname) {
-			str = strrchr(tz->timezone->tz_oname, '/');
-			if (str && (*(str + 1) != 0)) {
-				gtk_tooltip_set_text(tooltip, str + 1);
-
-				return TRUE;
-			} else if (!str) {
-				gtk_tooltip_set_text(tooltip, tz->timezone->tz_oname);
-
-				return TRUE;
-			}
-		}
-
-		if (tz->timezone->tz_name) {
-			str = strrchr(tz->timezone->tz_name, '/');
-			if (str && (*(str + 1) != 0))
-				gtk_tooltip_set_text(tooltip, str + 1);
-			else
-				gtk_tooltip_set_text(tooltip, tz->timezone->tz_name);
-
-			return TRUE;
-		}
-	} else
+	if (tz == NULL || tz->timezone == NULL)
 		return FALSE;
+	/* The city: last part of the zone name, e.g. "Buenos Aires" */
+	name = tz->timezone->tz_oname[0] ? tz->timezone->tz_oname :
+	    tz->timezone->tz_name;
+	if (strrchr(name, '/') != NULL && *(strrchr(name, '/') + 1) != '\0')
+		name = strrchr(name, '/') + 1;
+	city = g_strdup(name);
+	g_strdelimit(city, "_", ' ');
+	gtk_tooltip_set_text(tooltip, city);
+	g_free(city);
+	return TRUE;
 }
 
 static gchar *
@@ -419,15 +402,10 @@ on_timezone_changed(GtkComboBox *widget, gpointer user_data)
 
 		gtk_tree_model_get(model, &iter, 0, &tz, -1);
 		if (tz && GTK_WIDGET_REALIZED(GTK_WIDGET(map))) {
-			GdkRectangle rect;
 
 			map_set_timezone_selected(map, tz);
 
-			rect.x = rect.y = 0;
-			rect.width = GTK_WIDGET(map)->allocation.width;
-			rect.height = GTK_WIDGET(map)->allocation.height;
-			gdk_window_invalidate_rect(GTK_WIDGET(map)->window,
-					&rect, FALSE);
+	gtk_widget_queue_draw(GTK_WIDGET(map));
 		}
 	}
 }
@@ -472,20 +450,6 @@ timezone_init(Timezone *timezone)
 }
 
 static void
-timezone_destroy(GtkObject *object)
-{
-	Timezone *timezone;
-
-	g_return_if_fail(object != NULL);
-	g_return_if_fail(IS_TIMEZONE(object));
-
-	timezone = TIMEZONE(object);
-
-	if (GTK_OBJECT_CLASS(parent_class)->destroy)
-		(*GTK_OBJECT_CLASS(parent_class)->destroy)(object);
-}
-
-static void
 timezone_finalize(GObject *object)
 {
 	Timezone *timezone;
@@ -513,7 +477,7 @@ timezone_new(void)
 	Timezone *timezone;
 	TimezonePrivate *priv;
 
-	timezone = TIMEZONE(gtk_type_new(timezone_get_type()));
+	timezone = TIMEZONE(g_object_new(timezone_get_type(), NULL));
 	priv = timezone->priv;
 	map_load_timezones(MAP(priv->map));
 
@@ -529,7 +493,6 @@ on_button_pressed(GtkWidget *widget, GdkEventButton *event,
 	GtkTreeModel *ctnt_model;
 	GtkTreeModel *ctry_model;
 	GtkTreeModel *tz_model;
-	GtkRequisition requisition;
 
 	priv = TIMEZONE(user_data)->priv;
 	map = MAP(widget);
@@ -572,9 +535,6 @@ on_button_pressed(GtkWidget *widget, GdkEventButton *event,
 			}
 	}
 
-	gtk_widget_size_request(widget, &requisition);
-	widget->requisition.width = requisition.width;
-	widget->requisition.height = requisition.height;
 	gtk_widget_queue_resize(widget);
 
 	return FALSE;
@@ -589,7 +549,6 @@ on_button_released(GtkWidget *widget, GdkEventButton *event,
 	GtkTreeModel *ctnt_model;
 	GtkTreeModel *ctry_model;
 	GtkTreeModel *tz_model;
-	GtkRequisition requisition;
 	gint interval;
 
 	priv = TIMEZONE(user_data)->priv;
@@ -617,9 +576,6 @@ on_button_released(GtkWidget *widget, GdkEventButton *event,
 		map_zoom_out(map);
 	}
 
-	gtk_widget_size_request(widget, &requisition);
-	widget->requisition.width = requisition.width;
-	widget->requisition.height = requisition.height;
 	gtk_widget_queue_resize(widget);
 
 	return FALSE;
@@ -629,7 +585,6 @@ static gboolean
 on_motion_notify(GtkWidget *widget, GdkEventMotion *event,
 					gpointer user_data)
 {
-	GdkRectangle rect;
 	timezone_item *tz;
 	gint distance;
 
@@ -648,11 +603,7 @@ on_motion_notify(GtkWidget *widget, GdkEventMotion *event,
 		map_unset_hoverd_timezone(MAP(widget));
 	}
 
-	rect.x = rect.y = 0;
-	rect.width = widget->allocation.width;
-	rect.height = widget->allocation.height;
-	gdk_window_invalidate_rect(widget->window,
-			&rect, FALSE);
+	gtk_widget_queue_draw(GTK_WIDGET(widget));
 
 	return TRUE;
 }

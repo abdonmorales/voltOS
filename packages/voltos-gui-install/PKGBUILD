@@ -1,0 +1,32 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# The OpenSolaris graphical installer (Caiman's gui-install, as maintained
+# by OpenIndiana in slim_source), ported to Linux and GTK 3 for VoltOS.
+# Its screens are the original ones; underneath, a Linux implementation of
+# the orchestrator API finds disks with lsblk and installs with
+# voltos-install (see gui-install/compat/).  Sources live in gui-install/.
+
+pkgname=voltos-gui-install
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="VoltOS graphical installer (the OpenSolaris installer, ported to GTK 3)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/abdonmorales/voltOS"
+license=('CDDL-1.0' 'MIT')
+depends=('gtk3' 'glib2' 'voltos-installer' 'polkit' 'util-linux' 'tzdata'
+         'glibc' 'systemd' 'xdg-utils')
+makedepends=('meson' 'ninja' 'pkgconf')
+options=('!debug')
+
+build() {
+    arch-meson "${startdir}/gui-install" build -Dgtk=3
+    meson compile -C build
+}
+
+package() {
+    meson install -C build --destdir "${pkgdir}"
+    install -Dm644 "${startdir}/voltos-installer.desktop" \
+        "${pkgdir}"/usr/share/applications/voltos-installer.desktop
+    install -Dm644 "${startdir}/gui-install/LICENSE.CDDL" \
+        "${pkgdir}"/usr/share/licenses/${pkgname}/LICENSE.CDDL
+}

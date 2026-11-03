@@ -28,8 +28,6 @@
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
-#include <glade/glade-build.h>
-#include <sys/nvpair.h>
 #include <ctype.h>
 #include <locale.h>
 #include "installation-profile.h"
@@ -40,7 +38,7 @@
 #include "language-screen.h"
 #include "window-graphics.h"
 
-gchar *InstallationInfoLabelMarkup = "<span font_desc=\"Arial Bold\">%s</span>";
+gchar *InstallationInfoLabelMarkup = "<span font=\"Arial Bold\">%s</span>";
 
 void
 installation_window_init(void)
@@ -215,7 +213,7 @@ installation_window_set_contents(void)
 	switch (InstallationProfile.installationtype) {
 		case INSTALLATION_TYPE_INITIAL_INSTALL:
 			MainWindow.InstallationWindow.current_install_message =
-					g_strdup("Preparing for OpenIndiana installation");
+					g_strdup("Preparing for " DISTRO_NAME " installation");
 			break;
 	}
 
@@ -397,146 +395,6 @@ installation_file_key_release(GtkWidget *widget,
 	return (FALSE);
 }
 
-static char *
-get_data_type_str(data_type_t type)
-{
-	char *tmpStr;
-
-	switch (type) {
-		case DATA_TYPE_UNKNOWN:
-			tmpStr = "DATA_TYPE_UNKNOWN";
-			break;
-		case DATA_TYPE_BOOLEAN:
-			tmpStr = "DATA_TYPE_BOOLEAN";
-			break;
-		case DATA_TYPE_BYTE:
-			tmpStr = "DATA_TYPE_BYTE";
-			break;
-		case DATA_TYPE_INT16:
-			tmpStr = "DATA_TYPE_INT16";
-			break;
-		case DATA_TYPE_UINT16:
-			tmpStr = "DATA_TYPE_UINT16";
-			break;
-		case DATA_TYPE_INT32:
-			tmpStr = "DATA_TYPE_INT32";
-			break;
-		case DATA_TYPE_UINT32:
-			tmpStr = "DATA_TYPE_UINT32";
-			break;
-		case DATA_TYPE_INT64:
-			tmpStr = "DATA_TYPE_INT64";
-			break;
-		case DATA_TYPE_UINT64:
-			tmpStr = "DATA_TYPE_UINT64";
-			break;
-		case DATA_TYPE_STRING:
-			tmpStr = "DATA_TYPE_STRING";
-			break;
-		case DATA_TYPE_BYTE_ARRAY:
-			tmpStr = "DATA_TYPE_BYTE_ARRAY";
-			break;
-		case DATA_TYPE_INT16_ARRAY:
-			tmpStr = "DATA_TYPE_INT16_ARRAY";
-			break;
-		case DATA_TYPE_UINT16_ARRAY:
-			tmpStr = "DATA_TYPE_UINT16_ARRAY";
-			break;
-		case DATA_TYPE_INT32_ARRAY:
-			tmpStr = "DATA_TYPE_INT32_ARRAY";
-			break;
-		case DATA_TYPE_UINT32_ARRAY:
-			tmpStr = "DATA_TYPE_UINT32_ARRAY";
-			break;
-		case DATA_TYPE_INT64_ARRAY:
-			tmpStr = "DATA_TYPE_INT64_ARRAY";
-			break;
-		case DATA_TYPE_UINT64_ARRAY:
-			tmpStr = "DATA_TYPE_UINT64_ARRAY";
-			break;
-		case DATA_TYPE_STRING_ARRAY:
-			tmpStr = "DATA_TYPE_STRING_ARRAY";
-			break;
-		case DATA_TYPE_HRTIME:
-			tmpStr = "DATA_TYPE_HRTIME";
-			break;
-		case DATA_TYPE_NVLIST:
-			tmpStr = "DATA_TYPE_NVLIST";
-			break;
-		case DATA_TYPE_NVLIST_ARRAY:
-			tmpStr = "DATA_TYPE_NVLIST_ARRAY";
-			break;
-		case DATA_TYPE_BOOLEAN_VALUE:
-			tmpStr = "DATA_TYPE_BOOLEAN_VALUE";
-			break;
-		case DATA_TYPE_INT8:
-			tmpStr = "DATA_TYPE_INT8";
-			break;
-		case DATA_TYPE_UINT8:
-			tmpStr = "DATA_TYPE_UINT8";
-			break;
-		case DATA_TYPE_BOOLEAN_ARRAY:
-			tmpStr = "DATA_TYPE_BOOLEAN_ARRAY";
-			break;
-		case DATA_TYPE_INT8_ARRAY:
-			tmpStr = "DATA_TYPE_INT8_ARRAY";
-			break;
-		case DATA_TYPE_UINT8_ARRAY:
-			tmpStr = "DATA_TYPE_UINT8_ARRAY";
-			break;
-	}
-
-	return (tmpStr);
-}
-
-static void
-nv_list_print(nvlist_t *nv_list)
-{
-	char *pairName;
-	data_type_t pairType;
-	nvpair_t *pair;
-	boolean_t bool_val;
-	char *str_val;
-	gchar *pairValue = NULL;
-	uint8_t uint8_val;
-
-	pair =  nvlist_next_nvpair(nv_list, NULL);
-	while (pair != NULL) {
-		pairName = nvpair_name(pair);
-		pairType = nvpair_type(pair);
-
-		pairValue = NULL;
-		switch (pairType) {
-			case DATA_TYPE_BOOLEAN_VALUE :
-				nvlist_lookup_boolean_value(nv_list, pairName, &bool_val);
-				pairValue = g_strdup_printf("%s",
-							bool_val == B_TRUE ? "TRUE" : "FALSE");
-				break;
-			case DATA_TYPE_STRING :
-				nvlist_lookup_string(nv_list, pairName, &str_val);
-				pairValue = g_strdup(str_val);
-				break;
-			case DATA_TYPE_UINT8 :
-				nvlist_lookup_uint8(nv_list, pairName, &uint8_val);
-				pairValue = g_strdup_printf("%d", uint8_val);
-				break;
-			default :
-				pairValue = g_strdup("Unknown value");
-		}
-
-		if (pairValue) {
-			g_warning("Pair : %s, Type : %s, Value : %s\n", pairName,
-				get_data_type_str(pairType), pairValue);
-		} else {
-			g_warning("Pair : %s, Type : %s\n", pairName,
-				get_data_type_str(pairType));
-		}
-
-		g_free(pairValue);
-		pair = nvlist_next_nvpair(nv_list, pair);
-	}
-}
-
 const gchar *
 lookup_callback_type(int callback)
 {
@@ -644,7 +502,7 @@ g_message("                             : percentage_done = %d\n",
 			switch (cb_data->curr_milestone) {
 				case OM_TARGET_INSTANTIATION :
 					MainWindow.InstallationWindow.current_install_message =
-						g_strdup(_("Preparing disk for OpenIndiana installation"));
+						g_strdup(_("Preparing disk for " DISTRO_NAME " installation"));
 					/*
 					 * Wild, random, guess that target instantiation accounts
 					 * for approx. 5% of total installation time
@@ -923,7 +781,6 @@ installation_window_start_install(void)
 		InstallationProfile.installfailed = TRUE;
 		on_nextbutton_clicked(GTK_BUTTON(MainWindow.nextbutton), NULL);
 	} else {
-		nv_list_print(install_choices);
 		if (orchestrator_om_perform_install(
 				install_choices,
 				installation_update_progress) == OM_FAILURE) {

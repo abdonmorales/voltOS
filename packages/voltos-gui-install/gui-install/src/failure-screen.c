@@ -27,7 +27,6 @@
 #endif
 
 #include <gtk/gtk.h>
-#include <glade/glade-build.h>
 #include <ctype.h>
 #include "installation-profile.h"
 #include "interface-globals.h"
@@ -37,7 +36,7 @@
 #include "window-graphics.h"
 
 static const gchar *buttonmarkup = "<span foreground=\"#5582a3\">%s</span>";
-static const gchar *labelmarkup = "<span font_desc=\"Bold\">%s</span>";
+static const gchar *labelmarkup = "<span font=\"Bold\">%s</span>";
 
 void
 failure_window_init(void)
@@ -165,9 +164,9 @@ failure_screen_set_contents(void)
 	switch (InstallationProfile.installationtype) {
 		case INSTALLATION_TYPE_INITIAL_INSTALL:
 			labelstr = g_strdup_printf(labelmarkup,
-			    _("OpenIndiana installation did not complete normally."));
+			    _(DISTRO_NAME " installation did not complete normally."));
 			buttonstr = g_strdup_printf(buttonmarkup,
-			    _("OpenIndiana installation log"));
+			    _(DISTRO_NAME " installation log"));
 			break;
 	}
 	gtk_label_set_label(GTK_LABEL(

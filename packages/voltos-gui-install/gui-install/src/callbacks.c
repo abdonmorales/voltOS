@@ -39,11 +39,11 @@
 #include "installation-disk-screen.h"
 #include "language-screen.h"
 #include "datetimezone-screen.h"
-#include "upgrade-screen.h"
 #include "failure-screen.h"
 #include "installation-screen.h"
 #include "welcome-screen.h"
 #include "help-dialog.h"
+#include "test-mode.h"
 
 #define	CAT		"cat"
 #define	EJECT	"eject"
@@ -57,9 +57,7 @@ InstallScreen InstallCurrScreen = WELCOME_SCREEN;
 // From installation-profile.h
 InstallationProfileType InstallationProfile;
 
-/* Forward declaration */
-static gboolean
-would_you_like_to_install_instead(void);
+
 
 void
 target_discovery_callback(om_callback_info_t *cb_data,
@@ -101,6 +99,12 @@ gui_install_prompt_dialog(gboolean ok_cancel,
 	GtkWidget *button;
 	GtkWidget *image;
 
+	/* VoltOS: the automated test answers every question with OK. */
+	if (test_mode_enabled()) {
+		g_message("test mode: dialog \"%s\" answered OK", primary);
+		return (TRUE);
+	}
+
 	if (ok_cancel) {
 		if (use_accept) {
 			/* Want to replace OK with Accept, Which is none standard */
@@ -110,7 +114,7 @@ gui_install_prompt_dialog(gboolean ok_cancel,
 							GTK_DIALOG_DESTROY_WITH_PARENT,
 							type,
 							GTK_BUTTONS_CANCEL,
-							primary);
+							"%s", primary);
 
 			/* Add a Accept button which emits the OK response */
 			button = gtk_dialog_add_button(GTK_DIALOG(dialog),
@@ -127,7 +131,7 @@ gui_install_prompt_dialog(gboolean ok_cancel,
 							GTK_DIALOG_DESTROY_WITH_PARENT,
 							type,
 							GTK_BUTTONS_OK_CANCEL,
-							primary);
+							"%s", primary);
 		}
 	} else {
 		dialog = gtk_message_dialog_new(NULL,
@@ -135,11 +139,11 @@ gui_install_prompt_dialog(gboolean ok_cancel,
 							GTK_DIALOG_DESTROY_WITH_PARENT,
 							type,
 							GTK_BUTTONS_CLOSE,
-							primary);
+							"%s", primary);
 	}
 	if (secondary != NULL && strlen(secondary) > 0) {
 		gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(dialog),
-							secondary);
+							"%s", secondary);
 	}
 
 	if (ok_cancel) {
@@ -300,7 +304,6 @@ on_nextbutton_clicked(GtkButton *button,
 
 			switch (InstallationProfile.installationtype) {
 				case INSTALLATION_TYPE_INITIAL_INSTALL:
-					show_upgrade_screen(FALSE);
 					gtk_widget_show(
 						MainWindow.InstallationDiskWindow.diskselectiontoplevel);
 					installationdisk_screen_set_default_focus( FALSE );
@@ -390,7 +393,7 @@ on_nextbutton_clicked(GtkButton *button,
 			gtk_widget_hide(MainWindow.screentitlesublabel2);
 			gtk_label_set_label(GTK_LABEL(MainWindow.userlabel),
 				MainWindow.ActiveStageTitles[USER_SCREEN]);
-			gtk_widget_grab_focus(MainWindow.UsersWindow.rootpassword1entry);
+			gtk_widget_grab_focus(MainWindow.UsersWindow.usernameentry);
 			help_dialog_refresh(InstallCurrScreen);
 			break;
 
@@ -696,7 +699,7 @@ on_backbutton_clicked(GtkButton *button,
 			gtk_widget_hide(MainWindow.screentitlesublabel2);
 			gtk_label_set_label(GTK_LABEL(MainWindow.userlabel),
 				MainWindow.ActiveStageTitles[USER_SCREEN]);
-			gtk_widget_grab_focus(MainWindow.UsersWindow.rootpassword1entry);
+			gtk_widget_grab_focus(MainWindow.UsersWindow.usernameentry);
 			help_dialog_refresh(InstallCurrScreen);
 			break;
 	}
@@ -870,17 +873,4 @@ on_licensecheckbutton_toggled(GtkToggleButton *togglebutton,
 
 	gtk_widget_set_sensitive(button,
 			gtk_toggle_button_get_active(togglebutton));
-}
-
-/* How about a nice cup of tea */
-static gboolean
-would_you_like_to_install_instead(void)
-{
-	gboolean retval;
-
-	retval = gui_install_prompt_dialog(TRUE, FALSE, FALSE,
-	    GTK_MESSAGE_WARNING,
-	    _("No upgradeable OpenIndiana Environments"),
-	    _("Would you like to install?"));
-	return (retval);
 }

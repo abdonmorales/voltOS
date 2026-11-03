@@ -181,18 +181,19 @@ app_screenshots()
 	local env='runuser -u liveuser -- env DISPLAY=:0 XAUTHORITY=/home/liveuser/.Xauthority XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus'
 	local app shot
 	[ -n "${SMOKE_SCREENSHOT:-}" ] || return 0
-	for app in voltos-installer-gtk:installer gnome-disks:disks \
+	for app in gui-install:installer gnome-disks:disks \
 	    "caja --no-desktop /home/liveuser":files; do
 		shot=${app##*:}
 		app=${app%:*}
 		guest_sh "$env setsid $app >/tmp/smoke-$shot.log 2>&1 &"
 		sleep "${SMOKE_APP_WAIT:-25}"
 		screenshot "$shot"
-		if [ -z "$(guest_sh "pgrep -f '${app%% *}'")" ]; then
+		# -x: match the process name, not this command line.
+		if [ -z "$(guest_sh "pgrep -x '${app%% *}'")" ]; then
 			echo "smoke-qemu.sh: $app is not running; its output:"
 			guest_sh "cat /tmp/smoke-$shot.log"
 		fi
-		[ "$shot" = files ] || guest_sh "pkill -f '${app%% *}'" >/dev/null
+		[ "$shot" = files ] || guest_sh "pkill -x '${app%% *}'" >/dev/null
 	done
 }
 
@@ -265,9 +266,9 @@ live-secureboot)
 	;;
 install-gui)
 	# Install through the graphical installer: boot the live desktop with
-	# an empty disk, start voltos-installer-gtk in its test mode (it fills
-	# in its own pages and presses Install), then boot the installed disk
-	# and wait for the login screen.
+	# an empty disk, start gui-install (the OpenSolaris installer) in its
+	# test mode (it fills in its own screens and presses Install), then
+	# boot the installed disk and wait for the login screen.
 	qemu-img create -f qcow2 "$tmp/disk.qcow2" 20G >/dev/null
 	uefi=$(uefi_args)
 	# shellcheck disable=SC2086
@@ -275,7 +276,7 @@ install-gui)
 	    -drive "file=$tmp/disk.qcow2,if=virtio,format=qcow2"
 	wait_for "$tmp/serial.log" "$LIVE_RE" "$timeout"
 	env='runuser -u liveuser -- env DISPLAY=:0 XAUTHORITY=/home/liveuser/.Xauthority XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus'
-	guest_sh "$env VOLTOS_INSTALLER_TEST=/dev/vda setsid voltos-installer-gtk >/tmp/installer-gui.log 2>&1 &"
+	guest_sh "$env VOLTOS_INSTALLER_TEST=/dev/vda setsid gui-install >/tmp/installer-gui.log 2>&1 &"
 	sleep 30
 	screenshot progress
 	i=0 result=
@@ -290,7 +291,7 @@ install-gui)
 	case "$result" in
 	ok*) ;;
 	*)
-		guest_sh 'cat /tmp/installer-gui.log; tail -n 40 /var/log/voltos-install.log'
+		guest_sh 'cat /tmp/installer-gui.log /tmp/gui-install.log; tail -n 40 /var/log/voltos-install.log'
 		exit 1
 		;;
 	esac

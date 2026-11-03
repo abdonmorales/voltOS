@@ -13,9 +13,13 @@ VoltOS is an Arch Linux–based desktop distribution with:
   transaction is preceded by a snapshot of the running boot environment, so
   any upgrade can be rolled back from the boot menu, the way Solaris and
   illumos boot environments work.
-- **Its own installer.** A graphical installer (GTK 4/libadwaita) on the live
-  desktop, with a text-mode fallback. Both run `voltos-install`, which copies
-  the tested live system onto the ZFS pool, so installing works offline.
+- **The OpenSolaris installer.** The live desktop's installer is
+  OpenSolaris's own graphical installer (Caiman's gui-install, from
+  OpenIndiana), ported to Linux and GTK 3: the same Welcome, Disk, Time Zone
+  (with the world map), Locale, Users, Installation and Finish screens. A
+  text-mode installer is the fallback. Both run `voltos-install`, which
+  copies the tested live system onto the ZFS pool, so installing works
+  offline.
 - **Secure Boot, with your own keys.** `sudo voltos-secureboot enable` enrols
   machine-owner keys (plus Microsoft's) and signs ZFSBootMenu and the kernels;
   updates are re-signed automatically.
@@ -31,7 +35,7 @@ VoltOS is built for x86_64 (UEFI and BIOS) and, as a newer port, AArch64
 | Live ISO, MATE + Nimbus (`archiso/`) | New: switched from GNOME to MATE; being re-verified in CI |
 | Installer to ZFS + ZFSBootMenu | `make smoke-install`: unattended install, then the installed system boots from ZFS through ZFSBootMenu to the login screen |
 | Live ISO on BIOS | Boots to the live desktop under SeaBIOS in QEMU (CI) |
-| Graphical installer | CI installs through the GUI (test mode), then boots the result to the login screen |
+| Graphical installer (OpenSolaris gui-install on GTK 3) | CI installs through the GUI (test mode), then boots the result to the login screen |
 | AArch64 | New: packages and ISO built in CI on an Arch Linux ARM root; not yet boot-tested |
 | CI (`.github/workflows/iso.yml`) | Builds, boots, installs and publishes on `v*` tags |
 
@@ -43,7 +47,8 @@ packages/
   nimbus-gtk-theme/      Nimbus GTK 3, Metacity and icon themes
   voltos-branding/       os-release identity, Tux logo, shared Nimbus defaults
   voltos-desktop/        MATE + GNOME Flashback defaults, LightDM greeter
-  voltos-installer/      graphical and text installers (voltos-install)
+  voltos-installer/      voltos-install (the installation itself) and the text installer
+  voltos-gui-install/    the OpenSolaris graphical installer, ported to GTK 3
   voltos-live/           live user, autologin helpers, unattended install
   voltos-zfs-snapshots/  pacman hook: snapshot before every transaction
   voltos-secureboot/     Secure Boot enrolment and signing (sbctl)
@@ -132,6 +137,25 @@ Arch Linux has no official AArch64 port, so VoltOS for ARM sits on
 `archiso` and `dkms` are architecture-independent packages that Arch Linux
 ARM does not carry; `tools/alarm-buildroot.sh` takes them from Arch Linux and
 checks their signatures against `archlinux-keyring`.
+
+## The installer
+
+`packages/voltos-gui-install/gui-install` is the OpenSolaris (Caiman)
+graphical installer from OpenIndiana's slim_source, under the CDDL. Its
+screens are kept; what is Solaris-specific underneath was replaced:
+
+- **UI files and toolkit.** libglade files were converted to GtkBuilder
+  (`tools/glade2builder.py`) and the code builds against GTK 3 through two
+  small compatibility headers; the world map draws with cairo. The same
+  sources are meant to build against GTK 2 for the GNOME 2 desktop.
+- **Back end.** Solaris's liborchestrator becomes a Linux implementation of
+  the same API: disks come from `lsblk`, and "Install" runs
+  `pkexec voltos-install --config FILE` and turns its progress messages into
+  the progress bar and slideshow. Time zones come from the IANA tz database.
+- **VoltOS choices.** Whole-disk installs only (the fdisk partition editor and
+  the upgrade screens are gone), no root password (the account created on the
+  Users screen administers the system with sudo), VoltOS branding, help and
+  slides.
 
 ## Design notes
 

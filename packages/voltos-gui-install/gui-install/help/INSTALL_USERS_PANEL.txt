@@ -1,20 +1,12 @@
 Users
 
 
-In this panel, you will define a user account and enter a computer name.
+Create the account you use on VoltOS.
 
+  Your real name: shown at the login screen.
+  Log-in name: the name you log in with. It must start with a lower-case letter and may contain lower-case letters, digits, "-" and "_".
+  User password: enter the password twice.
 
-For the user account fields:
+VoltOS has no root password: root cannot log in. The account created here administers the system with sudo, for example "sudo pacman -Syu".
 
-	* A user account is required. 
-
-	* To complete the user account, the Log-in name and password are required.
-
-	* The Log-in name must begin with a letter and can contain only letters and numbers. 
-	
-For the computer name field:
-
-	* Enter a computer name or accept the default. The computer name field cannot be blank.
-
-If invalid information is provided, error messages are displayed.
-
+Computer name: the name of this computer on the network. It may contain letters, digits and "-".

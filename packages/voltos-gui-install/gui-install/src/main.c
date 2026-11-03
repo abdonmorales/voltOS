@@ -31,7 +31,7 @@
 #include <locale.h>
 
 #include <gtk/gtk.h>
-#include <glade/glade.h>
+#include "glade-compat.h"
 
 #include "callbacks.h"
 #include "interface-globals.h"
@@ -41,13 +41,12 @@
 #include "confirmation-screen.h"
 #include "installation-screen.h"
 #include "failure-screen.h"
-#include "upgrade-screen.h"
 #include "finish-screen.h"
 #include "orchestrator-wrappers.h"
 #include "help-dialog.h"
 #include "language-screen.h"
-#include "disk-block-order.h"
 #include "error-logging.h"
+#include "test-mode.h"
 
 gboolean waitforsignal = FALSE;
 
@@ -71,9 +70,9 @@ static void
 mainwindow_xml_screentitles_init(void)
 {
 	ScreenTitleMarkup =
-		"<span font_desc=\"Bold\" size=\"x-large\" foreground=\"#587993\">%s</span>";
+		"<span font=\"Bold\" size=\"x-large\" foreground=\"#587993\">%s</span>";
 	ScreenSubTitleMarkup =
-		"<span font_desc=\"Bold\">%s</span>";
+		"<span font=\"Bold\">%s</span>";
 
 	MainWindow.ScreenTitles = g_new0(gchar*, NUMSCREENS);
 	MainWindow.ScreenTitles[WELCOME_SCREEN] =
@@ -106,10 +105,10 @@ mainwindow_xml_screentitles_init(void)
 	MainWindow.ScreenSubTitles = g_new0(gchar*, NUMSCREENS);
 	MainWindow.ScreenSubTitles[WELCOME_SCREEN] =
 		g_strdup_printf(ScreenSubTitleMarkup,
-			_("OpenIndiana"));
+			DISTRO_NAME);
 	MainWindow.ScreenSubTitles[DISK_SCREEN] =
 		g_strdup_printf(ScreenSubTitleMarkup,
-			_("Where should OpenIndiana be installed?"));
+			_("Where should " DISTRO_NAME " be installed?"));
 	MainWindow.ScreenSubTitles[TIMEZONE_SCREEN] =
 		g_strdup_printf(ScreenSubTitleMarkup,
 			_("Select a city near you on the map or set your time zone below,then set the date and time."));
@@ -133,9 +132,9 @@ static void
 mainwindow_xml_stagetitles_init(void)
 {
 	ActiveStageTitleMarkup =
-		"<span font_desc=\"Bold\" foreground=\"#587993\">%s</span>";
+		"<span font=\"Bold\" foreground=\"#587993\">%s</span>";
 	InactiveStageTitleMarkup =
-		"<span font_desc=\"Bold\" foreground=\"#595A5E\">%s</span>";
+		"<span font=\"Bold\" foreground=\"#595A5E\">%s</span>";
 
 	MainWindow.ActiveStageTitles = g_new0(gchar*, NUMSCREENS);
 	MainWindow.InactiveStageTitles = g_new0(gchar*, NUMSCREENS);
@@ -217,7 +216,6 @@ mainwindow_xml_init()
 	MainWindow.welcomewindowxml =
 		glade_xml_new(GLADEDIR "/" FILENAME, WELCOMENODE, NULL);
 	installationdisk_xml_init();
-	upgrade_xml_init();
 
 	/* FIXME - use data passing instead of globals */
 	datetimezone_xml_init();
@@ -566,10 +564,10 @@ main(int argc, char *argv[])
 		GETTEXT_PACKAGE);
 	g_option_context_parse(option_context, &argc, &argv, &error);
 
-	if (getuid() != 0) {
-		g_warning("The OpenIndiana installer must be run as root. Quitting.");
-		exit(-1);
-	}
+	/*
+	 * VoltOS: the installer runs as the desktop user; voltos-install,
+	 * which does the privileged work, is started through pkexec.
+	 */
 
 	if (om_process_running() != OM_PROC_NOT_RUNNING) {
 		gui_install_prompt_dialog(FALSE, FALSE, FALSE,
@@ -623,7 +621,6 @@ main(int argc, char *argv[])
 	/* The initial screen shown will always be the welcome screen */
 	welcome_screen_init();
 	installationdisk_ui_init();
-	upgrade_detection_screen_init();
 	users_window_init();
 	datetimezone_ui_init();
 	confirmation_window_init();
@@ -635,10 +632,10 @@ main(int argc, char *argv[])
 	gtk_widget_show(glade_xml_get_widget(MainWindow.mainwindowxml,
 			"mainwindow"));
 
+	test_mode_start();
 	gtk_main();
 
 	/* cleanup */
 	language_cleanup();
-	upgrade_info_cleanup();
 	return (0);
 }

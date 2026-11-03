@@ -2,6 +2,7 @@
 voltos-branding
 voltos-desktop
 voltos-installer
+voltos-gui-install
 voltos-live
 voltos-zfs-snapshots
 voltos-secureboot
