@@ -145,10 +145,14 @@ jobs:
               perl-boolean-*.pkg.tar.zst zfsbootmenu-*.pkg.tar.zst
             dkms status
             find /usr/lib/modules -name "zfs.ko*" | grep .
+            # generate-zbm expects the EFI system partition mounted at
+            # /boot/efi, as on installed systems; stand one in.
+            mkdir -p /boot/efi
+            mount -t tmpfs esp /boot/efi
             mkdir -p /boot/efi/EFI/zbm
             /usr/lib/voltos/voltos-zbm-generate
             ls -l /boot/efi/EFI/zbm /boot/efi/EFI/BOOT
-            rm -rf /boot/efi/EFI
+            umount /boot/efi
             pacman -Rns --noconfirm zfsbootmenu perl-boolean zfs-dkms zfs-utils \
               linux-lts-headers linux-lts'
 
