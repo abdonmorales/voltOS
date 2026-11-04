@@ -94,5 +94,12 @@ rm -f "$repo"/voltos.db* "$repo"/voltos.files*
 sign=()
 [ -z "$REPO_KEY" ] || sign=(--sign --key "$REPO_KEY")
 repo-add -q -n -R "${sign[@]}" "$repo/voltos.db.tar.gz" "$repo"/*.pkg.tar.zst
+if [ -n "$REPO_KEY" ]; then
+	# pacman checks signatures that are present even where they are
+	# optional (build-iso.sh, pacman -U), so the build host trusts the key
+	# it just signed with.
+	$SUDO pacman-key --add "$top/packages/voltos-keyring/voltos.gpg"
+	$SUDO pacman-key --lsign-key "$REPO_KEY"
+fi
 echo "==> Repository: $repo"
 ls -1 "$repo"
