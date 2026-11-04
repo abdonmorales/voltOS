@@ -97,7 +97,10 @@ repo-add -q -n -R "${sign[@]}" "$repo/voltos.db.tar.gz" "$repo"/*.pkg.tar.zst
 if [ -n "$REPO_KEY" ]; then
 	# pacman checks signatures that are present even where they are
 	# optional (build-iso.sh, pacman -U), so the build host trusts the key
-	# it just signed with.
+	# it just signed with.  --init only makes the local master key that
+	# --lsign-key needs where there is none (the archlinux container image
+	# ships its keyring without one); it keeps an existing keyring.
+	$SUDO pacman-key --init
 	$SUDO pacman-key --add "$top/packages/voltos-keyring/voltos.gpg"
 	$SUDO pacman-key --lsign-key "$REPO_KEY"
 fi
