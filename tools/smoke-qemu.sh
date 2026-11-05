@@ -115,12 +115,35 @@ qemu_boot()
 	pids+=($!)
 }
 
+# wait_qemu_exit <seconds>: wait for the guest to power off and QEMU to
+# exit; stop QEMU (and say so) if it has not by then, so a guest that hangs
+# while shutting down cannot stall the test until the CI job's time limit.
+wait_qemu_exit()
+{
+	local i=0 pid=${pids[-1]}
+	echo "smoke-qemu.sh: $(date -u +%T) waiting for the guest to power off"
+	while kill -0 "$pid" 2>/dev/null; do
+		if [ "$i" -ge "$1" ]; then
+			echo "smoke-qemu.sh: guest still running after $1 s; stopping QEMU" >&2
+			kill "$pid" 2>/dev/null || true
+			sleep 5
+			break
+		fi
+		sleep 5
+		i=$((i + 5))
+	done
+	wait "$pid" 2>/dev/null || true
+}
+
 # wait_for <log> <regex> <seconds>
 wait_for()
 {
 	local i=0
 	while [ "$i" -lt "$3" ]; do
-		grep -aqE "$2" "$1" 2>/dev/null && return 0
+		if grep -aqE "$2" "$1" 2>/dev/null; then
+			echo "smoke-qemu.sh: $(date -u +%T) saw /$2/"
+			return 0
+		fi
 		kill -0 "${pids[-1]}" 2>/dev/null || break
 		sleep 1
 		i=$((i + 1))
@@ -414,7 +437,7 @@ install-gui)
 		;;
 	esac
 	guest_sh 'systemctl poweroff' >/dev/null
-	wait "${pids[-1]}" || true
+	wait_qemu_exit 900
 
 	# The installed system: firmware -> ZFSBootMenu -> LightDM.
 	# shellcheck disable=SC2086
@@ -445,7 +468,7 @@ install)
 		tail -n 60 "$tmp/install.log" >&2
 		exit 1
 	fi
-	wait "${pids[-1]}" || true
+	wait_qemu_exit 900
 
 	# Second boot: firmware -> ZFSBootMenu -> zroot/ROOT/voltos -> LightDM.
 	# shellcheck disable=SC2086
@@ -467,7 +490,7 @@ install)
 			exit 1
 		}
 		guest_sh 'systemctl poweroff' >/dev/null
-		wait "${pids[-1]}" || true
+		wait_qemu_exit 900
 		# shellcheck disable=SC2086
 		qemu_boot "$tmp/sb.log" $uefi \
 		    -drive "file=$tmp/disk.qcow2,if=virtio,format=qcow2"
