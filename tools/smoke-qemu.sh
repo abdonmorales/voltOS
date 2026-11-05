@@ -98,11 +98,15 @@ qemu_boot()
 		# virt has no legacy devices: a USB keyboard and tablet, a
 		# virtio NIC, and either a virtio GPU or ramfb (a plain
 		# firmware framebuffer, the display without a kernel driver).
-		machine=(qemu-system-aarch64 -machine virt -cpu max
+		# Under TCG a fixed, common CPU model rather than "max": QEMU
+		# 8.2's emulation of newer instructions "max" offers (FEAT_MOPS,
+		# which the kernel's memset uses) corrupts memory, and the kernel
+		# crashed loading the ZFS module.  SMOKE_CPU overrides.
+		machine=(qemu-system-aarch64 -machine virt -cpu "${SMOKE_CPU:-neoverse-n1}"
 		    -device "${SMOKE_GPU:-virtio-gpu-pci}"
 		    -device qemu-xhci -device usb-kbd -device usb-tablet
 		    -nic user,model=virtio-net-pci)
-		[ "$accel" = kvm ] && machine[4]=host
+		[ "$accel" = kvm ] && [ -z "${SMOKE_CPU:-}" ] && machine[4]=host
 	else
 		machine=(qemu-system-x86_64 -machine q35 -cpu max -vga std)
 	fi
