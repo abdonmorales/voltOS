@@ -4,6 +4,10 @@
 # MATE live session.  Optionally run the unattended installer and boot
 # the installed system through ZFSBootMenu.
 #
+# The architecture follows the ISO's name (voltos-*-aarch64.iso: AArch64,
+# QEMU's "virt" machine with AAVMF; otherwise x86_64) or SMOKE_ARCH.  On
+# AArch64 only the UEFI modes (live-uefi, install-gui, install) exist.
+#
 #   tools/smoke-qemu.sh live-bios  <iso>   SeaBIOS, live desktop
 #   tools/smoke-qemu.sh live-uefi  <iso>   OVMF, live desktop
 #   tools/smoke-qemu.sh live-secureboot <iso>  signed ISO, Secure Boot on
@@ -20,7 +24,9 @@
 # KVM is slow), SMOKE_SCREENSHOT (save a PNG of the desktop here), KVM=0/1,
 # SMOKE_REPO=<dir> (install: the signed repository the ISO was built from;
 # the installed system must have [voltos] enabled and fetch and verify
-# updates from it, standing in for the published repository).
+# updates from it, standing in for the published repository),
+# SMOKE_GPU (AArch64 display device: virtio-gpu-pci, the default, or ramfb,
+# a firmware-only framebuffer).
 #
 set -euo pipefail
 
@@ -36,25 +42,48 @@ cleanup()
 }
 trap cleanup EXIT
 
+arch=${SMOKE_ARCH:-}
+if [ -z "$arch" ]; then
+	case "$iso" in *-aarch64.iso) arch=aarch64 ;; *) arch=x86_64 ;; esac
+fi
+# The serial port the live and installed systems report on.
+case $arch in
+x86_64) console=ttyS0 ;;
+aarch64) console=ttyAMA0 ;;
+*) echo "smoke-qemu.sh: unknown architecture $arch" >&2; exit 1 ;;
+esac
+
+# KVM only runs guests of the host's own architecture.
 accel=tcg
-if [ "${KVM:-auto}" != 0 ] && [ -w /dev/kvm ]; then
+if [ "${KVM:-auto}" != 0 ] && [ -w /dev/kvm ] && [ "$(uname -m)" = "$arch" ]; then
 	accel=kvm
 fi
+echo "smoke-qemu.sh: $arch guest, accel=$accel"
 
 ovmf_code=
 ovmf_vars=
 ovmf_secboot=
+if [ "$arch" = aarch64 ]; then
+	# AAVMF: Arch's edk2-aarch64, Debian/Ubuntu's qemu-efi-aarch64.
+	for c in /usr/share/edk2/aarch64/QEMU_CODE.fd /usr/share/edk2/aarch64/QEMU_EFI.fd \
+	    /usr/share/AAVMF/AAVMF_CODE.fd; do
+		[ -f "$c" ] && { ovmf_code=$c; break; }
+	done
+	for v in /usr/share/edk2/aarch64/QEMU_VARS.fd /usr/share/AAVMF/AAVMF_VARS.fd; do
+		[ -f "$v" ] && { ovmf_vars=$v; break; }
+	done
+fi
 for c in /usr/share/edk2/x64/OVMF_CODE.secboot.4m.fd \
     /usr/share/OVMF/OVMF_CODE_4M.secboot.fd; do
-	[ -f "$c" ] && { ovmf_secboot=$c; break; }
+	[ "$arch" = x86_64 ] && [ -f "$c" ] && { ovmf_secboot=$c; break; }
 done
 for c in /usr/share/edk2/x64/OVMF_CODE.4m.fd /usr/share/OVMF/OVMF_CODE_4M.fd \
     /usr/share/edk2-ovmf/x64/OVMF_CODE.fd; do
-	[ -f "$c" ] && { ovmf_code=$c; break; }
+	[ "$arch" = x86_64 ] && [ -f "$c" ] && { ovmf_code=$c; break; }
 done
 for v in /usr/share/edk2/x64/OVMF_VARS.4m.fd /usr/share/OVMF/OVMF_VARS_4M.fd \
     /usr/share/edk2-ovmf/x64/OVMF_VARS.fd; do
-	[ -f "$v" ] && { ovmf_vars=$v; break; }
+	[ "$arch" = x86_64 ] && [ -f "$v" ] && { ovmf_vars=$v; break; }
 done
 
 # qemu_boot <log> <extra args...>: start QEMU in the background with a
@@ -64,8 +93,21 @@ qemu_boot()
 	local log=$1
 	shift
 	rm -f "$tmp/qga"
-	qemu-system-x86_64 -machine q35,accel=$accel -cpu max -smp 4 -m 4G \
-	    -display none -vga std -monitor "unix:$tmp/mon,server,nowait" \
+	local machine
+	if [ "$arch" = aarch64 ]; then
+		# virt has no legacy devices: a USB keyboard and tablet, a
+		# virtio NIC, and either a virtio GPU or ramfb (a plain
+		# firmware framebuffer, the display without a kernel driver).
+		machine=(qemu-system-aarch64 -machine virt -cpu max
+		    -device "${SMOKE_GPU:-virtio-gpu-pci}"
+		    -device qemu-xhci -device usb-kbd -device usb-tablet
+		    -nic user,model=virtio-net-pci)
+		[ "$accel" = kvm ] && machine[4]=host
+	else
+		machine=(qemu-system-x86_64 -machine q35 -cpu max -vga std)
+	fi
+	"${machine[@]}" -accel "$accel" -smp 4 -m 4G \
+	    -display none -monitor "unix:$tmp/mon,server,nowait" \
 	    -device virtio-serial \
 	    -chardev "socket,path=$tmp/qga,server=on,wait=off,id=qga0" \
 	    -device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0 \
@@ -97,9 +139,9 @@ wait_for()
 # guest agent and print its output (empty if the agent is not up yet).
 guest_sh()
 {
-	python3 -I - "$tmp/qga" "$1" <<'PY' 2>/dev/null || true
+	python3 -I - "$tmp/qga" "$1" "${SMOKE_GUEST_WAIT:-60}" <<'PY' 2>/dev/null || true
 import base64, json, socket, sys, time
-sock, cmd = sys.argv[1], sys.argv[2]
+sock, cmd, wait = sys.argv[1], sys.argv[2], int(sys.argv[3])
 def call(f, req):
     f.write(json.dumps(req) + "\n"); f.flush()
     while True:
@@ -111,7 +153,7 @@ f = s.makefile("rw")
 call(f, {"execute": "guest-sync", "arguments": {"id": 7}})
 pid = call(f, {"execute": "guest-exec", "arguments": {"path": "/bin/sh",
       "arg": ["-c", cmd], "capture-output": True}})["return"]["pid"]
-for _ in range(60):
+for _ in range(wait):
     st = call(f, {"execute": "guest-exec-status", "arguments": {"pid": pid}})["return"]
     if st.get("exited"):
         sys.stdout.write(base64.b64decode(st.get("out-data", "")).decode())
@@ -152,6 +194,8 @@ screenshot()
 	sleep 2
 	if command -v magick >/dev/null; then
 		magick "$tmp/shot.ppm" "$out"
+	elif command -v convert >/dev/null; then
+		convert "$tmp/shot.ppm" "$out"
 	else
 		cp "$tmp/shot.ppm" "${out%.*}.ppm"
 	fi
@@ -252,12 +296,44 @@ uefi_args()
 	     "-drive if=pflash,format=raw,unit=1,file=$tmp/vars.fd"
 }
 
+# cdrom_args: the ISO as a CD-ROM (virt has no IDE bus for -cdrom).
+cdrom_args()
+{
+	if [ "$arch" = aarch64 ]; then
+		echo "-device virtio-scsi-pci -device scsi-cd,drive=cd" \
+		     "-drive if=none,id=cd,media=cdrom,readonly=on,file=$iso"
+	else
+		echo "-cdrom $iso"
+	fi
+}
+
+# uefi_args runs in $(...), where its exit would not stop the script.
+if [ "$mode" != live-bios ] && [ -z "$ovmf_code" ]; then
+	echo "smoke-qemu.sh: no UEFI firmware for $arch (edk2-ovmf / edk2-aarch64, or ovmf / qemu-efi-aarch64)" >&2
+	exit 1
+fi
+
+# The firmware's variable store must be exactly the size of its code
+# image; AAVMF's VARS file can be shorter.
+[ "$arch" != aarch64 ] || [ -z "$ovmf_code" ] || {
+	cp "$ovmf_vars" "$tmp/aavmf-vars.fd"
+	truncate -s "$(stat -c %s "$ovmf_code")" "$tmp/aavmf-vars.fd"
+	ovmf_vars=$tmp/aavmf-vars.fd
+}
+
 # The live session reports on the serial port once LightDM has logged the
 # live user into MATE (voltos-live-ready.service).  The installed system boots
 # with a serial console (voltos.autoinstall.serial=1), so systemd's own
 # status line shows when its graphical target is reached.
 LIVE_RE='VOLTOS_LIVE_READY'
 INSTALLED_RE='Reached target .*Graphical Interface'
+
+case "$arch:$mode" in
+aarch64:live-bios|aarch64:live-secureboot)
+	echo "smoke-qemu.sh: $mode is x86_64 only" >&2
+	exit 2
+	;;
+esac
 
 case "$mode" in
 live-bios)
@@ -270,7 +346,7 @@ live-bios)
 	;;
 live-uefi)
 	# shellcheck disable=SC2046
-	qemu_boot "$tmp/serial.log" $(uefi_args) -cdrom "$iso"
+	qemu_boot "$tmp/serial.log" $(uefi_args) $(cdrom_args)
 	wait_for "$tmp/serial.log" "$LIVE_RE" "$timeout"
 	check_sessions
 	sleep 30
@@ -310,7 +386,7 @@ install-gui)
 	qemu-img create -f qcow2 "$tmp/disk.qcow2" 20G >/dev/null
 	uefi=$(uefi_args)
 	# shellcheck disable=SC2086
-	qemu_boot "$tmp/serial.log" $uefi -cdrom "$iso" \
+	qemu_boot "$tmp/serial.log" $uefi $(cdrom_args) \
 	    -drive "file=$tmp/disk.qcow2,if=virtio,format=qcow2"
 	wait_for "$tmp/serial.log" "$LIVE_RE" "$timeout"
 	env='runuser -u liveuser -- env DISPLAY=:0 XAUTHORITY=/home/liveuser/.Xauthority XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus'
@@ -349,17 +425,17 @@ install)
 	# be added to its command line; OVMF still provides a real UEFI
 	# environment for efibootmgr and ZFSBootMenu.
 	command -v bsdtar >/dev/null || { echo "bsdtar required" >&2; exit 1; }
-	bsdtar -xf "$iso" -C "$tmp" voltos/boot/x86_64/vmlinuz-linux-lts \
-	    voltos/boot/x86_64/initramfs-linux-lts.img
+	bsdtar -xf "$iso" -C "$tmp" "voltos/boot/$arch/vmlinuz-linux-lts" \
+	    "voltos/boot/$arch/initramfs-linux-lts.img"
 	label=$(blkid -o value -s LABEL "$iso" 2>/dev/null || isoinfo -d -i "$iso" | sed -n 's/^Volume id: //p')
 	qemu-img create -f qcow2 "$tmp/disk.qcow2" 20G >/dev/null
 	uefi=$(uefi_args)
 	# shellcheck disable=SC2086
-	qemu_boot "$tmp/install.log" $uefi -cdrom "$iso" \
+	qemu_boot "$tmp/install.log" $uefi $(cdrom_args) \
 	    -drive "file=$tmp/disk.qcow2,if=virtio,format=qcow2" \
-	    -kernel "$tmp/voltos/boot/x86_64/vmlinuz-linux-lts" \
-	    -initrd "$tmp/voltos/boot/x86_64/initramfs-linux-lts.img" \
-	    -append "archisobasedir=voltos archisolabel=$label console=ttyS0 voltos.autoinstall=/dev/vda voltos.autoinstall.reboot=poweroff voltos.autoinstall.serial=1"
+	    -kernel "$tmp/voltos/boot/$arch/vmlinuz-linux-lts" \
+	    -initrd "$tmp/voltos/boot/$arch/initramfs-linux-lts.img" \
+	    -append "archisobasedir=voltos archisolabel=$label console=$console voltos.autoinstall=/dev/vda voltos.autoinstall.reboot=poweroff voltos.autoinstall.serial=1"
 	wait_for "$tmp/install.log" 'VOLTOS_AUTOINSTALL_(OK|FAILED)' "$timeout"
 	if grep -aq VOLTOS_AUTOINSTALL_FAILED "$tmp/install.log"; then
 		tail -n 60 "$tmp/install.log" >&2

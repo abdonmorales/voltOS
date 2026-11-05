@@ -10,13 +10,16 @@
 #
 set -e
 disk= after=poweroff cmdline="rw quiet loglevel=3"
+# The first serial port: ttyS0 on PCs, ttyAMA0 (PL011) on 64-bit ARM.
+serial=ttyS0
+[ "$(uname -m)" != aarch64 ] || serial=ttyAMA0
 for arg in $(cat /proc/cmdline); do
 	case "$arg" in
 	voltos.autoinstall=*) disk=${arg#voltos.autoinstall=} ;;
 	voltos.autoinstall.reboot=*) after=${arg#voltos.autoinstall.reboot=} ;;
 	# Give the installed system a serial console too (used by CI).
 	voltos.autoinstall.serial=1)
-		cmdline="rw loglevel=4 console=tty0 console=ttyS0,115200" ;;
+		cmdline="rw loglevel=4 console=tty0 console=$serial,115200" ;;
 	esac
 done
 [ -n "$disk" ] || exit 0

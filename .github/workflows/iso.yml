@@ -154,7 +154,7 @@ jobs:
   # locally with generate-zbm (there is no upstream AArch64 release EFI).
   aarch64:
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 360
+    timeout-minutes: 420
     permissions:
       contents: write
     steps:
@@ -207,6 +207,38 @@ jobs:
       - name: Build the ISO
         run: sudo tools/alarm-chroot.sh /var/tmp/alarm 'cd /voltos && tools/build-iso.sh'
 
+      # QEMU on the runner: KVM when the runner offers it, otherwise TCG
+      # (much slower, hence the long timeouts).
+      - name: Install QEMU and AAVMF
+        run: |
+          sudo apt-get install -yq qemu-system-arm qemu-efi-aarch64 qemu-utils socat imagemagick
+          ls -l /dev/kvm 2>/dev/null || echo "no /dev/kvm: QEMU uses TCG"
+
+      - name: Boot the live desktop (UEFI)
+        run: |
+          iso=$(ls out/voltos-*-aarch64.iso)
+          sudo -E SMOKE_TIMEOUT=3600 SMOKE_GUEST_WAIT=300 SMOKE_APP_WAIT=60 \
+            SMOKE_SCREENSHOT=out/aarch64-live.png tools/smoke-qemu.sh live-uefi "$iso"
+
+      # The installed system boots with only a firmware framebuffer (ramfb),
+      # the case that needs VoltOS's kernel to pass the framebuffer through
+      # ZFSBootMenu's kexec; the live test above uses virtio-gpu.
+      - name: Install to ZFS and boot through ZFSBootMenu
+        run: |
+          iso=$(ls out/voltos-*-aarch64.iso)
+          repo=
+          [ "${REPO_SIGNED:-0}" = 1 ] && repo=out/repo-aarch64
+          sudo -E SMOKE_TIMEOUT=7200 SMOKE_GUEST_WAIT=300 SMOKE_GPU=ramfb SMOKE_REPO=$repo \
+            SMOKE_SCREENSHOT=out/aarch64-installed.png tools/smoke-qemu.sh install "$iso"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-aarch64
+          if-no-files-found: ignore
+          path: out/aarch64-*.png
+
       - name: Checksums
         run: |
           # out/ was written as root inside the build root.
@@ -223,7 +255,7 @@ jobs:
             out/SHA256SUMS-aarch64
             out/repo-aarch64/
 
-      # As on x86_64, after the build checks above.  gh runs on the runner;
+      # As on x86_64, after the tests above.  gh runs on the runner;
       # repo-add (in "prepare") runs in the Arch Linux ARM root.
       - name: Publish the package repository
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.REPO_SIGNED == '1'
@@ -242,13 +274,11 @@ jobs:
           sudo chown -R "$(id -u)" out/repo-aarch64
           tools/publish-repo.sh upload out/repo-aarch64 repo-aarch64
 
-  # Releases publish the x86_64 ISO.  AArch64 is still experimental (built
-  # in CI, not yet boot-tested there), so its ISO stays a CI artifact of the
-  # aarch64 job and is not attached to releases.  0.x tags, and tags with a
-  # suffix such as v1.0.0-rc1, are published as pre-releases.
+  # Releases carry both ISOs.  0.x tags, and tags with a suffix such as
+  # v1.0.0-rc1, are published as pre-releases.
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build]
+    needs: [build, aarch64]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -256,6 +286,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: voltos-x86_64
+          path: artifacts
+      - uses: actions/download-artifact@v4
+        with:
+          name: voltos-aarch64
           path: artifacts
       - name: Publish release
         env:
@@ -265,5 +299,5 @@ jobs:
           pre=
           case "$GITHUB_REF_NAME" in v0.*|*-*) pre=--prerelease ;; esac
           gh release create "$GITHUB_REF_NAME" $pre --title "VoltOS $GITHUB_REF_NAME" \
-            --notes "VoltOS for x86_64 (UEFI and BIOS). AArch64 is experimental and not part of this release." \
-            --generate-notes artifacts/voltos-*-x86_64.iso artifacts/SHA256SUMS
+            --notes "VoltOS for x86_64 (UEFI and BIOS) and AArch64 (64-bit ARM with UEFI). Only the x86_64 ISO is signed for Secure Boot (when the signing secrets are set); AArch64 is newer and less tested." \
+            --generate-notes artifacts/voltos-*.iso artifacts/SHA256SUMS artifacts/SHA256SUMS-aarch64

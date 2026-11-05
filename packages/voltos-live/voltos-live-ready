@@ -2,6 +2,9 @@
 # Report on the first serial port once the display manager has logged the
 # live user into a graphical session.  Automated tests (tools/smoke-qemu.sh) wait for
 # this line; on machines without a serial port the write simply goes nowhere.
+# The first serial port is ttyS0 on PCs and ttyAMA0 (PL011) on 64-bit ARM.
+tty=/dev/ttyS0
+[ "$(uname -m)" != aarch64 ] || tty=/dev/ttyAMA0
 i=0
 while [ "$i" -lt 300 ]; do
 	for s in $(loginctl list-sessions --no-legend 2>/dev/null | awk '$3 == "liveuser" {print $1}'); do
@@ -10,7 +13,7 @@ while [ "$i" -lt 300 ]; do
 		if [ "$class" = user ] && { [ "$type" = wayland ] || [ "$type" = x11 ]; }; then
 			msg="VOLTOS_LIVE_READY session=$type"
 			echo "$msg"
-			[ -w /dev/ttyS0 ] && timeout 5 sh -c "echo '$msg' >/dev/ttyS0" || true
+			[ -w "$tty" ] && timeout 5 sh -c "echo '$msg' >$tty" || true
 			exit 0
 		fi
 	done
@@ -18,5 +21,5 @@ while [ "$i" -lt 300 ]; do
 	i=$((i + 2))
 done
 echo "VOLTOS_LIVE_NOT_READY"
-[ -w /dev/ttyS0 ] && timeout 5 sh -c "echo VOLTOS_LIVE_NOT_READY >/dev/ttyS0" || true
+[ -w "$tty" ] && timeout 5 sh -c "echo VOLTOS_LIVE_NOT_READY >$tty" || true
 exit 1
