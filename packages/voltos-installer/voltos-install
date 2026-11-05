@@ -274,12 +274,31 @@ create_pool()
 copy_system()
 {
 	log "Copying the system (this takes a few minutes)"
-	run rsync -aAXHx --numeric-ids \
+	# Unpack the live medium's image with unsquashfs first: it reads the
+	# image in order, decompresses every block once and uses every CPU,
+	# where copying file by file through the mounted image decompresses
+	# the same blocks over and over (about 5x slower; far more on slow
+	# CPUs).  The rsync below then brings over what the live session
+	# changed (--delete: and what it removed), so the result is the same
+	# as copying the running system.  Without unsquashfs or the image,
+	# rsync copies everything.
+	local loop image
+	loop=$(findmnt -n -o SOURCE "$LIVE_ROOT" 2>/dev/null || :)
+	image=$(losetup -n -O BACK-FILE "$loop" 2>/dev/null || :)
+	if command -v unsquashfs >/dev/null && [ -f "$image" ]; then
+		log "+ unsquashfs $image"
+		unsquashfs -f -q -n -p "$(nproc)" -d "$TARGET" "$image" >>"$LOG" 2>&1 ||
+		    log "unsquashfs failed; rsync copies everything"
+	fi
+	run rsync -aAXHx --numeric-ids --delete \
 	    --exclude='/dev/*' --exclude='/proc/*' --exclude='/sys/*' \
 	    --exclude='/run/*' --exclude='/tmp/*' --exclude='/mnt/*' \
 	    --exclude='/var/tmp/*' --exclude='/var/cache/pacman/pkg/*' \
 	    --exclude='/var/log/*' --exclude='/home/*' \
 	    "$LIVE_ROOT"/ "$TARGET"/
+	# What rsync leaves out, the image may hold (logs from building it).
+	find "$TARGET/var/log" "$TARGET/var/cache/pacman/pkg" "$TARGET/var/tmp" \
+	    "$TARGET/tmp" -mindepth 1 -delete 2>/dev/null || :
 
 	# Remove everything that only makes sense on the live medium.
 	if [ -f "$TARGET$LIVE_FILES" ]; then

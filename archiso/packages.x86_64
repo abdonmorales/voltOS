@@ -102,6 +102,7 @@ xfsprogs
 ntfs-3g
 efibootmgr
 rsync
+squashfs-tools
 pv
 dialog
 sudo
