@@ -313,13 +313,17 @@ if [ "$mode" != live-bios ] && [ -z "$ovmf_code" ]; then
 	exit 1
 fi
 
-# The firmware's variable store must be exactly the size of its code
-# image; AAVMF's VARS file can be shorter.
-[ "$arch" != aarch64 ] || [ -z "$ovmf_code" ] || {
-	cp "$ovmf_vars" "$tmp/aavmf-vars.fd"
-	truncate -s "$(stat -c %s "$ovmf_code")" "$tmp/aavmf-vars.fd"
-	ovmf_vars=$tmp/aavmf-vars.fd
-}
+# virt's two flash devices must be the same size: pad a shorter AAVMF
+# variable store to the size of the code image.  -L: distributions ship
+# these files as symbolic links (Ubuntu's AAVMF_CODE.fd is one).
+if [ "$arch" = aarch64 ] && [ -n "$ovmf_code" ]; then
+	code_size=$(stat -L -c %s "$ovmf_code")
+	if [ "$(stat -L -c %s "$ovmf_vars")" -lt "$code_size" ]; then
+		cp -L "$ovmf_vars" "$tmp/aavmf-vars.fd"
+		truncate -s "$code_size" "$tmp/aavmf-vars.fd"
+		ovmf_vars=$tmp/aavmf-vars.fd
+	fi
+fi
 
 # The live session reports on the serial port once LightDM has logged the
 # live user into MATE (voltos-live-ready.service).  The installed system boots
