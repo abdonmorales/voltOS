@@ -296,6 +296,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          # A failed earlier attempt can leave a draft release behind.
+          if [ "$(gh release view "$GITHUB_REF_NAME" --json isDraft -q .isDraft 2>/dev/null)" = true ]; then
+            gh release delete "$GITHUB_REF_NAME" --yes
+          fi
           pre=
           case "$GITHUB_REF_NAME" in v0.*|*-*) pre=--prerelease ;; esac
           gh release create "$GITHUB_REF_NAME" $pre --title "VoltOS $GITHUB_REF_NAME" \

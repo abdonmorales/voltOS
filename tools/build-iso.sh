@@ -71,3 +71,15 @@ done
 rm -rf "$work"
 mkarchiso -v -r -w "$work" -o "$top/out" "$profile"
 ls -l "$top"/out/*.iso
+
+# GitHub refuses release files of 2 GiB or more; fail here, not hours later
+# when the release job uploads the ISO.
+iso=$(ls -t "$top"/out/voltos-*-"$carch".iso | head -n 1)
+size=$(stat -c %s "$iso")
+limit=$((2 * 1024 * 1024 * 1024))
+echo "build-iso.sh: $(basename "$iso") is $((size / 1048576)) MiB" \
+     "($(((limit - size) / 1048576)) MiB under GitHub's 2 GiB release-file limit)"
+if [ "$size" -ge "$limit" ]; then
+	echo "build-iso.sh: the ISO is too large to publish as a GitHub release file" >&2
+	exit 1
+fi
