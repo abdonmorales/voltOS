@@ -2,7 +2,8 @@
 #
 # gnome-menus 2.30, the menu library of the GNOME 2 panel (libgnome-menu).
 # Arch Linux ships only gnome-menus 3, which installs alongside: its
-# desktop-directories are the same, so this package leaves them to it.
+# desktop-directories and translations are the same, so this package
+# leaves them to it.
 # From GNOME's release, for x86_64 and AArch64, without Python 2 bindings.
 
 pkgname=gnome-menus2
@@ -29,6 +30,7 @@ build() {
 package() {
     cd gnome-menus-$pkgver
     make DESTDIR="$pkgdir" install
-    # Same files as gnome-menus 3's.
-    rm -rf "$pkgdir/usr/share/desktop-directories"
+    # Same files as gnome-menus 3's: its desktop-directories, and its
+    # translations (same gettext domain).
+    rm -rf "$pkgdir/usr/share/desktop-directories" "$pkgdir/usr/share/locale"
 }

@@ -35,7 +35,9 @@ repo=$top/out/repo
 [ "$carch" = x86_64 ] || repo=$top/out/repo-$carch
 order=(voltos-keyring linux-lts-aarch64 nimbus-gtk-theme gtk2 gtk-engine-nimbus orbit2 gconf libbonobo
        gnome-mime-data gnome-vfs libart-lgpl libglade libgnomecanvas libgnome
-       libgnome-keyring libbonoboui libgnomeui libwnck pico voltos-branding voltos-desktop zfs-utils zfs-dkms
+       libgnome-keyring libbonoboui libgnomeui libwnck
+       libunique vte-legacy gnome-menus2 gnome-desktop2 libgnomekbd2 libcanberra-gtk2
+       metacity2 pico voltos-branding voltos-desktop zfs-utils zfs-dkms
        zfsbootmenu-efi perl-boolean zfsbootmenu
        voltos-zfs-snapshots voltos-secureboot voltos-doas voltos-installer voltos-gui-install
        voltos-live)

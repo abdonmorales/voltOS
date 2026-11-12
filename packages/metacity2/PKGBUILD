@@ -1,7 +1,9 @@
 # Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
 #
 # Metacity 2.30, the window manager of GNOME 2.  From GNOME's release, for
-# x86_64 and AArch64.
+# x86_64 and AArch64.  It takes Metacity 3's commands (GNOME Flashback's
+# window manager), so the two cannot be installed together; GNOME 2 is to
+# replace Flashback around VoltOS 1.5.
 
 pkgname=metacity2
 pkgver=2.30.3
@@ -12,9 +14,10 @@ url="https://gitlab.gnome.org/GNOME/metacity"
 license=('GPL-2.0-or-later')
 depends=('gtk2' 'gconf' 'libcanberra-gtk2' 'startup-notification' 'zenity'
          'libsm' 'libxinerama' 'libxrandr' 'libxcursor' 'libxcomposite' 'libxdamage')
-makedepends=('intltool' 'gtk2' 'gconf' 'libcanberra-gtk2' 'libcanberra'
+makedepends=('intltool' 'gtk2' 'gconf' 'libcanberra-gtk2' 'libcanberra' 'zenity'
              'startup-notification' 'libsm' 'libxinerama' 'libxrandr' 'libxcursor'
              'libxcomposite' 'libxdamage' 'glib2-devel')
+conflicts=('metacity')
 source=("https://download.gnome.org/sources/metacity/${pkgver%.*}/metacity-$pkgver.tar.bz2")
 # From GNOME's metacity-2.30.3.sha256sum.
 sha256sums=('08f887018fa5e447cf184d03bae3fe2c05fdb7583bed6768e3b4d66392fc18dd')
