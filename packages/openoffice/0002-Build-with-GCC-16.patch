@@ -1,0 +1,109 @@
+diff -ru a/main/sd/source/ui/dlg/TemplateScanner.cxx b/main/sd/source/ui/dlg/TemplateScanner.cxx
+--- a/main/sd/source/ui/dlg/TemplateScanner.cxx	2026-11-12 21:34:23.278223804 +0000
++++ b/main/sd/source/ui/dlg/TemplateScanner.cxx	2026-11-12 21:34:47.998670465 +0000
+@@ -87,7 +87,7 @@
+     Reference<com::sun::star::ucb::XCommandEnvironment> mxFolderEnvironment;
+ 
+     class Comparator { public:
+-        bool operator() (const FolderDescriptor& r1, const FolderDescriptor& r2)
++        bool operator() (const FolderDescriptor& r1, const FolderDescriptor& r2) const
+         { return r1.mnPriority < r2.mnPriority; }
+     };
+ };
+diff -ru a/main/sd/source/ui/sidebar/AllMasterPagesSelector.cxx b/main/sd/source/ui/sidebar/AllMasterPagesSelector.cxx
+--- a/main/sd/source/ui/sidebar/AllMasterPagesSelector.cxx	2026-11-12 21:35:02.046226109 +0000
++++ b/main/sd/source/ui/sidebar/AllMasterPagesSelector.cxx	2026-11-12 21:35:26.498913249 +0000
+@@ -59,7 +59,7 @@
+ public:
+     bool operator() (
+         const SharedMasterPageDescriptor& rp1,
+-        const SharedMasterPageDescriptor& rp2)
++        const SharedMasterPageDescriptor& rp2) const
+     {
+         if (rp1->meOrigin == MasterPageContainer::DEFAULT)
+             return true;
+diff -ru a/main/sd/source/ui/sidebar/MasterPageContainerQueue.cxx b/main/sd/source/ui/sidebar/MasterPageContainerQueue.cxx
+--- a/main/sd/source/ui/sidebar/MasterPageContainerQueue.cxx	2026-11-12 21:35:39.890228359 +0000
++++ b/main/sd/source/ui/sidebar/MasterPageContainerQueue.cxx	2026-11-12 21:36:04.701772635 +0000
+@@ -47,7 +47,7 @@
+     SharedMasterPageDescriptor mpDescriptor;
+     int mnPriority;
+     class Compare {public:
+-        bool operator() (const PreviewCreationRequest& r1,const PreviewCreationRequest& r2)
++        bool operator() (const PreviewCreationRequest& r1,const PreviewCreationRequest& r2) const
+         {
+             if (r1.mnPriority != r2.mnPriority)
+             {
+diff -ru a/main/sd/source/ui/slidesorter/cache/SlsPageCacheManager.cxx b/main/sd/source/ui/slidesorter/cache/SlsPageCacheManager.cxx
+--- a/main/sd/source/ui/slidesorter/cache/SlsPageCacheManager.cxx	2026-11-12 21:36:18.190230635 +0000
++++ b/main/sd/source/ui/slidesorter/cache/SlsPageCacheManager.cxx	2026-11-12 21:36:44.915261018 +0000
+@@ -105,7 +105,7 @@
+         : maPreferredSize(rPreferredSize)
+     {}
+     bool operator()(const ::sd::slidesorter::cache::PageCacheManager::BestFittingPageCaches::value_type& rElement1,
+-        const ::sd::slidesorter::cache::PageCacheManager::BestFittingPageCaches::value_type& rElement2)
++        const ::sd::slidesorter::cache::PageCacheManager::BestFittingPageCaches::value_type& rElement2) const
+     {
+         if (rElement1.first == maPreferredSize)
+             return true;
+diff -ru a/main/sd/source/ui/slidesorter/cache/SlsRequestQueue.cxx b/main/sd/source/ui/slidesorter/cache/SlsRequestQueue.cxx
+--- a/main/sd/source/ui/slidesorter/cache/SlsRequestQueue.cxx	2026-11-12 21:33:03.586219067 +0000
++++ b/main/sd/source/ui/slidesorter/cache/SlsRequestQueue.cxx	2026-11-12 21:33:29.487974104 +0000
+@@ -46,7 +46,7 @@
+     /** Sort requests according to priority classes and then to priorities.
+     */
+     class Comparator { public:
+-        bool operator() (const Request& rRequest1, const Request& rRequest2)
++        bool operator() (const Request& rRequest1, const Request& rRequest2) const
+         {
+             if (rRequest1.meClass == rRequest2.meClass)
+                 return (rRequest1.mnPriorityInClass > rRequest2.mnPriorityInClass);
+diff -ru a/main/sdext/source/presenter/PresenterTimer.cxx b/main/sdext/source/presenter/PresenterTimer.cxx
+--- a/main/sdext/source/presenter/PresenterTimer.cxx	2026-11-12 21:32:24.678216755 +0000
++++ b/main/sdext/source/presenter/PresenterTimer.cxx	2026-11-12 21:32:49.773501798 +0000
+@@ -63,7 +63,7 @@
+ class TimerTaskComparator
+ {
+ public:
+-    bool operator() (const SharedTimerTask& rpTask1, const SharedTimerTask& rpTask2)
++    bool operator() (const SharedTimerTask& rpTask1, const SharedTimerTask& rpTask2) const
+     {
+         return rpTask1->maDueTime.Seconds < rpTask2->maDueTime.Seconds
+             || (rpTask1->maDueTime.Seconds == rpTask2->maDueTime.Seconds
+diff -ru a/main/sw/source/core/unocore/unoportenum.cxx b/main/sw/source/core/unocore/unoportenum.cxx
+--- a/main/sw/source/core/unocore/unoportenum.cxx	2026-11-12 21:33:45.662221568 +0000
++++ b/main/sw/source/core/unocore/unoportenum.cxx	2026-11-12 21:34:09.628237523 +0000
+@@ -114,7 +114,7 @@
+     struct BookmarkCompareStruct
+     {
+         bool operator () ( const SwXBookmarkPortion_ImplSharedPtr &r1,
+-                           const SwXBookmarkPortion_ImplSharedPtr &r2 )
++                           const SwXBookmarkPortion_ImplSharedPtr &r2 ) const
+         {
+             // #i16896# for bookmark portions at the same position, the start should
+             // always precede the end. Hence compare positions, and use bookmark type
+@@ -223,7 +223,7 @@
+     struct AnnotationStartCompareStruct
+     {
+         bool operator () ( const SwAnnotationStartPortion_ImplSharedPtr &r1,
+-                           const SwAnnotationStartPortion_ImplSharedPtr &r2 )
++                           const SwAnnotationStartPortion_ImplSharedPtr &r2 ) const
+         {
+             return r1->maPosition < r2->maPosition;
+         }
+@@ -719,13 +719,13 @@
+ 
+ struct RedlineCompareStruct
+ {
+-	const SwPosition& getPosition ( const SwXRedlinePortion_ImplSharedPtr &r )
++	const SwPosition& getPosition ( const SwXRedlinePortion_ImplSharedPtr &r ) const
+     {
+         return *(r->m_bStart ? r->m_pRedline->Start() : r->m_pRedline->End());
+     }
+ 
+ 	bool operator () ( const SwXRedlinePortion_ImplSharedPtr &r1,
+-					   const SwXRedlinePortion_ImplSharedPtr &r2 )
++					   const SwXRedlinePortion_ImplSharedPtr &r2 ) const
+ 	{
+ 		return getPosition ( r1 ) < getPosition ( r2 );
+ 	}

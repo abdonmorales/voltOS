@@ -18,6 +18,8 @@
 # each other), from this run's repository, which is listed first in a
 # private pacman configuration while building.
 #
+# Packages named in VOLTOS_SKIP are not built (see the loop below).
+#
 # The OpenZFS tarballs are pinned by sha256 in their PKGBUILDs; their PGP
 # signatures are not checked because a fresh build host has no keys for
 # the OpenZFS release managers (pass VOLTOS_PGP=1 to require them).
@@ -111,6 +113,18 @@ for pkg in "${order[@]}"; do
 		echo "==> Skipping $pkg (no signing key)"
 		continue
 	fi
+	# VOLTOS_SKIP: packages built elsewhere (CI builds OpenOffice for
+	# aarch64 in its own workflow); a copy put in the repository
+	# beforehand is signed and included.
+	if [[ " ${VOLTOS_SKIP:-} " == *" $pkg "* ]]; then
+		echo "==> Skipping $pkg (VOLTOS_SKIP)"
+		for f in "$repo/$pkg"-[0-9]*.pkg.tar.zst; do
+			[ -e "$f" ] || continue
+			[ -z "$REPO_KEY" ] || [ -e "$f.sig" ] || repo_sign "$f"
+			repo-add -q -R "$repo/voltos-build.db.tar.gz" "$f"
+		done
+		continue
+	fi
 	echo "==> Building $pkg"
 	# Install what the build needs.  makepkg runs with --nodeps, so this
 	# is the only place dependencies are installed: makedepends and
@@ -120,10 +134,12 @@ for pkg in "${order[@]}"; do
 	# (voltos-*) are left out: nothing compiles against them, and
 	# installing them would change the build host (voltos-doas replaces
 	# the sudo this script uses).
-	mapfile -t mk < <(cd "$dir" && bash -c '
+	# The arrays for this architecture (makedepends_aarch64, ...) too.
+	mapfile -t mk < <(cd "$dir" && CARCH=$carch bash -c '
 	    source ./PKGBUILD
-	    printf "%s\n" "${makedepends[@]}" "${checkdepends[@]}"
-	    if declare -F build >/dev/null; then printf "%s\n" "${depends[@]}"; fi' |
+	    a() { local n="$1[@]" na="$1_$CARCH[@]"; printf "%s\n" "${!n}" "${!na}"; }
+	    a makedepends; a checkdepends
+	    if declare -F build >/dev/null; then a depends; fi' |
 	    sed -e '/^$/d' -e '/^voltos-/d' | sort -u)
 	if [ "${#mk[@]}" -gt 0 ]; then
 		$SUDO pacman --config "$buildconf" -Sy --needed --noconfirm "${mk[@]}"

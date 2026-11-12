@@ -1,39 +1,117 @@
 # Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
 #
 # Apache OpenOffice, the continuation of OpenOffice.org (and so of Sun's
-# StarOffice): Writer, Calc, Impress, Draw, Math and Base.  Repackaged
-# from Apache's own Linux build (the RPM set, pinned by sha256; fetched from
-# archive.apache.org, which keeps every release) and installed in
+# StarOffice): Writer, Calc, Impress, Draw, Math and Base, installed in
 # /opt/openoffice4 as Apache lays it out.  It draws with GTK 2, so it takes
 # the Nimbus theme in MATE and GNOME 2.
 #
-# Apache publishes no AArch64 build, so this is x86_64 only.  The online
-# updater is left out (pacman updates it), and so is the soffice command,
-# which LibreOffice also installs: start it as openoffice4.
+# x86_64: repackaged from Apache's own Linux build (the RPM set, pinned by
+# sha256; fetched from archive.apache.org, which keeps every release).
+#
+# aarch64: Apache publishes no build, and OpenOffice 4.1 does not support
+# the CPU, so it is built from Apache's source release with VoltOS's port
+# (0001: the platform, the build system and a C++ UNO bridge for AAPCS64)
+# and fixes for today's compilers (0002).  GCC 16 builds the C89 and C++98
+# code as C17 and C++14 with -fpermissive (the aoo-cc and aoo-c++
+# wrappers); the bundled Java libraries need JDK 8; libxml2, libxslt and
+# Redland come from Arch.  The build takes hours: CI builds it in its own
+# workflow (.github/workflows/openoffice-aarch64.yml).
+#
+# The online updater is left out (pacman updates it), and so is the
+# soffice command, which LibreOffice also installs: start it as openoffice4.
 
 pkgname=openoffice
 pkgver=4.1.17
 _build=9818
+_srcrev=49c05bc6fd
 pkgrel=1
 pkgdesc="Apache OpenOffice office suite (Writer, Calc, Impress, Draw, Math, Base)"
-arch=('x86_64')
+arch=('x86_64' 'aarch64')
 url="https://www.openoffice.org"
 license=('Apache-2.0')
-depends=('gtk2' 'gdk-pixbuf-xlib' 'dbus-glib' 'libxcrypt-compat' 'glu'
-         'libxinerama' 'libxrandr' 'libsm' 'fontconfig' 'freetype2'
-         'hicolor-icon-theme')
+depends=('gtk2' 'gdk-pixbuf-xlib' 'dbus-glib' 'glu' 'libxinerama' 'libxrandr'
+         'libsm' 'fontconfig' 'freetype2' 'hicolor-icon-theme')
+depends_x86_64=('libxcrypt-compat')
+depends_aarch64=('libxml2' 'libxslt' 'redland' 'libcups' 'libxaw' 'hunspell')
+makedepends_aarch64=('git' 'gperf' 'jdk8-openjdk' 'ant' 'perl-archive-zip'
+                     'perl-xml-parser' 'perl-lwp-protocol-https' 'perl-libwww'
+                     'zip' 'unzip' 'libxt' 'mesa' 'tcsh' 'bison' 'flex'
+                     'autoconf' 'automake' 'gettext' 'python' 'wget' 'cpio'
+                     'which')
 optdepends=('java-runtime: Base databases, some wizards and filters'
             'gconf: GNOME 2 proxy settings'
             'gnome-vfs: GNOME VFS locations')
 options=('!strip' '!debug' '!emptydirs')
 _tarball=Apache_OpenOffice_${pkgver}_Linux_x86-64_install-rpm_en-US.tar.gz
-source=("https://archive.apache.org/dist/openoffice/$pkgver/binaries/en-US/$_tarball"
-        'openoffice4')
+source=('openoffice4')
+source_x86_64=("https://archive.apache.org/dist/openoffice/$pkgver/binaries/en-US/$_tarball")
+source_aarch64=("https://archive.apache.org/dist/openoffice/$pkgver/source/apache-openoffice-$pkgver-$_srcrev-src.tar.bz2"
+                'git+https://github.com/jimjag/dmake.git#tag=v4.13.1'
+                '0001-Linux-AArch64-port.patch'
+                '0002-Build-with-GCC-16.patch')
 noextract=("$_tarball")
-sha256sums=('972fd0309a27c2c8fa9a569efc690fb7c5e2d073b5f79006c2d3f9eba8c5dde0'
-            'SKIP')
+sha256sums=('SKIP')
+sha256sums_x86_64=('972fd0309a27c2c8fa9a569efc690fb7c5e2d073b5f79006c2d3f9eba8c5dde0')
+sha256sums_aarch64=('bb6f4c66a610550cafe4e6a4c06816a31869fe32a520096b27e529776cce6b8d'
+                    'SKIP'
+                    'SKIP'
+                    'SKIP')
+
+prepare() {
+    [ "$CARCH" = aarch64 ] || return 0
+    cd aoo-$pkgver
+    patch -Np1 -i ../0001-Linux-AArch64-port.patch
+    patch -Np1 -i ../0002-Build-with-GCC-16.patch
+}
+
+build() {
+    [ "$CARCH" = aarch64 ] || return 0
+    local tools=$srcdir/tools
+
+    # dmake, OpenOffice's make (K&R C)
+    cd "$srcdir/dmake"
+    CFLAGS="-O2 -std=gnu89" ./configure --prefix="$tools"
+    make
+    make install
+
+    # GCC 16 defaults to C23 and C++20, and makes some old warnings errors.
+    printf '#!/bin/sh\nexec gcc -std=gnu17 -fpermissive "$@"\n' >"$tools/bin/aoo-cc"
+    printf '#!/bin/sh\nexec g++ -std=gnu++14 -fpermissive "$@"\n' >"$tools/bin/aoo-c++"
+    chmod +x "$tools/bin/aoo-cc" "$tools/bin/aoo-c++"
+    export PATH=$tools/bin:$PATH CC=aoo-cc CXX=aoo-c++
+
+    # makepkg's flags are for today's code; OpenOffice sets its own.
+    unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
+
+    cd "$srcdir/aoo-$pkgver/main"
+    autoconf
+    ./configure \
+        --with-dmake-path="$tools/bin/dmake" --disable-epm \
+        --with-package-format=installed --with-lang=en-US \
+        --enable-gtk --disable-gnome-vfs --disable-gconf --disable-kde --disable-kde4 \
+        --enable-dbus --enable-opengl --disable-gstreamer --disable-online-update \
+        --with-system-stdlibs --without-stlport --without-junit --disable-odk \
+        --with-system-libxml --with-system-libxslt --with-system-redland \
+        --enable-category-b --enable-bundled-dictionaries \
+        --with-jdk-home=/usr/lib/jvm/java-8-openjdk --with-ant-home=/usr/share/ant
+    ./bootstrap
+    . ./LinuxAArch64Env.Set.sh
+    export PATH=$tools/bin:$PATH CC=aoo-cc CXX=aoo-c++
+    cd instsetoo_native
+    perl "$SOLARENV/bin/build.pl" --all -P"$(nproc)" -- -P2
+}
 
 package() {
+    if [ "$CARCH" = aarch64 ]; then
+        _package_aarch64
+    else
+        _package_x86_64
+    fi
+    rm -f "$pkgdir/usr/bin/soffice"
+    install -Dm755 "$srcdir/openoffice4" "$pkgdir/usr/bin/openoffice4"
+}
+
+_package_x86_64() {
     bsdtar -xf "$_tarball"
     cd "$pkgdir"
     local rpm
@@ -44,7 +122,24 @@ package() {
         esac
         bsdtar -xf "$rpm"
     done
-    rm -f usr/bin/soffice
-    install -m755 "$srcdir/openoffice4" usr/bin/openoffice4
     install -Dm644 "$srcdir"/en-US/licenses/{LICENSE,NOTICE} -t "usr/share/licenses/$pkgname"
+}
+
+_package_aarch64() {
+    local inst=$srcdir/aoo-$pkgver/main/instsetoo_native/unxlngaarch64.pro/Apache_OpenOffice/installed/install/en-US
+    install -d "$pkgdir/opt"
+    cp -a "$inst/openoffice4" "$pkgdir/opt/"
+    # The desktop integration the x86_64 build gets from its
+    # freedesktop-menus package: menu entries, icons, MIME types.
+    local d f
+    install -d "$pkgdir/usr/share/applications"
+    for f in "$pkgdir"/opt/openoffice4/share/xdg/*.desktop; do
+        ln -s "/opt/openoffice4/share/xdg/${f##*/}" \
+            "$pkgdir/usr/share/applications/openoffice4-${f##*/}"
+    done
+    d=$srcdir/aoo-$pkgver/main/sysui/unxlngaarch64.pro/misc/openoffice
+    for f in "$d"/usr/share/icons "$d"/usr/share/mime; do
+        [ -d "$f" ] && cp -a "$f" "$pkgdir/usr/share/"
+    done
+    install -Dm644 "$srcdir/aoo-$pkgver"/main/{LICENSE,NOTICE} -t "$pkgdir/usr/share/licenses/$pkgname"
 }

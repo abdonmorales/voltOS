@@ -167,6 +167,22 @@ jobs:
           sudo apt-get install -yq libarchive-tools
           sudo tools/alarm-buildroot.sh /var/tmp/alarm
 
+      # OpenOffice takes hours to build from source on AArch64, so its own
+      # workflow builds it (openoffice-aarch64.yml); this job takes that
+      # package when its version is the recipe's, and does not build it.
+      - name: Fetch OpenOffice built by its own workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(bash -c '. packages/openoffice/PKGBUILD; echo "$pkgver-$pkgrel"')
+          f=openoffice-$v-aarch64.pkg.tar.zst
+          mkdir -p out/repo-aarch64
+          if gh release download openoffice-aarch64-build --pattern "$f" --dir out/repo-aarch64 --clobber; then
+            echo "OpenOffice $v for aarch64: prebuilt"
+          else
+            echo "OpenOffice $v for aarch64 has not been built yet (run the OpenOffice for AArch64 workflow); the repository goes without it"
+          fi
+
       # The key file sits in the checkout (bind-mounted at /voltos) only
       # while it is needed; out/ is not part of any artifact path.
       - name: Build packages (linux-lts, Nimbus, OpenZFS, ZFSBootMenu, VoltOS)
@@ -180,7 +196,7 @@ jobs:
             key=VOLTOS_REPO_KEY_FILE=/voltos/out/.key/repo.key
             echo "REPO_SIGNED=1" >> "$GITHUB_ENV"
           fi
-          sudo tools/alarm-chroot.sh /var/tmp/alarm "cd /voltos && $key tools/build-packages.sh"
+          sudo tools/alarm-chroot.sh /var/tmp/alarm "cd /voltos && $key VOLTOS_SKIP=openoffice tools/build-packages.sh"
           sudo rm -rf out/.key
 
       - name: Build the ZFS module with DKMS and ZFSBootMenu with generate-zbm

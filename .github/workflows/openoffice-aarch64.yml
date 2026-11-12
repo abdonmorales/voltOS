@@ -1,0 +1,75 @@
+# Apache OpenOffice for AArch64, built from source (packages/openoffice).
+#
+# The build takes hours, so it is not part of the ISO workflow: this one
+# builds the package on GitHub's ARM runner and stores it as a file of the
+# "openoffice-aarch64-build" release.  The ISO workflow's aarch64 job takes
+# it from there when its version matches packages/openoffice/PKGBUILD, signs
+# it with the repository key and publishes it with the other packages.
+#
+# Run it by hand (Actions > OpenOffice for AArch64 > Run workflow), or it
+# runs when the recipe changes.
+
+name: OpenOffice for AArch64
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - packages/openoffice/**
+      - .github/workflows/openoffice-aarch64.yml
+
+concurrency:
+  group: openoffice-aarch64
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 360
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Create the Arch Linux ARM build root
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq libarchive-tools
+          sudo tools/alarm-buildroot.sh /var/tmp/alarm
+
+      # GTK 2 is a VoltOS package; OpenOffice builds against it.  Unsigned:
+      # the ISO workflow signs the package when it publishes it.
+      - name: Build GTK 2 and OpenOffice
+        run: |
+          rc=0
+          sudo tools/alarm-chroot.sh /var/tmp/alarm \
+            "cd /voltos && tools/build-packages.sh gtk2 openoffice" \
+            >openoffice-build.log 2>&1 || rc=$?
+          grep -E '^==>|^ERROR|dmake: +Error|error:' openoffice-build.log | tail -n 200 || :
+          tail -n 50 openoffice-build.log
+          [ "$rc" -eq 0 ]
+          ls -la out/repo-aarch64/openoffice-*.pkg.tar.zst
+
+      - name: Upload the build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openoffice-aarch64-log
+          path: |
+            openoffice-build.log
+            packages/openoffice/src/aoo-*/main/*/unxlngaarch64.pro/misc/logs/*.txt
+          if-no-files-found: ignore
+
+      - name: Store the package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=openoffice-aarch64-build
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --prerelease --latest=false \
+              --title "OpenOffice for AArch64 (build)" \
+              --notes "Apache OpenOffice built for AArch64 by .github/workflows/openoffice-aarch64.yml, for the ISO workflow to publish in the [voltos] repository. Not meant to be downloaded by hand."
+          fi
+          gh release upload "$tag" --clobber out/repo-aarch64/openoffice-*.pkg.tar.zst
