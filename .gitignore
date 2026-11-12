@@ -4,6 +4,7 @@
 /packages/*/pkg/
 /packages/*/*.pkg.tar.*
 /packages/*/*.tar.gz
+/packages/*/*.tar.bz2
 /packages/*/*.EFI
 /packages/*/LICENSE
 /packages/nimbus-gtk-theme/nimbus/
