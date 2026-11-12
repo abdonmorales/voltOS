@@ -229,6 +229,25 @@ screenshot()
 	echo "smoke-qemu.sh: screenshot $out"
 }
 
+# check_doas: administrators use doas, not sudo: voltos-doas installed,
+# sudo gone, doas.conf valid, granting wheel but not the live user.
+check_doas()
+{
+	local out
+	out=$(guest_sh '
+		pacman -Q voltos-doas >/dev/null && echo has-voltos-doas
+		pacman -Q sudo >/dev/null 2>&1 || echo no-sudo
+		doas -C /etc/doas.conf && echo conf-valid
+		grep -qx "permit persist :wheel" /etc/doas.conf && echo wheel-rule
+		grep -q liveuser /etc/doas.conf || echo no-live-rule
+		id -nG volt | grep -qw wheel && echo volt-in-wheel')
+	printf 'smoke-qemu.sh: doas: %s\n' "$(echo $out)"
+	[ "$(echo $out)" = "has-voltos-doas no-sudo conf-valid wheel-rule no-live-rule volt-in-wheel" ] || {
+		echo "smoke-qemu.sh: the installed system's doas setup is wrong" >&2
+		exit 1
+	}
+}
+
 # check_updates <repo dir>: the installed system has the [voltos] repository
 # and the VoltOS key, and pacman downloads and verifies the signed database
 # and a package from <repo dir> (served to the guest over QEMU's user
@@ -482,6 +501,7 @@ install)
 	wait_greeter "$timeout"
 	sleep 10
 	screenshot
+	check_doas
 	[ -z "${SMOKE_REPO:-}" ] || check_updates "$SMOKE_REPO"
 
 	if [ "${SMOKE_SECBOOT:-0}" = 1 ]; then
