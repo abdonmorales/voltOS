@@ -1,0 +1,34 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# gnome-menus 2.30, the menu library of the GNOME 2 panel (libgnome-menu).
+# Arch Linux ships only gnome-menus 3, which installs alongside: its
+# desktop-directories are the same, so this package leaves them to it.
+# From GNOME's release, for x86_64 and AArch64, without Python 2 bindings.
+
+pkgname=gnome-menus2
+pkgver=2.30.5
+pkgrel=1
+pkgdesc="Menu library and layout of the GNOME 2 panel"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/gnome-menus"
+license=('LGPL-2.0-or-later')
+depends=('glib2' 'gnome-menus')
+makedepends=('intltool' 'glib2-devel')
+source=("https://download.gnome.org/sources/gnome-menus/${pkgver%.*}/gnome-menus-$pkgver.tar.bz2")
+# From GNOME's gnome-menus-2.30.5.sha256sum.
+sha256sums=('6dcc565006d6e8c2025ae83ab1f82edf6bd04d61c804c0dc9bf5ea50629c4caa')
+
+build() {
+    cd gnome-menus-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --disable-static --disable-python --disable-introspection
+    make
+}
+
+package() {
+    cd gnome-menus-$pkgver
+    make DESTDIR="$pkgdir" install
+    # Same files as gnome-menus 3's.
+    rm -rf "$pkgdir/usr/share/desktop-directories"
+}

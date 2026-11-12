@@ -1,0 +1,45 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# gnome-desktop 2.32, the GNOME 2 desktop library (libgnome-desktop-2:
+# backgrounds, monitor layout, thumbnails).  Arch Linux ships only the
+# GNOME 3 library, which installs alongside.  From GNOME's release, for
+# x86_64 and AArch64, without gnome-about (Python 2) and the manuals.
+
+pkgname=gnome-desktop2
+pkgver=2.32.1
+pkgrel=1
+pkgdesc="Desktop library of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/gnome-desktop"
+license=('GPL-2.0-or-later' 'LGPL-2.0-or-later')
+depends=('gtk2' 'gconf' 'startup-notification' 'libxrandr' 'hwdata')
+makedepends=('intltool' 'gtk2' 'gconf' 'startup-notification' 'libxrandr' 'glib2-devel')
+source=("https://download.gnome.org/sources/gnome-desktop/${pkgver%.*}/gnome-desktop-$pkgver.tar.bz2")
+# From GNOME's gnome-desktop-2.32.1.sha256sum.
+sha256sums=('55cbecf67efe1fa1e57ac966520a7c46d799c8ba3c652a1219f60cafccb3739d')
+
+prepare() {
+    cd gnome-desktop-$pkgver
+    sed -i -e 's/^\(SUBDIRS.*\) docs/\1/' -e 's/^\(SUBDIRS.*\) desktop-docs/\1/' Makefile.in
+}
+
+build() {
+    cd gnome-desktop-$pkgver
+    # gnome-doc-utils (Python 2) is gone: satisfy configure's check with a stub
+    # and leave out the help manuals.
+    mkdir -p "$srcdir/stub-pc"
+    printf 'Name: gnome-doc-utils\nDescription: stub\nVersion: 0.20.10\n' \
+        >"$srcdir/stub-pc/gnome-doc-utils.pc"
+    export PKG_CONFIG_PATH="$srcdir/stub-pc"
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --libexecdir=/usr/lib/gnome-desktop2 --disable-static \
+        --disable-scrollkeeper --disable-gnome-about --disable-desktop-docs \
+        --with-gnome-distributor=VoltOS --with-pnp-ids-path=/usr/share/hwdata/pnp.ids
+    make
+}
+
+package() {
+    cd gnome-desktop-$pkgver
+    make DESTDIR="$pkgdir" install
+}

@@ -1,0 +1,48 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# VTE 0.28, the GTK 2 terminal widget (gnome-terminal 2).  Arch Linux
+# dropped it; adapted from the AUR recipe, with its patches (alternate
+# screen, scroll region, bracketed paste), for x86_64 and AArch64, without
+# the Python 2 bindings.
+
+pkgname=vte-legacy
+pkgver=0.28.2
+pkgrel=1
+pkgdesc="Virtual terminal widget for GTK 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/vte"
+license=('LGPL-2.0-or-later')
+depends=('gtk2' 'vte-common' 'ncurses')
+makedepends=('intltool' 'gtk2' 'ncurses')
+provides=('vte')
+conflicts=('vte')
+options=('!emptydirs')
+source=("https://download.gnome.org/sources/vte/${pkgver%.*}/vte-$pkgver.tar.xz"
+        make_alt_work.patch scroll_region.patch bracketed_paste_mode_fix.patch)
+# The tarball's from GNOME's vte-0.28.2.sha256sum.
+sha256sums=('86cf0b81aa023fa93ed415653d51c96767f20b2d7334c893caba71e42654b0ae'
+            '2cd58ffffd42a9d59e05369c2efa1e70b7d32bfb5c8cdbd67b3b95ae3c3e6d61'
+            '9a99c486b1c0377a4b8c6fae25067c68913bded2988fafea2c86f5adf6a49c81'
+            '634d4526efdff9fac0e75cb056afb0a886354cd52c5dc98f5a70bef282631724')
+
+prepare() {
+    cd vte-$pkgver
+    patch -Np1 -i ../make_alt_work.patch
+    patch -Np1 -i ../scroll_region.patch
+    patch -Np1 -i ../bracketed_paste_mode_fix.patch
+}
+
+build() {
+    cd vte-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive -fno-strict-aliasing"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --libexecdir=/usr/lib/vte --disable-static --with-gtk=2.0 \
+        --disable-python --disable-introspection --disable-gnome-pty-helper
+    sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
+    make
+}
+
+package() {
+    cd vte-$pkgver
+    make DESTDIR="$pkgdir" install
+}

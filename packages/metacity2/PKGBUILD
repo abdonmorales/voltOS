@@ -1,0 +1,48 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# Metacity 2.30, the window manager of GNOME 2.  From GNOME's release, for
+# x86_64 and AArch64.
+
+pkgname=metacity2
+pkgver=2.30.3
+pkgrel=1
+pkgdesc="Window manager of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/metacity"
+license=('GPL-2.0-or-later')
+depends=('gtk2' 'gconf' 'libcanberra-gtk2' 'startup-notification' 'zenity'
+         'libsm' 'libxinerama' 'libxrandr' 'libxcursor' 'libxcomposite' 'libxdamage')
+makedepends=('intltool' 'gtk2' 'gconf' 'libcanberra-gtk2' 'libcanberra'
+             'startup-notification' 'libsm' 'libxinerama' 'libxrandr' 'libxcursor'
+             'libxcomposite' 'libxdamage' 'glib2-devel')
+source=("https://download.gnome.org/sources/metacity/${pkgver%.*}/metacity-$pkgver.tar.bz2")
+# From GNOME's metacity-2.30.3.sha256sum.
+sha256sums=('08f887018fa5e447cf184d03bae3fe2c05fdb7583bed6768e3b4d66392fc18dd')
+
+prepare() {
+    cd metacity-$pkgver
+    sed -i -e 's/^\(SUBDIRS.*\) doc/\1/' Makefile.in
+}
+
+build() {
+    cd metacity-$pkgver
+    # gnome-doc-utils (Python 2) is gone: satisfy configure's check with a stub
+    # and leave out the help manuals.
+    mkdir -p "$srcdir/stub-pc"
+    printf 'Name: gnome-doc-utils\nDescription: stub\nVersion: 0.20.10\n' \
+        >"$srcdir/stub-pc/gnome-doc-utils.pc"
+    export PKG_CONFIG_PATH="$srcdir/stub-pc"
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --libexecdir=/usr/lib/metacity2 --disable-static --disable-scrollkeeper
+    make
+}
+
+package() {
+    cd metacity-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    install -d "$pkgdir/usr/share/gconf/schemas"
+    gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/metacity2.schemas" \
+        --domain metacity "$pkgdir"/etc/gconf/schemas/*.schemas
+    rm -rf "$pkgdir/etc/gconf"
+}

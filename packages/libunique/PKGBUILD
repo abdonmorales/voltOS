@@ -1,0 +1,43 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# libunique 1, single-instance applications for GTK 2 (GNOME 2 control
+# center, Nautilus).  Arch Linux dropped it; adapted from the AUR recipe,
+# with its patches, for x86_64 and AArch64.
+
+pkgname=libunique
+pkgver=1.1.6
+pkgrel=1
+pkgdesc="Library for single-instance GTK 2 applications"
+arch=('x86_64' 'aarch64')
+url="https://wiki.gnome.org/Attic/LibUnique"
+license=('LGPL-2.1-or-later')
+depends=('gtk2')
+makedepends=('gtk-doc' 'glib2-devel' 'gtk2' 'autoconf' 'automake' 'libtool')
+options=('!lto')
+source=("https://download.gnome.org/sources/libunique/${pkgver%.*}/libunique-$pkgver.tar.bz2"
+        00git_g_const_return.patch 01_format-security.patch 99_ltmain_as-needed.patch)
+sha256sums=('e5c8041cef8e33c55732f06a292381cb345db946cf792a4ae18aa5c66cdd4fbb'
+            'b70b603c4a40d07d40caf23de63f88bb8c7cc90b88c62c84dcc45d1db4b0b921'
+            'eda843d01ef27c56eb6d0753a70d658412e0acb8324b0e8c59a60594387c912d'
+            '01829263fae69782d7558c6e50a4b1c9885b9309c5198844eafa9005fc470631')
+
+prepare() {
+    cd libunique-$pkgver
+    patch -Np1 -i ../00git_g_const_return.patch
+    patch -Np1 -i ../01_format-security.patch
+    patch -Np1 -i ../99_ltmain_as-needed.patch
+    autoreconf -fi
+}
+
+build() {
+    cd libunique-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --disable-static --disable-dbus --disable-maintainer-flags
+    make
+}
+
+package() {
+    cd libunique-$pkgver
+    make DESTDIR="$pkgdir" install
+}

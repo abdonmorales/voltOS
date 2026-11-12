@@ -1,0 +1,39 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# libgnomekbd 2.32, keyboard layouts for the GNOME 2 settings daemon,
+# control center and panel indicator.  Arch Linux ships only the GNOME 3
+# version, which this replaces (same library name, GTK 2 build).  From
+# GNOME's release, for x86_64 and AArch64.
+
+pkgname=libgnomekbd2
+pkgver=2.32.0
+pkgrel=1
+pkgdesc="Keyboard layout library of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/libgnomekbd"
+license=('LGPL-2.0-or-later')
+depends=('gtk2' 'gconf' 'libxklavier' 'dbus-glib')
+makedepends=('intltool' 'gtk2' 'gconf' 'libxklavier' 'dbus-glib' 'glib2-devel')
+conflicts=('libgnomekbd')
+source=("https://download.gnome.org/sources/libgnomekbd/${pkgver%.*}/libgnomekbd-$pkgver.tar.bz2")
+# From GNOME's libgnomekbd-2.32.0.sha256sum.
+sha256sums=('ddd52c4cc7d83ad7ef964a1bcb4db87407e65b00ffc3e70c088ca4ee7383d256')
+
+build() {
+    cd libgnomekbd-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --disable-static --disable-introspection --disable-schemas-compile
+    make
+}
+
+package() {
+    cd libgnomekbd-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
+        install -d "$pkgdir/usr/share/gconf/schemas"
+        gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/libgnomekbd2.schemas" \
+            "$pkgdir"/etc/gconf/schemas/*.schemas
+        rm -rf "$pkgdir/etc/gconf"
+    fi
+}

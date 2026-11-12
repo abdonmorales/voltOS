@@ -37,7 +37,7 @@ VoltOS is built for x86_64 (UEFI and BIOS) and, as a newer port, AArch64
 | Live ISO on BIOS | Boots to the live desktop under SeaBIOS in QEMU (CI) |
 | Graphical installer (OpenSolaris gui-install on GTK 3) | CI installs through the GUI (test mode), then boots the result to the login screen |
 | AArch64 | Packages and ISO built in CI on an Arch Linux ARM root; CI boots the live desktop (virtio-gpu) and installs to ZFS, then boots the result through ZFSBootMenu to the login screen on a firmware-only framebuffer (ramfb). Newer and less tested than x86_64; no Secure Boot signing yet |
-| GNOME 2.32 desktop (GTK 2) | In progress: GTK 2 and Nimbus's GTK 2 engine are built (not on the ISO yet); the GNOME 2 platform and desktop come next. MATE stays the default |
+| GNOME 2.32 desktop (GTK 2) | In progress: GTK 2, Nimbus's GTK 2 engine and the GNOME 2 platform (ORBit2, GConf, Bonobo, GnomeVFS, libgnome/libgnomeui) are built; the desktop (Metacity, panel, session, Nautilus, ...) is being ported. Not on the ISO yet; planned to replace GNOME Flashback around VoltOS 1.5. MATE stays the default |
 | Updates (`[voltos]` repository) | Signed packages published by CI to GitHub releases after the tests pass; the install test checks that the installed system verifies them |
 | CI (`.github/workflows/iso.yml`) | Builds, boots and installs both architectures; publishes both ISOs on `v*` tags (0.x tags as pre-releases) |
 
@@ -191,10 +191,13 @@ screens are kept; what is Solaris-specific underneath was replaced:
   fallback session, picked from the greeter's session menu. Both run on
   X11. The few GTK 4/libadwaita programs (such as the installer) get
   Nimbus colours from `~/.config/gtk-4.0/gtk.css` in new accounts.
-- **GNOME 2 itself.** A GNOME 2.32 desktop on GTK 2 (with Nimbus's original
-  GTK 2 engine) is planned as a separate effort once this distribution is
-  complete. Arch no longer ships GTK 2, so it will come from VoltOS's own
-  packages.
+- **GNOME 2 itself.** A GNOME 2.32 desktop on GTK 2, with Nimbus's original
+  GTK 2 engine, built as VoltOS's own packages (Arch no longer ships GTK 2
+  or any of GNOME 2). Its window manager and panel take the names GNOME
+  Flashback's use, so the two cannot be installed together: GNOME 2 is
+  planned to replace Flashback as the second session around VoltOS 1.5,
+  after more testing; until then it is not on the ISO. Manuals are left
+  out (they need gnome-doc-utils, which needs Python 2).
 - **Secure Boot.** Installed systems: firmware -> signed ZFSBootMenu ->
   signed kernel (ZFSBootMenu's locked-down kernel only kexecs kernels signed
   by a key in the firmware db, so `voltos-secureboot` signs both). Put the
