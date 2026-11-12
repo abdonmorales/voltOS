@@ -1,0 +1,29 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# The GNOME 2.32 desktop on VoltOS: depends on the whole desktop and sets
+# VoltOS's defaults for it in GConf (Nimbus theme, icons and window frames;
+# the OpenSolaris-style blue gradient; desktop icons), as voltos-desktop
+# does for MATE.  "GNOME 2.32" appears in LightDM's session list.
+#
+# GNOME 2's window manager, panel and session take the commands GNOME
+# Flashback uses, so the two cannot be installed together; GNOME 2 is
+# planned to replace Flashback as VoltOS's second session around 1.5.
+
+pkgname=voltos-gnome2
+pkgver=2026.11
+pkgrel=1
+pkgdesc="GNOME 2.32 desktop with VoltOS's defaults (Nimbus)"
+arch=('any')
+url="https://github.com/abdonmorales/voltOS"
+license=('MIT')
+depends=('gnome-session2' 'gnome-settings-daemon2' 'metacity2' 'gnome-panel2'
+         'nautilus2' 'gnome-terminal2' 'gnome-control-center2'
+         'gtk-engine-nimbus' 'nimbus-gtk-theme' 'voltos-branding' 'gconf'
+         'gnome-keyring' 'polkit-gnome')
+install=voltos-gnome2.install
+source=('voltos-gnome2.entries')
+sha256sums=('SKIP')
+
+package() {
+    install -Dm644 voltos-gnome2.entries "$pkgdir/usr/share/voltos-gnome2/voltos-gnome2.entries"
+}

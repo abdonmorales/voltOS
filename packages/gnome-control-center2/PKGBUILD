@@ -1,0 +1,69 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# gnome-control-center 2.32, GNOME 2's preferences (appearance, display,
+# keyboard, mouse, keybindings, windows, accessibility, network proxy,
+# default applications) and its control-center shell.  From GNOME's
+# release, for x86_64 and AArch64, without about-me (it needs Evolution
+# Data Server), the application indicator and manuals.  It takes
+# gnome-control-center 3's commands, so the two cannot be installed
+# together.
+
+pkgname=gnome-control-center2
+pkgver=2.32.1
+pkgrel=1
+pkgdesc="Preferences of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/gnome-control-center"
+license=('GPL-2.0-or-later')
+depends=('gtk2' 'gconf' 'dbus-glib' 'gnome-desktop2' 'gnome-menus2' 'libgnomekbd2'
+         'libxklavier' 'libunique' 'metacity2' 'gnome-settings-daemon2'
+         'libcanberra-gtk2' 'libxml2' 'libxss' 'libxcursor' 'libxft'
+         'librsvg' 'desktop-file-utils' 'shared-mime-info')
+makedepends=('intltool' 'gtk2' 'gconf' 'dbus-glib' 'gnome-desktop2' 'gnome-menus2'
+             'libgnomekbd2' 'libxklavier' 'libunique' 'metacity2'
+             'gnome-settings-daemon2' 'libcanberra-gtk2' 'libcanberra' 'libxml2'
+             'libxss' 'libxcursor' 'libxft' 'librsvg' 'startup-notification'
+             'glib2-devel' 'xorgproto')
+conflicts=('gnome-control-center')
+options=('!emptydirs')
+source=("https://download.gnome.org/sources/gnome-control-center/${pkgver%.*}/gnome-control-center-$pkgver.tar.bz2")
+# From GNOME's gnome-control-center-2.32.1.sha256sum.
+sha256sums=('7c568b57358e5c08f4d8dd76dbac7df2539135ad081872b60514b7a8ac797e66')
+
+prepare() {
+    cd gnome-control-center-$pkgver
+    sed -i 's/^SUBDIRS = po libwindow-settings capplets font-viewer help \\$/SUBDIRS = po libwindow-settings capplets font-viewer \\/' Makefile.in
+}
+
+build() {
+    cd gnome-control-center-$pkgver
+    # gnome-doc-utils (Python 2) is gone: satisfy configure's check with a stub
+    # and leave out the help manuals.
+    mkdir -p "$srcdir/stub-pc"
+    printf 'Name: gnome-doc-utils\nDescription: stub\nVersion: 0.20.10\n' \
+        >"$srcdir/stub-pc/gnome-doc-utils.pc"
+    export PKG_CONFIG_PATH="$srcdir/stub-pc"
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    # Old code relying on libraries it gets only indirectly.
+    export LIBS="-lgmodule-2.0 -lICE -lm"
+    ./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc --localstatedir=/var \
+        --libexecdir=/usr/lib/gnome-control-center --disable-static \
+        --disable-aboutme --disable-appindicator --disable-update-mimedb \
+        --disable-scrollkeeper --disable-schemas-install
+    make
+}
+
+package() {
+    cd gnome-control-center-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
+        install -d "$pkgdir/usr/share/gconf/schemas"
+        gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/$pkgname.schemas" \
+            --domain gnome-control-center-2.0 "$pkgdir"/etc/gconf/schemas/*.schemas
+        rm -f "$pkgdir"/etc/gconf/schemas/*.schemas
+    fi
+    rmdir -p "$pkgdir/etc/gconf/schemas" 2>/dev/null || :
+    # Made by update-desktop-database at build time; pacman's hook makes them.
+    rm -f "$pkgdir"/usr/share/applications/{mimeinfo,intent}.cache
+    sed -i "s:/usr/sbin/:/usr/bin/:" "$pkgdir/usr/share/polkit-1/actions/org.gnome.randr.policy"
+}

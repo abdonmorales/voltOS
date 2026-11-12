@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!-- VoltOS defaults for the GNOME 2.32 session, as for MATE: Nimbus and the
+     OpenSolaris-style blue gradient.  Loaded into GConf's system defaults
+     by voltos-gnome2's install script; users' own settings win. -->
+<gconfentryfile>
+  <entrylist base="/">
+    <entry><key>desktop/gnome/interface/gtk_theme</key>
+      <value><string>nimbus</string></value></entry>
+    <entry><key>desktop/gnome/interface/icon_theme</key>
+      <value><string>nimbus</string></value></entry>
+    <entry><key>apps/metacity/general/theme</key>
+      <value><string>nimbus</string></value></entry>
+    <entry><key>apps/metacity/general/button_layout</key>
+      <value><string>menu:minimize,maximize,close</string></value></entry>
+    <entry><key>desktop/gnome/background/picture_filename</key>
+      <value><string></string></value></entry>
+    <entry><key>desktop/gnome/background/picture_options</key>
+      <value><string>none</string></value></entry>
+    <entry><key>desktop/gnome/background/color_shading_type</key>
+      <value><string>vertical-gradient</string></value></entry>
+    <entry><key>desktop/gnome/background/primary_color</key>
+      <value><string>#5d7ea3</string></value></entry>
+    <entry><key>desktop/gnome/background/secondary_color</key>
+      <value><string>#2b4766</string></value></entry>
+    <entry><key>apps/nautilus/desktop/computer_icon_visible</key>
+      <value><bool>true</bool></value></entry>
+    <entry><key>apps/nautilus/desktop/home_icon_visible</key>
+      <value><bool>true</bool></value></entry>
+    <entry><key>apps/nautilus/desktop/trash_icon_visible</key>
+      <value><bool>true</bool></value></entry>
+  </entrylist>
+</gconfentryfile>

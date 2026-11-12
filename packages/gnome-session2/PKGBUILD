@@ -9,7 +9,7 @@
 
 pkgname=gnome-session2
 pkgver=2.32.1
-pkgrel=1
+pkgrel=2
 pkgdesc="Session manager of GNOME 2"
 arch=('x86_64' 'aarch64')
 url="https://gitlab.gnome.org/GNOME/gnome-session"
@@ -53,6 +53,11 @@ build() {
 package() {
     cd gnome-session-$pkgver
     make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    # LightDM lists it as "GNOME 2.32", apart from GNOME 3.
+    mv "$pkgdir/usr/share/xsessions/gnome.desktop" "$pkgdir/usr/share/xsessions/gnome2.desktop"
+    sed -i -e 's/^Name=GNOME$/Name=GNOME 2.32/' -e '/^Name\[/d' \
+        -e 's/^Comment=.*/Comment=The GNOME 2.32 desktop (Metacity, panel, Nautilus)/' -e '/^Comment\[/d' \
+        "$pkgdir/usr/share/xsessions/gnome2.desktop"
     if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
         install -d "$pkgdir/usr/share/gconf/schemas"
         gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/$pkgname.schemas" \
