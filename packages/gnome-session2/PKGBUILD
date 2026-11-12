@@ -1,0 +1,59 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# gnome-session 2.32, the GNOME 2 session manager (starts the desktop,
+# saves sessions, logs out, shuts down).  From GNOME's release, for x86_64
+# and AArch64, with a VoltOS patch: ConsoleKit and UPower are gone, so
+# power off, restart, suspend, hibernate, user switching and the idle hint
+# go through systemd-logind.  It takes gnome-session 3's commands (GNOME
+# Flashback's), so the two cannot be installed together.
+
+pkgname=gnome-session2
+pkgver=2.32.1
+pkgrel=1
+pkgdesc="Session manager of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/gnome-session"
+license=('GPL-2.0-or-later')
+depends=('gtk2' 'gconf' 'dbus-glib' 'libsm' 'libice' 'libxtst' 'libxau'
+         'systemd' 'polkit' 'metacity2' 'gnome-panel2')
+makedepends=('intltool' 'gtk2' 'gconf' 'dbus-glib' 'libsm' 'libice' 'libxtst'
+             'libxau' 'upower' 'glib2-devel' 'xtrans')
+conflicts=('gnome-session')
+_domain=gnome-session-2.0
+source=("https://download.gnome.org/sources/gnome-session/${pkgver%.*}/gnome-session-$pkgver.tar.bz2"
+        0001-logind-instead-of-consolekit-and-upower.patch)
+# The tarball's from GNOME's gnome-session-2.32.1.sha256sum.
+sha256sums=('22d93ce433fcf9c7ce6b5f36dd81f64e692ea0e41faaa0f61159ddac28c3686a'
+            'd26533a9ce388011df91a83fb0963567c1159e1f2d233848c65e498661393c1b')
+
+prepare() {
+    cd gnome-session-$pkgver
+    patch -Np1 -i ../0001-logind-instead-of-consolekit-and-upower.patch
+}
+
+build() {
+    cd gnome-session-$pkgver
+    # gnome-doc-utils (Python 2) is gone: satisfy configure's check with a stub
+    # and leave out the help manuals.
+    mkdir -p "$srcdir/stub-pc"
+    printf 'Name: gnome-doc-utils\nDescription: stub\nVersion: 0.20.10\n' \
+        >"$srcdir/stub-pc/gnome-doc-utils.pc"
+    export PKG_CONFIG_PATH="$srcdir/stub-pc"
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --libexecdir=/usr/lib/gnome-session --with-gtk=2.0 \
+        --with-default-wm=metacity --disable-docbook-docs --disable-schemas-install
+    make
+}
+
+package() {
+    cd gnome-session-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
+        install -d "$pkgdir/usr/share/gconf/schemas"
+        gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/$pkgname.schemas" \
+            --domain "$_domain" "$pkgdir"/etc/gconf/schemas/*.schemas
+        rm -f "$pkgdir"/etc/gconf/schemas/*.schemas
+    fi
+    rmdir -p "$pkgdir/etc/gconf/schemas" 2>/dev/null || :
+}

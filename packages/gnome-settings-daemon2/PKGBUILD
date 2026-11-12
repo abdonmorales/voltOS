@@ -1,0 +1,48 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# gnome-settings-daemon 2.32, which applies GNOME 2's settings (theme,
+# fonts, keyboard and mouse, media keys, screens, sound) from GConf.  From
+# GNOME's release, for x86_64 and AArch64, with PulseAudio and polkit,
+# without notifications (written for libnotify's old API) and smartcards.
+# It takes gnome-settings-daemon 3's place.
+
+pkgname=gnome-settings-daemon2
+pkgver=2.32.1
+pkgrel=1
+pkgdesc="Settings daemon of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/gnome-settings-daemon"
+license=('GPL-2.0-or-later')
+depends=('gtk2' 'gconf' 'dbus-glib' 'gnome-desktop2' 'libgnomekbd2' 'libxklavier'
+         'libcanberra-gtk2' 'libpulse' 'polkit' 'libxi' 'libxrandr')
+makedepends=('intltool' 'gtk2' 'gconf' 'dbus-glib' 'gnome-desktop2' 'libgnomekbd2'
+             'libxklavier' 'libcanberra-gtk2' 'libcanberra' 'libpulse' 'polkit'
+             'libxi' 'libxrandr' 'libxext' 'xorgproto' 'startup-notification'
+             'glib2-devel')
+conflicts=('gnome-settings-daemon')
+_domain=gnome-settings-daemon
+source=("https://download.gnome.org/sources/gnome-settings-daemon/${pkgver%.*}/gnome-settings-daemon-$pkgver.tar.bz2")
+# From GNOME's gnome-settings-daemon-2.32.1.sha256sum.
+sha256sums=('0074b3fec3ad6e3ab91a05dc20906b06101ea8bca0cd2caf394a5cc141b05e86')
+
+build() {
+    cd gnome-settings-daemon-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --libexecdir=/usr/lib/gnome-settings-daemon --disable-static \
+        --enable-polkit --without-libnotify --disable-smartcard-support \
+        --disable-schemas-install
+    make
+}
+
+package() {
+    cd gnome-settings-daemon-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
+        install -d "$pkgdir/usr/share/gconf/schemas"
+        gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/$pkgname.schemas" \
+            --domain "$_domain" "$pkgdir"/etc/gconf/schemas/*.schemas
+        rm -f "$pkgdir"/etc/gconf/schemas/*.schemas
+    fi
+    rmdir -p "$pkgdir/etc/gconf/schemas" 2>/dev/null || :
+}

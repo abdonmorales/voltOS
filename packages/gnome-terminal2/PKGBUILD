@@ -1,0 +1,52 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# gnome-terminal 2.32, the GNOME 2 terminal, on VTE 0.28.  From GNOME's
+# release, for x86_64 and AArch64, without its manual.  It takes
+# gnome-terminal 3's commands, so the two cannot be installed together.
+
+pkgname=gnome-terminal2
+pkgver=2.32.1
+pkgrel=1
+pkgdesc="Terminal of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/gnome-terminal"
+license=('GPL-2.0-or-later')
+depends=('gtk2' 'vte-legacy' 'gconf' 'dbus-glib' 'libsm' 'startup-notification')
+makedepends=('intltool' 'gtk2' 'vte-legacy' 'gconf' 'dbus-glib' 'libsm' 'libice'
+             'startup-notification' 'glib2-devel')
+conflicts=('gnome-terminal')
+_domain=gnome-terminal
+source=("https://download.gnome.org/sources/gnome-terminal/${pkgver%.*}/gnome-terminal-$pkgver.tar.bz2")
+# From GNOME's gnome-terminal-2.32.1.sha256sum.
+sha256sums=('7f41e4b185a2cf65ff417b89e429fc3b625c5e3f042ee1763bda6490fa4676fb')
+
+prepare() {
+    cd gnome-terminal-$pkgver
+    sed -i 's/^SUBDIRS = src po help$/SUBDIRS = src po/' Makefile.in
+}
+
+build() {
+    cd gnome-terminal-$pkgver
+    # gnome-doc-utils (Python 2) is gone: satisfy configure's check with a stub
+    # and leave out the help manuals.
+    mkdir -p "$srcdir/stub-pc"
+    printf 'Name: gnome-doc-utils\nDescription: stub\nVersion: 0.20.10\n' \
+        >"$srcdir/stub-pc/gnome-doc-utils.pc"
+    export PKG_CONFIG_PATH="$srcdir/stub-pc"
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --with-gtk=2.0 --disable-scrollkeeper --disable-schemas-install
+    make
+}
+
+package() {
+    cd gnome-terminal-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
+        install -d "$pkgdir/usr/share/gconf/schemas"
+        gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/$pkgname.schemas" \
+            --domain "$_domain" "$pkgdir"/etc/gconf/schemas/*.schemas
+        rm -f "$pkgdir"/etc/gconf/schemas/*.schemas
+    fi
+    rmdir -p "$pkgdir/etc/gconf/schemas" 2>/dev/null || :
+}

@@ -1,0 +1,50 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# Nautilus 2.32, the GNOME 2 file manager and desktop (icons on the
+# desktop, the spatial/browser windows), on GIO/GVFS.  From GNOME's
+# release, for x86_64 and AArch64, without PackageKit and introspection.
+# It takes Nautilus 4's commands, so the two cannot be installed together.
+
+pkgname=nautilus2
+pkgver=2.32.2.1
+pkgrel=1
+pkgdesc="File manager and desktop of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/nautilus"
+license=('GPL-2.0-or-later' 'LGPL-2.0-or-later')
+depends=('gtk2' 'gconf' 'gnome-desktop2' 'libunique' 'gvfs' 'exempi' 'libexif'
+         'libxml2' 'libsm' 'shared-mime-info' 'desktop-file-utils')
+makedepends=('intltool' 'gtk2' 'gconf' 'gnome-desktop2' 'libunique' 'exempi'
+             'libexif' 'libxml2' 'libsm' 'startup-notification' 'glib2-devel')
+conflicts=('nautilus')
+_domain=nautilus
+options=('!emptydirs')
+source=("https://download.gnome.org/sources/nautilus/2.32/nautilus-$pkgver.tar.bz2")
+# From GNOME's nautilus-2.32.2.1.sha256sum.
+sha256sums=('802dacc98c697afea2e6201dab1c8c800809f235fff39857983efb4340ecc303')
+
+prepare() {
+    cd nautilus-$pkgver
+    sed -i '/^\tdocs \\$/d' Makefile.in
+}
+
+build() {
+    cd nautilus-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --libexecdir=/usr/lib/nautilus --disable-static --disable-packagekit \
+        --disable-introspection --disable-update-mimedb --disable-schemas-install
+    make
+}
+
+package() {
+    cd nautilus-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
+        install -d "$pkgdir/usr/share/gconf/schemas"
+        gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/$pkgname.schemas" \
+            --domain "$_domain" "$pkgdir"/etc/gconf/schemas/*.schemas
+        rm -f "$pkgdir"/etc/gconf/schemas/*.schemas
+    fi
+    rmdir -p "$pkgdir/etc/gconf/schemas" 2>/dev/null || :
+}
