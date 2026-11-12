@@ -1,0 +1,28 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# libart, the 2D vector graphics library under libgnomecanvas (GNOME 2
+# platform).  Arch Linux dropped it; from the AUR recipe, for x86_64 and
+# AArch64.
+
+pkgname=libart-lgpl
+pkgver=2.3.21
+pkgrel=1
+pkgdesc="2D vector graphics library of the GNOME 2 platform"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/Archive/libart_lgpl"
+license=('LGPL-2.0-or-later')
+depends=('glibc')
+source=("https://download.gnome.org/sources/libart_lgpl/${pkgver%.*}/libart_lgpl-$pkgver.tar.bz2")
+sha256sums=('fdc11e74c10fc9ffe4188537e2b370c0abacca7d89021d4d303afdf7fd7476fa')
+
+build() {
+    cd libart_lgpl-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --disable-static
+    make
+}
+
+package() {
+    cd libart_lgpl-$pkgver
+    make DESTDIR="$pkgdir" install
+}

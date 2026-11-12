@@ -1,0 +1,40 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# libwnck 2 (libwnck-1), the window-navigation library of GNOME 2's panel
+# applets (window list, workspace switcher).  Arch Linux dropped it; from
+# the AUR recipe, with its patch, for x86_64 and AArch64.  The tools it
+# installs come with libwnck3 instead.
+
+pkgname=libwnck
+pkgver=2.31.0
+pkgrel=1
+pkgdesc="Window Navigator Construction Kit for GTK 2 (GNOME 2 panel)"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/libwnck"
+license=('LGPL-2.0-or-later')
+depends=('gtk2' 'startup-notification' 'libx11' 'libxres' 'glib2' 'cairo' 'pango')
+makedepends=('libxt' 'intltool' 'gobject-introspection' 'gtk2' 'startup-notification' 'libxres')
+provides=('libwnck-1.so')
+source=("https://download.gnome.org/sources/libwnck/${pkgver%.*}/libwnck-$pkgver.tar.xz"
+        WindowActionMenu-unset-window-and-stop-async-events-on-dispose.patch)
+sha256sums=('83f732d20781fc88b22cdc6aaf2d4f388db6d3d4ff28d1a8fd45be9fb7743a9e'
+            'SKIP')
+
+prepare() {
+    cd libwnck-$pkgver
+    patch -Np1 -i ../WindowActionMenu-unset-window-and-stop-async-events-on-dispose.patch
+}
+
+build() {
+    cd libwnck-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --disable-static
+    make
+}
+
+package() {
+    cd libwnck-$pkgver
+    make DESTDIR="$pkgdir" install
+    rm -f "$pkgdir"/usr/bin/{wnckprop,wnck-urgency-monitor}
+    rmdir "$pkgdir/usr/bin" 2>/dev/null || :
+}

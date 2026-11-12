@@ -1,0 +1,41 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# libgnome-keyring, the GNOME 2 era keyring client library (talks to
+# gnome-keyring or any org.freedesktop.secrets service).  Arch Linux
+# dropped it; from the AUR recipe (the archived repository's last commit),
+# for x86_64 and AArch64.
+
+pkgname=libgnome-keyring
+pkgver=3.12.0+r14+g23438cc
+pkgrel=1
+epoch=1
+pkgdesc="GNOME 2 keyring client library"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/Archive/libgnome-keyring"
+license=('LGPL-2.0-or-later' 'GPL-2.0-or-later')
+depends=('dbus' 'glib2' 'libgcrypt')
+makedepends=('git' 'gnome-common' 'gobject-introspection' 'intltool' 'vala'
+             'gtk-doc' 'dbus' 'libgcrypt')
+optdepends=('gnome-keyring: secret storage service')
+_commit=23438cc767a744f29aeaf8cb8746f8d5ce9cdb32
+source=("git+https://gitlab.gnome.org/Archive/libgnome-keyring.git#commit=$_commit")
+sha256sums=('SKIP')
+
+prepare() {
+    cd libgnome-keyring
+    NOCONFIGURE=1 ./autogen.sh
+}
+
+build() {
+    cd libgnome-keyring
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --libexecdir=/usr/lib --disable-static
+    sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
+    make
+}
+
+package() {
+    cd libgnome-keyring
+    make DESTDIR="$pkgdir" install
+}

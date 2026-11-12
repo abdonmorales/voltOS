@@ -1,0 +1,32 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# libbonoboui, the user-interface half of Bonobo (GNOME 2 platform).  Arch
+# Linux dropped it; from the AUR recipe, for x86_64 and AArch64.
+
+pkgname=libbonoboui
+pkgver=2.24.5
+pkgrel=1
+pkgdesc="User interface components of the GNOME 2 platform (Bonobo)"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/Archive/libbonoboui"
+license=('LGPL-2.0-or-later' 'GPL-2.0-or-later')
+depends=('libgnomecanvas' 'libgnome' 'libbonobo' 'gconf' 'gtk2' 'libxml2')
+makedepends=('intltool' 'pkgconf' 'python' 'libgnomecanvas' 'libgnome' 'libgnome-data'
+             'libbonobo' 'orbit2' 'gconf' 'gnome-vfs' 'libglade' 'libart-lgpl' 'popt')
+options=('!emptydirs')
+source=("https://download.gnome.org/sources/libbonoboui/${pkgver%.*}/libbonoboui-$pkgver.tar.bz2")
+sha256sums=('fab5f2ac6c842d949861c07cb520afe5bee3dce55805151ce9cd01be0ec46fcd')
+
+build() {
+    cd libbonoboui-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --disable-static
+    make
+}
+
+package() {
+    cd libbonoboui-$pkgver
+    make DESTDIR="$pkgdir" install
+    # A developer's component browser, not for the menus.
+    rm -f "$pkgdir/usr/share/applications/bonobo-browser.desktop"
+}

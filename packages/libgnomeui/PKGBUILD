@@ -1,0 +1,38 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# libgnomeui, the GNOME 2 platform's user-interface library.  Arch Linux
+# dropped it; from the AUR recipe, with its patch, for x86_64 and AArch64.
+
+pkgname=libgnomeui
+pkgver=2.24.5
+pkgrel=1
+pkgdesc="User interface library of the GNOME 2 platform"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/Archive/libgnomeui"
+license=('LGPL-2.0-or-later')
+depends=('libbonoboui' 'libgnome-keyring' 'libsm' 'libgnome' 'gconf' 'gnome-vfs' 'gtk2')
+makedepends=('intltool' 'pkgconf' 'python' 'libbonoboui' 'libgnome-keyring' 'libsm'
+             'libgnome' 'libgnome-data' 'libbonobo' 'orbit2' 'gconf' 'gnome-vfs'
+             'libgnomecanvas' 'libglade' 'libart-lgpl' 'popt')
+source=("https://download.gnome.org/sources/libgnomeui/${pkgver%.*}/libgnomeui-$pkgver.tar.bz2"
+        03_glib-2.54-ftbfs.patch)
+sha256sums=('ae352f2495889e65524c979932c909f4629a58e64290fb0c95333373225d3c0f'
+            'a298358c38db97c569efedd7b446fdaaffa3f087cd1a049087043eeca53c7391')
+
+prepare() {
+    cd libgnomeui-$pkgver
+    patch libgnomeui/gnome-scores.h < ../03_glib-2.54-ftbfs.patch
+}
+
+build() {
+    cd libgnomeui-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --disable-static --libexecdir=/usr/lib/libgnomeui
+    make
+}
+
+package() {
+    cd libgnomeui-$pkgver
+    make DESTDIR="$pkgdir" install
+}

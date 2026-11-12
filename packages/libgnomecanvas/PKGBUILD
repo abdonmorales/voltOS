@@ -1,0 +1,29 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# libgnomecanvas, the GNOME 2 canvas widget.  Arch Linux dropped it; from
+# the AUR recipe, for x86_64 and AArch64.
+
+pkgname=libgnomecanvas
+pkgver=2.30.3
+pkgrel=1
+pkgdesc="Canvas widget of the GNOME 2 platform"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/Archive/libgnomecanvas"
+license=('LGPL-2.0-or-later')
+depends=('libglade' 'libart-lgpl' 'gtk2')
+makedepends=('pkgconf' 'intltool' 'python' 'glib2-devel' 'libglade' 'libart-lgpl' 'gtk2')
+source=("https://download.gnome.org/sources/libgnomecanvas/${pkgver%.*}/libgnomecanvas-$pkgver.tar.bz2")
+sha256sums=('859b78e08489fce4d5c15c676fec1cd79782f115f516e8ad8bed6abcb8dedd40')
+
+build() {
+    cd libgnomecanvas-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --disable-static --enable-glade
+    sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
+    make
+}
+
+package() {
+    cd libgnomecanvas-$pkgver
+    make DESTDIR="$pkgdir" install
+}

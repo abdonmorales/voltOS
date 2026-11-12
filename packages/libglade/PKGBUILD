@@ -1,0 +1,39 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# libglade, GTK 2's run-time loader for Glade interface files (GNOME 2
+# platform).  Arch Linux dropped it; from the AUR recipe, with its patch,
+# for x86_64 and AArch64.
+
+pkgname=libglade
+pkgver=2.6.4
+pkgrel=1
+pkgdesc="Loads Glade interface files at run time (GTK 2)"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/Archive/libglade"
+license=('LGPL-2.0-or-later')
+depends=('gtk2' 'libxml2')
+makedepends=('pkgconf' 'gtk2' 'libxml2')
+install=glade.install
+options=('!lto')
+source=("https://download.gnome.org/sources/libglade/${pkgver%.*}/libglade-$pkgver.tar.bz2"
+        libglade-2.0.1-nowarning.patch)
+sha256sums=('64361e7647839d36ed8336d992fd210d3e8139882269bed47dc4674980165dec'
+            '423c12af1c73442caa851a0b8db33b00fa4b778b1b422a4e8ac33d121d043008')
+
+prepare() {
+    cd libglade-$pkgver
+    patch -Np1 -i ../libglade-2.0.1-nowarning.patch
+}
+
+build() {
+    cd libglade-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var
+    sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
+    make
+}
+
+package() {
+    cd libglade-$pkgver
+    make DESTDIR="$pkgdir" install
+}
