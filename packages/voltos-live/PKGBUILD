@@ -5,7 +5,7 @@
 
 pkgname=voltos-live
 pkgver=0.2.0
-pkgrel=3
+pkgrel=4
 pkgdesc="VoltOS live session: live user, installer shortcut, unattended install"
 arch=('any')
 url="https://github.com/abdonmorales/voltOS"

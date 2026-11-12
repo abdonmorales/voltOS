@@ -32,12 +32,20 @@ PASSWORD=volt
 TIMEZONE=UTC
 LOCALE=en_US.UTF-8
 KEYMAP=us
-REBOOT=$after
+REBOOT=no
 CMDLINE=$cmdline
 CFG
 echo "voltos-autoinstall: installing to $disk" >/dev/console
+# Report first, then power off or reboot (only after a successful
+# install): letting voltos-install do it raced the shutdown against the
+# report, and a slow machine lost the result line.
 if voltos-install --config "$cfg"; then
 	echo "VOLTOS_AUTOINSTALL_OK" >/dev/console
+	sync
+	case "$after" in
+	poweroff) systemctl poweroff ;;
+	yes) systemctl reboot ;;
+	esac
 else
 	echo "VOLTOS_AUTOINSTALL_FAILED" >/dev/console
 	tail -n 40 /var/log/voltos-install.log >/dev/console

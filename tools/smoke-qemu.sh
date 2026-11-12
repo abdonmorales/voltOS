@@ -158,7 +158,7 @@ wait_for()
 		echo "smoke-qemu.sh: QEMU exited before /$2/ appeared:" >&2
 		cat "$tmp/qemu.out" >&2 || true
 	fi
-	tail -n 60 "$1" >&2 2>/dev/null || true
+	tail -n 200 "$1" >&2 2>/dev/null || true
 	return 1
 }
 
