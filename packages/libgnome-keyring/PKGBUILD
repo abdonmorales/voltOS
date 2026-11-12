@@ -6,9 +6,10 @@
 # for x86_64 and AArch64.
 
 pkgname=libgnome-keyring
-pkgver=3.12.0+r14+g23438cc
+# No epoch and no "+" (the AUR's 1:3.12.0+r14+g23438cc): GitHub artifact and
+# release file names cannot have ":", and GitHub renames "+".
+pkgver=3.12.0.r14.g23438cc
 pkgrel=1
-epoch=1
 pkgdesc="GNOME 2 keyring client library"
 arch=('x86_64' 'aarch64')
 url="https://gitlab.gnome.org/Archive/libgnome-keyring"

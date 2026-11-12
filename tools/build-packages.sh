@@ -131,6 +131,12 @@ for pkg in "${order[@]}"; do
 	(cd "$dir" && as_builder makepkg --nodeps --clean --cleanbuild --force \
 	    --noconfirm $pgp)
 	for f in "$dir"/*.pkg.tar.zst; do
+		# The files are published as GitHub release files and CI
+		# artifacts: no ":" (an epoch) and no "+" in the name.
+		[[ ${f##*/} =~ ^[A-Za-z0-9._-]+$ ]] || {
+			echo "${f##*/}: GitHub cannot publish this file name (no epoch or + in versions)" >&2
+			exit 1
+		}
 		cp "$f" "$repo/"
 		[ -z "$REPO_KEY" ] || repo_sign "$repo/${f##*/}"
 		repo-add -q -R "$repo/voltos-build.db.tar.gz" "$repo/${f##*/}"

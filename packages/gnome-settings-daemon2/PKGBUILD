@@ -36,6 +36,9 @@ prepare() {
 
 build() {
     cd gnome-settings-daemon-$pkgver
+    # Written before binutils stopped resolving symbols through the
+    # libraries a library pulls in; AArch64's link fails without it.
+    export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
     CFLAGS+=" -std=gnu17 -fpermissive"
     ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
         --libexecdir=/usr/lib/gnome-settings-daemon --disable-static \

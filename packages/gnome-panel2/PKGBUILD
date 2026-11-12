@@ -52,7 +52,10 @@ build() {
     CFLAGS+=" -std=gnu17 -fpermissive"
     # The panel uses GModule but relied on getting it through libgconf;
     # current linkers want direct dependencies.
-    export LIBS="-lgmodule-2.0"
+    export LIBS="-lgmodule-2.0 -lcairo"
+    # Written before binutils stopped resolving symbols through the
+    # libraries a library pulls in; AArch64's link fails without it.
+    export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
     ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
         --libexecdir=/usr/lib/gnome-panel --disable-static \
         --disable-scrollkeeper --disable-eds --disable-network-manager \

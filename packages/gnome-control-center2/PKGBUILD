@@ -52,6 +52,9 @@ build() {
     CFLAGS+=" -std=gnu17 -fpermissive"
     # Old code relying on libraries it gets only indirectly.
     export LIBS="-lgmodule-2.0 -lICE -lm"
+    # Written before binutils stopped resolving symbols through the
+    # libraries a library pulls in; AArch64's link fails without it.
+    export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
     ./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc --localstatedir=/var \
         --libexecdir=/usr/lib/gnome-control-center --disable-static \
         --disable-aboutme --disable-appindicator --disable-update-mimedb \

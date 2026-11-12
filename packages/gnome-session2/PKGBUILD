@@ -39,6 +39,9 @@ prepare() {
 
 build() {
     cd gnome-session-$pkgver
+    # Written before binutils stopped resolving symbols through the
+    # libraries a library pulls in; AArch64's link fails without it.
+    export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
     # gnome-doc-utils (Python 2) is gone: satisfy configure's check with a stub
     # and leave out the help manuals.
     mkdir -p "$srcdir/stub-pc"

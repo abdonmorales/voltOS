@@ -42,6 +42,9 @@ build() {
     CFLAGS+=" -std=gnu17 -fpermissive"
     # Uses libICE directly but relied on getting it through libSM.
     export LIBS="-lICE"
+    # Written before binutils stopped resolving symbols through the
+    # libraries a library pulls in; AArch64's link fails without it.
+    export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
     ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
         --with-gtk=2.0 --disable-scrollkeeper --disable-schemas-install
     make
