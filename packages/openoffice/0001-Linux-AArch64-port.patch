@@ -2032,6 +2032,21 @@ index 320c5be..18c0a27 100644
     elsif ($platform =~ m/^arm.*?l-/)
     {  print "Setting Linux ARM specific values... ";
        $outfile        = "LinuxARMEnv.Set";
+diff --git a/main/solenv/bin/modules/installer/download.pm b/main/solenv/bin/modules/installer/download.pm
+index b3435e2..64ec0e5 100644
+--- a/main/solenv/bin/modules/installer/download.pm
++++ b/main/solenv/bin/modules/installer/download.pm
+@@ -628,6 +628,10 @@ sub get_download_architecture
+ 	{
+ 		$arch = "PPC";
+ 	}
++	elsif ( $installer::globals::compiler =~ /^unxlngaarch64/ )
++	{
++		$arch = "aarch64";
++	}
+ 
+ 	return $arch;
+ }
 diff --git a/main/solenv/bin/update_config_guess.sh b/main/solenv/bin/update_config_guess.sh
 new file mode 100755
 index 0000000..bbbc3dc

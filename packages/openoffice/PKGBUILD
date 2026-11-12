@@ -99,6 +99,12 @@ build() {
     export PATH=$tools/bin:$PATH CC=aoo-cc CXX=aoo-c++
     cd instsetoo_native
     perl "$SOLARENV/bin/build.pl" --all -P"$(nproc)" -- -P2
+    # Without EPM the build makes no installation set; the "archive" one
+    # (a tarball of the installed tree) needs none.  Making it runs the
+    # new office (unopkg registers the bundled extensions), the first
+    # test of the AArch64 bridge outside the build's own bridge test.
+    cd util
+    dmake openoffice_en-US.archive
 }
 
 package() {
@@ -126,20 +132,19 @@ _package_x86_64() {
 }
 
 _package_aarch64() {
-    local inst=$srcdir/aoo-$pkgver/main/instsetoo_native/unxlngaarch64.pro/Apache_OpenOffice/installed/install/en-US
+    local main=$srcdir/aoo-$pkgver/main tree=$srcdir/archive archive
+    archive=$(find "$main/instsetoo_native/unxlngaarch64.pro/Apache_OpenOffice/archive/install" \
+                   -name "Apache_OpenOffice_*_install-arc_en-US.tar.gz" | head -n 1)
+    [ -n "$archive" ] || { echo "no installation archive" >&2; return 1; }
+    rm -rf "$tree"
+    mkdir -p "$tree"
+    bsdtar -xf "$archive" -C "$tree"
     install -d "$pkgdir/opt"
-    cp -a "$inst/openoffice4" "$pkgdir/opt/"
-    # The desktop integration the x86_64 build gets from its
-    # freedesktop-menus package: menu entries, icons, MIME types.
-    local d f
-    install -d "$pkgdir/usr/share/applications"
-    for f in "$pkgdir"/opt/openoffice4/share/xdg/*.desktop; do
-        ln -s "/opt/openoffice4/share/xdg/${f##*/}" \
-            "$pkgdir/usr/share/applications/openoffice4-${f##*/}"
-    done
-    d=$srcdir/aoo-$pkgver/main/sysui/unxlngaarch64.pro/misc/openoffice
-    for f in "$d"/usr/share/icons "$d"/usr/share/mime; do
-        [ -d "$f" ] && cp -a "$f" "$pkgdir/usr/share/"
-    done
+    cp -a "$tree"/*/openoffice4 "$pkgdir/opt/"
+    # The desktop integration, as Apache's freedesktop-menus package (which
+    # the x86_64 build takes) makes it: menu entries, icons, MIME types.
+    (cd "$main/sysui/unxlngaarch64.pro/misc/openoffice" &&
+     DESTDIR=$pkgdir KDEMAINDIR=/usr GNOMEDIR=/usr GNOME_MIME_THEME=hicolor sh ./create_tree.sh)
+    rm -rf "$pkgdir"/usr/share/{application-registry,applications.flag,mime-info,mimelnk,applnk-redhat}
     install -Dm644 "$srcdir/aoo-$pkgver"/main/{LICENSE,NOTICE} -t "$pkgdir/usr/share/licenses/$pkgname"
 }
