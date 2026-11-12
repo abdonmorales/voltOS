@@ -418,8 +418,9 @@ MKINIT
 	cat >"$TARGET/etc/doas.conf" <<'DOAS'
 # VoltOS: administrators are the members of "wheel" (the account made at
 # installation; root is locked).  "persist" remembers the password for a
-# few minutes.  See doas.conf(5); the last matching rule applies.
-permit persist :wheel
+# few minutes, and EDITOR / VISUAL carry over (doas systemctl edit opens
+# the same editor).  See doas.conf(5); the last matching rule applies.
+permit persist setenv { EDITOR VISUAL } :wheel
 DOAS
 	chmod 400 "$TARGET/etc/doas.conf"
 	rm -f "$TARGET/etc/sudoers.d/90-liveuser"

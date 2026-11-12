@@ -2,12 +2,12 @@
 
 pkgname=voltos-branding
 pkgver=2026.11
-pkgrel=3
-pkgdesc="VoltOS identity: os-release, logo and shared Nimbus defaults"
+pkgrel=4
+pkgdesc="VoltOS identity: os-release, logo and shared defaults (Nimbus, pico as editor)"
 arch=('any')
 url="https://github.com/abdonmorales/voltOS"
 license=('MIT')
-depends=('filesystem' 'nimbus-gtk-theme' 'glib2')
+depends=('filesystem' 'nimbus-gtk-theme' 'glib2' 'pico')
 makedepends=('librsvg')
 install=voltos-branding.install
 source=('os-release'
@@ -17,8 +17,9 @@ source=('os-release'
         'issue'
         'voltos-logo.svg'
         'AUTHORS-logo.txt'
-        'gtk4-nimbus.css')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+        'gtk4-nimbus.css'
+        'voltos-editor.sh')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     install -Dm644 os-release "${pkgdir}"/usr/share/voltos/os-release
@@ -27,6 +28,12 @@ package() {
     install -Dm644 90_voltos.gschema.override \
         "${pkgdir}"/usr/share/glib-2.0/schemas/90_voltos.gschema.override
     install -Dm644 issue "${pkgdir}"/usr/share/voltos/issue
+
+    # pico is the default text editor: EDITOR/VISUAL for login shells, and
+    # "editor", which systemctl edit and others try first.
+    install -Dm644 voltos-editor.sh "${pkgdir}"/etc/profile.d/voltos-editor.sh
+    install -d "${pkgdir}"/usr/bin
+    ln -s pico "${pkgdir}"/usr/bin/editor
 
     # Nimbus colours for the GTK 4/libadwaita apps of new accounts.
     install -Dm644 gtk4-nimbus.css \

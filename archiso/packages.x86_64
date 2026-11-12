@@ -106,7 +106,7 @@ squashfs-tools
 pv
 dialog
 voltos-doas
-nano
+pico
 vim
 less
 man-db

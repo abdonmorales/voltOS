@@ -238,7 +238,7 @@ check_doas()
 		pacman -Q voltos-doas >/dev/null && echo has-voltos-doas
 		pacman -Q sudo >/dev/null 2>&1 || echo no-sudo
 		doas -C /etc/doas.conf && echo conf-valid
-		grep -qx "permit persist :wheel" /etc/doas.conf && echo wheel-rule
+		grep -qx "permit persist setenv { EDITOR VISUAL } :wheel" /etc/doas.conf && echo wheel-rule
 		grep -q liveuser /etc/doas.conf || echo no-live-rule
 		id -nG volt | grep -qw wheel && echo volt-in-wheel')
 	printf 'smoke-qemu.sh: doas: %s\n' "$(echo $out)"

@@ -10,7 +10,7 @@
 
 pkgname=voltos-doas
 pkgver=1.0
-pkgrel=1
+pkgrel=2
 pkgdesc="VoltOS administrator access with doas (replaces sudo)"
 arch=('any')
 url="https://github.com/abdonmorales/voltOS"

@@ -1,0 +1,47 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# Pico, the University of Washington's text editor from the Alpine mail
+# client (not nano, its clone), VoltOS's default editor.  Arch Linux does
+# not package it; this builds only pico from Alpine's release tarball,
+# after the AUR recipe by Chris Severance (without its mail-client patches,
+# and without PAM, LDAP, Kerberos or TLS, which pico does not use).
+
+pkgname=pico
+_picover=5.09
+pkgver=2.26
+pkgrel=1
+pkgdesc="Pico ${_picover}, the simple text editor from the Alpine mail client"
+arch=('x86_64' 'aarch64')
+url="https://alpineapp.email/"
+license=('Apache-2.0')
+depends=('ncurses' 'glibc')
+source=("https://alpineapp.email/alpine/release/src/alpine-${pkgver}.tar.xz")
+sha256sums=('c0779c2be6c47d30554854a3e14ef5e36539502b331068851329275898a9baba')
+
+prepare() {
+    cd alpine-$pkgver
+    grep -q "version = \"${_picover}\"" pico/pico.h ||
+        { echo "pico/pico.h is not pico ${_picover}" >&2; return 1; }
+    # No PAM (pico does not log anyone in).
+    sed -e 's:am_start:omme_start:g' -i configure
+}
+
+build() {
+    cd alpine-$pkgver
+    ./configure --prefix=/usr --without-ldap --without-ssl --without-krb5 \
+        --without-tcl --target=slx \
+        CC='gcc -std=gnu17 -Wno-error=implicit-int -Wno-error=incompatible-pointer-types'
+    # pico builds on Alpine's c-client and pith libraries.
+    make -j1 c-client
+    make c-client.d
+    make -C pith
+    make -C pico
+}
+
+package() {
+    cd alpine-$pkgver
+    make -C pico DESTDIR="$pkgdir" install
+    rm -f "$pkgdir"/usr/bin/{pilot,alpine,rpdump,rpload}
+    install -Dm644 doc/man1/pico.1 -t "$pkgdir/usr/share/man/man1/"
+    install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+}
