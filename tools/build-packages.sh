@@ -112,9 +112,19 @@ for pkg in "${order[@]}"; do
 		continue
 	fi
 	echo "==> Building $pkg"
-	# Install the build-time dependencies (makedepends).
-	mapfile -t mk < <(cd "$dir" && bash -c \
-	    'source ./PKGBUILD; printf "%s\n" "${makedepends[@]}"' | sed '/^$/d')
+	# Install what the build needs.  makepkg runs with --nodeps, so this
+	# is the only place dependencies are installed: makedepends and
+	# checkdepends always, and for packages that compile something
+	# (a build() function) their depends too, which are the libraries
+	# they compile and link against.  VoltOS's own system packages
+	# (voltos-*) are left out: nothing compiles against them, and
+	# installing them would change the build host (voltos-doas replaces
+	# the sudo this script uses).
+	mapfile -t mk < <(cd "$dir" && bash -c '
+	    source ./PKGBUILD
+	    printf "%s\n" "${makedepends[@]}" "${checkdepends[@]}"
+	    if declare -F build >/dev/null; then printf "%s\n" "${depends[@]}"; fi' |
+	    sed -e '/^$/d' -e '/^voltos-/d' | sort -u)
 	if [ "${#mk[@]}" -gt 0 ]; then
 		$SUDO pacman --config "$buildconf" -Sy --needed --noconfirm "${mk[@]}"
 	fi
