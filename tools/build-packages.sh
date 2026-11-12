@@ -39,7 +39,7 @@ order=(voltos-keyring linux-lts-aarch64 nimbus-gtk-theme gtk2 gtk-engine-nimbus 
        libunique vte-legacy gnome-menus2 gnome-desktop2 libgnomekbd2 libcanberra-gtk2
        metacity2 libsoup2 libgweather2 gnome-panel2 gnome-session2
        gnome-settings-daemon2 gnome-terminal2 nautilus2 gnome-control-center2
-       pico voltos-branding voltos-desktop openoffice zfs-utils zfs-dkms
+       pico voltos-branding voltos-desktop voltos-gnome2 openoffice zfs-utils zfs-dkms
        zfsbootmenu-efi perl-boolean zfsbootmenu
        voltos-zfs-snapshots voltos-secureboot voltos-doas voltos-installer voltos-gui-install
        voltos-live)

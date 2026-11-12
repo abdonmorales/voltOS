@@ -2,13 +2,14 @@
 
 pkgname=voltos-desktop
 pkgver=2026.11
-pkgrel=1
+pkgrel=2
 pkgdesc="VoltOS desktop: MATE (default) and GNOME Flashback with Nimbus, LightDM greeter"
 arch=('any')
 url="https://github.com/abdonmorales/voltOS"
 license=('MIT')
-depends=('voltos-branding' 'mate-panel' 'marco' 'lightdm' 'lightdm-gtk-greeter'
-         'gnome-flashback' 'metacity')
+# GNOME Flashback, the second session, is installed by name (the ISO lists
+# it), not through this package, so that voltos-gnome2 can replace it.
+depends=('voltos-branding' 'mate-panel' 'marco' 'lightdm' 'lightdm-gtk-greeter')
 source=('91_voltos-mate.gschema.override' '50-voltos.conf' '50-voltos-greeter.conf')
 sha256sums=('SKIP' 'SKIP' 'SKIP')
 

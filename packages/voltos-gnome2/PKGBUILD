@@ -20,6 +20,11 @@ depends=('gnome-session2' 'gnome-settings-daemon2' 'metacity2' 'gnome-panel2'
          'nautilus2' 'gnome-terminal2' 'gnome-control-center2'
          'gtk-engine-nimbus' 'nimbus-gtk-theme' 'voltos-branding' 'gconf'
          'gnome-keyring' 'polkit-gnome')
+# Replaces GNOME Flashback: pacman offers to remove it along with the GNOME 3
+# programs GNOME 2 takes the place of (metacity, gnome-panel, gnome-session,
+# gnome-settings-daemon, nautilus; each GNOME 2 package declares its own), and
+# GNOME 3's desktop portal, which needs GNOME 3's Nautilus.
+conflicts=('gnome-flashback' 'xdg-desktop-portal-gnome')
 install=voltos-gnome2.install
 source=('voltos-gnome2.entries')
 sha256sums=('SKIP')

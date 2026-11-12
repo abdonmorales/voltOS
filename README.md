@@ -198,8 +198,11 @@ screens are kept; what is Solaris-specific underneath was replaced:
   Flashback's use, so the two cannot be installed together: GNOME 2 is
   planned to replace Flashback as the second session around VoltOS 1.5,
   after more testing; until then it is not on the ISO. To try it on an
-  installed system, replace Flashback with `doas pacman -S voltos-gnome2`
-  and pick "GNOME 2.32" in the greeter. `voltos-gnome2` sets the same look
+  installed system, run `doas pacman -Syu voltos-gnome2` and answer yes to
+  removing GNOME Flashback and the GNOME 3 programs GNOME 2 takes the place
+  of (Metacity, gnome-panel, gnome-session, the settings daemon, Nautilus),
+  then pick "GNOME 2.32" in the greeter. To go back:
+  `doas pacman -S gnome-flashback metacity` (it offers to remove GNOME 2). `voltos-gnome2` sets the same look
   as MATE's (Nimbus, the blue gradient, desktop icons) as GConf defaults.
   The session uses logind, not ConsoleKit, for log out, restart, power off
   and suspend. Manuals are left out (they need gnome-doc-utils, which
