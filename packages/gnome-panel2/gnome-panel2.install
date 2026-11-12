@@ -1,0 +1,18 @@
+# The default panel layout (top and bottom panels, menus, launchers and
+# applets) lives in GConf's system defaults under /apps/panel.
+_entries=usr/share/gnome-panel2/panel-default-setup.entries
+_defaults=xml:merged:/etc/gconf/gconf.xml.defaults
+
+post_install() {
+	usr/bin/gconftool-2 --direct --config-source="$_defaults" \
+	    --load "$_entries" /apps/panel >/dev/null
+}
+
+post_upgrade() {
+	post_install
+}
+
+pre_remove() {
+	usr/bin/gconftool-2 --direct --config-source="$_defaults" \
+	    --recursive-unset /apps/panel >/dev/null 2>&1 || :
+}

@@ -1,0 +1,69 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# gnome-panel 2.32, the GNOME 2 panel (menus, launchers, applets: clock,
+# window list, workspace switcher, notification area).  From GNOME's
+# release, for x86_64 and AArch64, with Bonobo applet support, without
+# Evolution and NetworkManager integration and without manuals.  Its own
+# applets run inside the panel process (--with-in-process-applets=all).  It takes
+# gnome-panel 3's commands (GNOME Flashback's panel), so the two cannot be
+# installed together; GNOME 2 is to replace Flashback around VoltOS 1.5.
+
+pkgname=gnome-panel2
+pkgver=2.32.1
+pkgrel=1
+pkgdesc="The GNOME 2 panel and its applets"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/gnome-panel"
+license=('GPL-2.0-or-later' 'LGPL-2.0-or-later')
+depends=('gtk2' 'gconf' 'libwnck' 'gnome-menus2' 'gnome-desktop2' 'libbonoboui'
+         'libgweather2' 'librsvg' 'dbus-glib' 'libcanberra-gtk2' 'metacity2'
+         'polkit' 'cairo' 'pango')
+makedepends=('intltool' 'gtk2' 'gconf' 'libwnck' 'gnome-menus2' 'gnome-desktop2'
+             'libbonoboui' 'libbonobo' 'orbit2' 'libgnome' 'libgnome-data'
+             'libgnomecanvas' 'libglade' 'libart-lgpl' 'gnome-vfs' 'popt'
+             'libgweather2' 'libsoup2' 'librsvg' 'dbus-glib' 'libcanberra-gtk2'
+             'startup-notification' 'libxres' 'glib2-devel')
+conflicts=('gnome-panel')
+options=('!emptydirs')
+install=gnome-panel2.install
+source=("https://download.gnome.org/sources/gnome-panel/${pkgver%.*}/gnome-panel-$pkgver.tar.bz2")
+# From GNOME's gnome-panel-2.32.1.sha256sum.
+sha256sums=('8f7828eb7a21c817a73b697844a4e20256059b32386414a10f97d51e7d9fca5f')
+
+prepare() {
+    cd gnome-panel-$pkgver
+    sed -i -e 's/^\(SUBDIRS.*\) help/\1/' -e 's/^\(SUBDIRS.*\) doc/\1/' Makefile.in
+}
+
+build() {
+    cd gnome-panel-$pkgver
+    # gnome-doc-utils (Python 2) is gone: satisfy configure's check with a stub
+    # and leave out the help manuals.
+    mkdir -p "$srcdir/stub-pc"
+    printf 'Name: gnome-doc-utils\nDescription: stub\nVersion: 0.20.10\n' \
+        >"$srcdir/stub-pc/gnome-doc-utils.pc"
+    export PKG_CONFIG_PATH="$srcdir/stub-pc"
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    # The panel uses GModule but relied on getting it through libgconf;
+    # current linkers want direct dependencies.
+    export LIBS="-lgmodule-2.0"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --libexecdir=/usr/lib/gnome-panel --disable-static \
+        --disable-scrollkeeper --disable-eds --disable-network-manager \
+        --enable-bonobo --disable-introspection --disable-schemas-install \
+        --with-in-process-applets=all
+    make
+}
+
+package() {
+    cd gnome-panel-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    install -d "$pkgdir/usr/share/gconf/schemas"
+    gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/gnome-panel2.schemas" \
+        --domain gnome-panel-2.0 "$pkgdir"/etc/gconf/schemas/*.schemas
+    rm -f "$pkgdir"/etc/gconf/schemas/*.schemas
+    # The default layout, loaded into GConf's defaults by the install script.
+    install -Dm644 "$pkgdir/etc/gconf/schemas/panel-default-setup.entries" \
+        "$pkgdir/usr/share/gnome-panel2/panel-default-setup.entries"
+    rm -rf "$pkgdir/etc/gconf"
+}

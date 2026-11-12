@@ -1,0 +1,40 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# libgweather 2.30, the locations and weather library of the GNOME 2 panel
+# clock.  Arch Linux ships only libgweather 4.  From GNOME's release, for
+# x86_64 and AArch64, against libsoup 2 and Arch's time-zone data.
+
+pkgname=libgweather2
+pkgver=2.30.3
+pkgrel=1
+pkgdesc="Locations and weather library of GNOME 2 (panel clock)"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/libgweather"
+license=('GPL-2.0-or-later')
+depends=('gtk2' 'gconf' 'libsoup2' 'libxml2' 'tzdata')
+makedepends=('intltool' 'gtk2' 'gconf' 'libsoup2' 'libxml2' 'glib2-devel')
+source=("https://download.gnome.org/sources/libgweather/${pkgver%.*}/libgweather-$pkgver.tar.bz2")
+# From GNOME's libgweather-2.30.3.sha256sum.
+sha256sums=('b835374661423f37c46aa8e37368ae24a68856f117b7c21e475a21efdba5264c')
+
+build() {
+    cd libgweather-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    # No --disable-python: configure turns any --*-python into "yes"; the
+    # default is no Python bindings.
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --disable-static --disable-introspection \
+        --with-zoneinfo-dir=/usr/share/zoneinfo
+    make
+}
+
+package() {
+    cd libgweather-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
+        install -d "$pkgdir/usr/share/gconf/schemas"
+        gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/libgweather2.schemas" \
+            --domain libgweather "$pkgdir"/etc/gconf/schemas/*.schemas
+        rm -rf "$pkgdir/etc/gconf"
+    fi
+}

@@ -37,7 +37,7 @@ order=(voltos-keyring linux-lts-aarch64 nimbus-gtk-theme gtk2 gtk-engine-nimbus 
        gnome-mime-data gnome-vfs libart-lgpl libglade libgnomecanvas libgnome
        libgnome-keyring libbonoboui libgnomeui libwnck
        libunique vte-legacy gnome-menus2 gnome-desktop2 libgnomekbd2 libcanberra-gtk2
-       metacity2 pico voltos-branding voltos-desktop zfs-utils zfs-dkms
+       metacity2 libsoup2 libgweather2 gnome-panel2 pico voltos-branding voltos-desktop zfs-utils zfs-dkms
        zfsbootmenu-efi perl-boolean zfsbootmenu
        voltos-zfs-snapshots voltos-secureboot voltos-doas voltos-installer voltos-gui-install
        voltos-live)
