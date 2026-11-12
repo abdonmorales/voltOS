@@ -24,6 +24,12 @@ source=("https://download.gnome.org/sources/nautilus/2.32/nautilus-$pkgver.tar.b
 sha256sums=('802dacc98c697afea2e6201dab1c8c800809f235fff39857983efb4340ecc303')
 
 prepare() {
+    # The tarball's config.guess and config.sub (2010) predate AArch64;
+    # use the build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
     cd nautilus-$pkgver
     sed -i '/^\tdocs \\$/d' Makefile.in
 }

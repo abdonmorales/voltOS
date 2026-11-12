@@ -16,6 +16,15 @@ source=("https://download.gnome.org/sources/gnome-mime-data/${pkgver%.*}/gnome-m
 # From GNOME's gnome-mime-data-2.18.0.sha256sum.
 sha256sums=('37196b5b37085bbcd45c338c36e26898fe35dd5975295f69f48028b1e8436fd7')
 
+prepare() {
+    # The tarball's config.guess and config.sub (2010) predate AArch64;
+    # use the build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
+}
+
 build() {
     cd gnome-mime-data-$pkgver
     ./configure --prefix=/usr --sysconfdir=/etc

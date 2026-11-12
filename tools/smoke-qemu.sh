@@ -236,7 +236,8 @@ check_doas()
 	local out
 	out=$(guest_sh '
 		pacman -Q voltos-doas >/dev/null && echo has-voltos-doas
-		pacman -Q sudo >/dev/null 2>&1 || echo no-sudo
+		# By name: pacman -Q sudo would find voltos-doas, which provides sudo.
+		pacman -Qq | grep -qx sudo || echo no-sudo
 		doas -C /etc/doas.conf && echo conf-valid
 		grep -qx "permit persist setenv { EDITOR VISUAL } :wheel" /etc/doas.conf && echo wheel-rule
 		grep -q liveuser /etc/doas.conf || echo no-live-rule

@@ -15,6 +15,15 @@ depends=('glibc')
 source=("https://download.gnome.org/sources/libart_lgpl/${pkgver%.*}/libart_lgpl-$pkgver.tar.bz2")
 sha256sums=('fdc11e74c10fc9ffe4188537e2b370c0abacca7d89021d4d303afdf7fd7476fa')
 
+prepare() {
+    # The tarball's config.guess and config.sub (2010) predate AArch64;
+    # use the build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
+}
+
 build() {
     cd libart_lgpl-$pkgver
     CFLAGS+=" -std=gnu17 -fpermissive"

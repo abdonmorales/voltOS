@@ -20,6 +20,12 @@ sha256sums=('ae352f2495889e65524c979932c909f4629a58e64290fb0c95333373225d3c0f'
             'a298358c38db97c569efedd7b446fdaaffa3f087cd1a049087043eeca53c7391')
 
 prepare() {
+    # The tarball's config.guess and config.sub (2010) predate AArch64;
+    # use the build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
     cd libgnomeui-$pkgver
     patch libgnomeui/gnome-scores.h < ../03_glib-2.54-ftbfs.patch
 }

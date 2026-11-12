@@ -17,6 +17,15 @@ options=('!emptydirs')
 source=("https://download.gnome.org/sources/libbonoboui/${pkgver%.*}/libbonoboui-$pkgver.tar.bz2")
 sha256sums=('fab5f2ac6c842d949861c07cb520afe5bee3dce55805151ce9cd01be0ec46fcd')
 
+prepare() {
+    # The tarball's config.guess and config.sub (2010) predate AArch64;
+    # use the build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
+}
+
 build() {
     cd libbonoboui-$pkgver
     CFLAGS+=" -std=gnu17 -fpermissive"

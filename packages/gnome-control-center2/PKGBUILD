@@ -31,6 +31,12 @@ source=("https://download.gnome.org/sources/gnome-control-center/${pkgver%.*}/gn
 sha256sums=('7c568b57358e5c08f4d8dd76dbac7df2539135ad081872b60514b7a8ac797e66')
 
 prepare() {
+    # The tarball's config.guess and config.sub (2010) predate AArch64;
+    # use the build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
     cd gnome-control-center-$pkgver
     sed -i 's/^SUBDIRS = po libwindow-settings capplets font-viewer help \\$/SUBDIRS = po libwindow-settings capplets font-viewer \\/' Makefile.in
 }

@@ -21,6 +21,12 @@ source=("https://download.gnome.org/sources/gnome-terminal/${pkgver%.*}/gnome-te
 sha256sums=('7f41e4b185a2cf65ff417b89e429fc3b625c5e3f042ee1763bda6490fa4676fb')
 
 prepare() {
+    # The tarball's config.guess and config.sub (2010) predate AArch64;
+    # use the build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
     cd gnome-terminal-$pkgver
     sed -i 's/^SUBDIRS = src po help$/SUBDIRS = src po/' Makefile.in
 }
