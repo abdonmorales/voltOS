@@ -1,0 +1,50 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# Apache OpenOffice, the continuation of OpenOffice.org (and so of Sun's
+# StarOffice): Writer, Calc, Impress, Draw, Math and Base.  Repackaged
+# from Apache's own Linux build (the RPM set, pinned by sha256; fetched from
+# archive.apache.org, which keeps every release) and installed in
+# /opt/openoffice4 as Apache lays it out.  It draws with GTK 2, so it takes
+# the Nimbus theme in MATE and GNOME 2.
+#
+# Apache publishes no AArch64 build, so this is x86_64 only.  The online
+# updater is left out (pacman updates it), and so is the soffice command,
+# which LibreOffice also installs: start it as openoffice4.
+
+pkgname=openoffice
+pkgver=4.1.17
+_build=9818
+pkgrel=1
+pkgdesc="Apache OpenOffice office suite (Writer, Calc, Impress, Draw, Math, Base)"
+arch=('x86_64')
+url="https://www.openoffice.org"
+license=('Apache-2.0')
+depends=('gtk2' 'gdk-pixbuf-xlib' 'dbus-glib' 'libxcrypt-compat' 'glu'
+         'libxinerama' 'libxrandr' 'libsm' 'fontconfig' 'freetype2'
+         'hicolor-icon-theme')
+optdepends=('java-runtime: Base databases, some wizards and filters'
+            'gconf: GNOME 2 proxy settings'
+            'gnome-vfs: GNOME VFS locations')
+options=('!strip' '!debug' '!emptydirs')
+_tarball=Apache_OpenOffice_${pkgver}_Linux_x86-64_install-rpm_en-US.tar.gz
+source=("https://archive.apache.org/dist/openoffice/$pkgver/binaries/en-US/$_tarball"
+        'openoffice4')
+noextract=("$_tarball")
+sha256sums=('972fd0309a27c2c8fa9a569efc690fb7c5e2d073b5f79006c2d3f9eba8c5dde0'
+            'SKIP')
+
+package() {
+    bsdtar -xf "$_tarball"
+    cd "$pkgdir"
+    local rpm
+    for rpm in "$srcdir"/en-US/RPMS/*.rpm \
+               "$srcdir"/en-US/RPMS/desktop-integration/openoffice$pkgver-freedesktop-menus-*.rpm; do
+        case ${rpm##*/} in
+        openoffice-onlineupdate-*) continue ;;
+        esac
+        bsdtar -xf "$rpm"
+    done
+    rm -f usr/bin/soffice
+    install -m755 "$srcdir/openoffice4" usr/bin/openoffice4
+    install -Dm644 "$srcdir"/en-US/licenses/{LICENSE,NOTICE} -t "usr/share/licenses/$pkgname"
+}

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Apache OpenOffice picks its GTK 2 look only where it recognises GNOME,
+# so ask for it everywhere (MATE included); SAL_USE_VCLPLUGIN=gen undoes it.
+: "${SAL_USE_VCLPLUGIN:=gtk}"
+export SAL_USE_VCLPLUGIN
+exec /opt/openoffice4/program/soffice "$@"

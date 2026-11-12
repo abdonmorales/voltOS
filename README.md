@@ -38,6 +38,7 @@ VoltOS is built for x86_64 (UEFI and BIOS) and, as a newer port, AArch64
 | Graphical installer (OpenSolaris gui-install on GTK 3) | CI installs through the GUI (test mode), then boots the result to the login screen |
 | AArch64 | Packages and ISO built in CI on an Arch Linux ARM root; CI boots the live desktop (virtio-gpu) and installs to ZFS, then boots the result through ZFSBootMenu to the login screen on a firmware-only framebuffer (ramfb). Newer and less tested than x86_64; no Secure Boot signing yet |
 | GNOME 2.32 desktop (GTK 2) | Built: GTK 2 with Nimbus's engine, the GNOME 2 platform and the desktop (Metacity, panel, session, settings daemon, Nautilus, terminal, control center), with VoltOS's defaults in `voltos-gnome2`. Runs in a test X session; power off/restart/suspend through logind still to be tried on a booted system. Not on the ISO; planned to replace GNOME Flashback around VoltOS 1.5. MATE stays the default |
+| Apache OpenOffice 4.1.17 | In the `[voltos]` repository for x86_64 (`doas pacman -S openoffice`); Writer runs with the Nimbus look. Too big for the ISO (2 GiB limit). Apache publishes no AArch64 build |
 | Updates (`[voltos]` repository) | Signed packages published by CI to GitHub releases after the tests pass; the install test checks that the installed system verifies them |
 | CI (`.github/workflows/iso.yml`) | Builds, boots and installs both architectures; publishes both ISOs on `v*` tags (0.x tags as pre-releases) |
 
@@ -203,6 +204,13 @@ screens are kept; what is Solaris-specific underneath was replaced:
   The session uses logind, not ConsoleKit, for log out, restart, power off
   and suspend. Manuals are left out (they need gnome-doc-utils, which
   needs Python 2).
+- **Office suite.** Apache OpenOffice, the line of Sun's StarOffice and
+  OpenOffice.org, repackaged from Apache's own Linux build into
+  /opt/openoffice4. It draws with GTK 2, so it matches the desktop; its
+  launcher asks for that look in MATE too, where OpenOffice would otherwise
+  fall back to its plain X11 one. Building it from source is a long job
+  (an old toolchain and Java) for no visible gain, so it is not. It is
+  installed from the repository, not the ISO, which has no room for it.
 - **Secure Boot.** Installed systems: firmware -> signed ZFSBootMenu ->
   signed kernel (ZFSBootMenu's locked-down kernel only kexecs kernels signed
   by a key in the firmware db, so `voltos-secureboot` signs both). Put the
