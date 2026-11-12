@@ -80,8 +80,11 @@ build() {
     chmod +x "$tools/bin/aoo-cc" "$tools/bin/aoo-c++"
     export PATH=$tools/bin:$PATH CC=aoo-cc CXX=aoo-c++
 
-    # makepkg's flags are for today's code; OpenOffice sets its own.
-    unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
+    # makepkg's flags are for today's code; OpenOffice sets its own, and
+    # runs its build in parallel itself: a MAKEFLAGS -j from makepkg.conf
+    # reaches every bundled library's make, and some (NSS) are not
+    # parallel-safe.
+    unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS MAKEFLAGS
 
     cd "$srcdir/aoo-$pkgver/main"
     autoconf

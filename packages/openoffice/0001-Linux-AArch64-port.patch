@@ -1,8 +1,7 @@
-diff --git a/main/bridges/prj/build.lst b/main/bridges/prj/build.lst
-index 4651b6a..cdbb53d 100644
---- a/main/bridges/prj/build.lst
-+++ b/main/bridges/prj/build.lst
-@@ -17,6 +17,7 @@ br	bridges\source\cpp_uno\gcc3_linux_s390		nmake	-	u	br_gcc3l3 br_unotypes br_in
+diff -ruN a/main/bridges/prj/build.lst b/main/bridges/prj/build.lst
+--- a/main/bridges/prj/build.lst	2026-11-12 22:43:48.655966522 +0000
++++ b/main/bridges/prj/build.lst	2026-11-12 22:43:48.657238263 +0000
+@@ -17,6 +17,7 @@
  br	bridges\source\cpp_uno\gcc3_linux_s390x		nmake	-	u	br_gcc3l3_64 br_unotypes br_inc NULL
  br	bridges\source\cpp_uno\gcc3_linux_sparc		nmake	-	u	br_gcc3ls br_unotypes br_cppuno_shared br_inc NULL
  br	bridges\source\cpp_uno\gcc3_linux_arm		nmake	-	u	br_gcc3lr br_unotypes NULL
@@ -10,11 +9,9 @@ index 4651b6a..cdbb53d 100644
  br	bridges\source\cpp_uno\gcc3_linux_ia64		nmake	-	u	br_gcc3la br_unotypes NULL
  br	bridges\source\cpp_uno\gcc3_linux_hppa		nmake	-	u	br_gcc3lh br_unotypes NULL
  br	bridges\source\cpp_uno\gcc3_linux_alpha		nmake	-	u	br_gcc3ll br_unotypes NULL
-diff --git a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.cxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.cxx
-new file mode 100644
-index 0000000..f383b42
---- /dev/null
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.cxx
+diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.cxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.cxx
+--- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.cxx	1970-01-01 00:00:00.000000000 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.cxx	2026-11-12 22:43:48.662900703 +0000
 @@ -0,0 +1,193 @@
 +/**************************************************************
 + * 
@@ -209,11 +206,9 @@ index 0000000..f383b42
 +}
 +
 +} // namespace aarch64
-diff --git a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.hxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.hxx
-new file mode 100644
-index 0000000..a4138d6
---- /dev/null
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.hxx
+diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.hxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.hxx
+--- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.hxx	1970-01-01 00:00:00.000000000 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.hxx	2026-11-12 22:43:48.668523772 +0000
 @@ -0,0 +1,81 @@
 +/**************************************************************
 + * 
@@ -296,11 +291,9 @@ index 0000000..a4138d6
 +} // namespace aarch64
 +
 +#endif
-diff --git a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/call.s b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/call.s
-new file mode 100644
-index 0000000..bdc9a7f
---- /dev/null
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/call.s
+diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/call.s b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/call.s
+--- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/call.s	1970-01-01 00:00:00.000000000 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/call.s	2026-11-12 22:43:48.674147209 +0000
 @@ -0,0 +1,152 @@
 +/**************************************************************
 + *
@@ -454,11 +447,9 @@ index 0000000..bdc9a7f
 +	.size	callVirtualMethodImpl, .-callVirtualMethodImpl
 +
 +	.section .note.GNU-stack, "", %progbits
-diff --git a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/cpp2uno.cxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/cpp2uno.cxx
-new file mode 100644
-index 0000000..4bf9cda
---- /dev/null
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/cpp2uno.cxx
+diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/cpp2uno.cxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/cpp2uno.cxx
+--- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/cpp2uno.cxx	1970-01-01 00:00:00.000000000 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/cpp2uno.cxx	2026-11-12 22:43:48.680116239 +0000
 @@ -0,0 +1,499 @@
 +/**************************************************************
 + * 
@@ -959,11 +950,9 @@ index 0000000..4bf9cda
 +	__builtin___clear_cache( reinterpret_cast<char *>( const_cast<unsigned char *>( begin ) ),
 +							 reinterpret_cast<char *>( const_cast<unsigned char *>( end ) ) );
 +}
-diff --git a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/except.cxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/except.cxx
-new file mode 100644
-index 0000000..36265a1
---- /dev/null
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/except.cxx
+diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/except.cxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/except.cxx
+--- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/except.cxx	1970-01-01 00:00:00.000000000 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/except.cxx	2026-11-12 22:43:48.686196984 +0000
 @@ -0,0 +1,326 @@
 +/**************************************************************
 + * 
@@ -1291,11 +1280,9 @@ index 0000000..36265a1
 +
 +}
 +
-diff --git a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/makefile.mk b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/makefile.mk
-new file mode 100644
-index 0000000..623cdb3
---- /dev/null
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/makefile.mk
+diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/makefile.mk b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/makefile.mk
+--- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/makefile.mk	1970-01-01 00:00:00.000000000 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/makefile.mk	2026-11-12 22:43:48.692020208 +0000
 @@ -0,0 +1,76 @@
 +#**************************************************************
 +#  
@@ -1373,11 +1360,9 @@ index 0000000..623cdb3
 +$(SLO)$/%.obj: %.s
 +    $(CC) -c -o $(SLO)$/$(@:b).o $<
 +    touch $@
-diff --git a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/share.hxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/share.hxx
-new file mode 100644
-index 0000000..9d02e4c
---- /dev/null
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/share.hxx
+diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/share.hxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/share.hxx
+--- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/share.hxx	1970-01-01 00:00:00.000000000 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/share.hxx	2026-11-12 22:43:48.697888607 +0000
 @@ -0,0 +1,86 @@
 +/**************************************************************
 + * 
@@ -1465,11 +1450,9 @@ index 0000000..9d02e4c
 +void fillUnoException(
 +    __cxa_exception * header, uno_Any *, uno_Mapping * pCpp2Uno );
 +}
-diff --git a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/uno2cpp.cxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/uno2cpp.cxx
-new file mode 100644
-index 0000000..156e90e
---- /dev/null
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/uno2cpp.cxx
+diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/uno2cpp.cxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/uno2cpp.cxx
+--- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/uno2cpp.cxx	1970-01-01 00:00:00.000000000 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/uno2cpp.cxx	2026-11-12 22:43:48.703306189 +0000
 @@ -0,0 +1,490 @@
 +/**************************************************************
 + * 
@@ -1961,10 +1944,9 @@ index 0000000..156e90e
 +}
 +
 +} } }
-diff --git a/main/desktop/source/deployment/misc/dp_platform.cxx b/main/desktop/source/deployment/misc/dp_platform.cxx
-index 2c40fbe..f3ade3a 100644
---- a/main/desktop/source/deployment/misc/dp_platform.cxx
-+++ b/main/desktop/source/deployment/misc/dp_platform.cxx
+diff -ruN a/main/desktop/source/deployment/misc/dp_platform.cxx b/main/desktop/source/deployment/misc/dp_platform.cxx
+--- a/main/desktop/source/deployment/misc/dp_platform.cxx	2026-11-12 22:43:48.708898216 +0000
++++ b/main/desktop/source/deployment/misc/dp_platform.cxx	2026-11-12 22:43:48.710596308 +0000
 @@ -35,6 +35,7 @@
  #define PLATFORM_WIN_X86            "windows_x86"
  #define PLATFORM_LINUX_X86          "linux_x86"
@@ -1973,7 +1955,7 @@ index 2c40fbe..f3ade3a 100644
  #define PLATFORM_KFREEBSD_X86       "kfreebsd_x86"
  #define PLATFORM_KFREEBSD_X86_64    "kfreebsd_x86_64"
  #define PLATFORM_LINUX_SPARC        "linux_sparc"
-@@ -130,7 +131,9 @@ namespace
+@@ -130,7 +131,9 @@
          else if (token.equals(OUSTR(PLATFORM_LINUX_X86)))
              ret = checkOSandCPU(OUSTR("Linux"), OUSTR("x86"));
          else if (token.equals(OUSTR(PLATFORM_LINUX_X86_64)))
@@ -1984,11 +1966,24 @@ index 2c40fbe..f3ade3a 100644
          else if (token.equals(OUSTR(PLATFORM_KFREEBSD_X86)))
              ret = checkOSandCPU(OUSTR("kFreeBSD"), OUSTR("x86"));
          else if (token.equals(OUSTR(PLATFORM_KFREEBSD_X86_64)))
-diff --git a/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx b/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx
-index 592dcf1..d569645 100644
---- a/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx
-+++ b/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx
-@@ -41,6 +41,8 @@ namespace jfw_plugin
+diff -ruN a/main/icu/makefile.mk b/main/icu/makefile.mk
+--- a/main/icu/makefile.mk	2026-11-12 22:43:48.716058569 +0000
++++ b/main/icu/makefile.mk	2026-11-12 22:43:48.717442752 +0000
+@@ -98,6 +98,10 @@
+ 
+ CONFIGURE_DIR=source
+ 
++# ICU 4.2 makes its data library with GCC assembler only on the CPUs its
++# configure knew; elsewhere its object file writer, which predates AArch64,
++# makes an empty object.
++CONFIGURE_ACTION+=sed -i -e 's/x86_64-\*-linux\*|/x86_64-*-linux*|aarch64-*-linux*|/' configure ;
+ CONFIGURE_ACTION+=sh -c 'CFLAGS="$(icu_CFLAGS)" CXXFLAGS="$(icu_CXXFLAGS)" LDFLAGS="$(icu_LDFLAGS) $(LDFLAGSADD)" ./configure --enable-layout --enable-static --enable-shared=yes $(DISABLE_64BIT)'
+ 
+ #CONFIGURE_FLAGS=--enable-layout --enable-static --enable-shared=yes --enable-64bit-libs=no
+diff -ruN a/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx b/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx
+--- a/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx	2026-11-12 22:43:48.722654821 +0000
++++ b/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx	2026-11-12 22:43:48.723824731 +0000
+@@ -41,6 +41,8 @@
  #define JFW_PLUGIN_ARCH "sparc"
  #elif defined X86_64
  #define JFW_PLUGIN_ARCH "amd64"
@@ -1997,11 +1992,22 @@ index 592dcf1..d569645 100644
  #elif defined INTEL
  #define JFW_PLUGIN_ARCH "i386"
  #elif defined POWERPC64
-diff --git a/main/sal/rtl/source/macro.hxx b/main/sal/rtl/source/macro.hxx
-index 05430dc..6a865ef 100644
---- a/main/sal/rtl/source/macro.hxx
-+++ b/main/sal/rtl/source/macro.hxx
-@@ -55,6 +55,8 @@ this is inserted for the case that the preprocessor ignores error
+diff -ruN a/main/openssl/makefile.mk b/main/openssl/makefile.mk
+--- a/main/openssl/makefile.mk	2026-11-12 22:43:48.729269226 +0000
++++ b/main/openssl/makefile.mk	2026-11-12 22:43:48.730407533 +0000
+@@ -76,6 +76,8 @@
+ 		.ELSE
+ 			CONFIGURE_ACTION=Configure linux-generic32 no-dso no-shared $(NO_ASM)
+ 		.ENDIF
++	.ELIF "$(CPUNAME)" == "AARCH64"
++		CONFIGURE_ACTION=Configure linux-aarch64 no-dso no-shared $(NO_ASM)
+ 	.ELIF "$(BUILD64)" == "1"
+ 		.IF "$(UNAME)" == "GNU/kFreeBSD"
+ 			CONFIGURE_ACTION=Configure debian-kfreebsd-amd64 no-dso no-shared $(NO_ASM)
+diff -ruN a/main/sal/rtl/source/macro.hxx b/main/sal/rtl/source/macro.hxx
+--- a/main/sal/rtl/source/macro.hxx	2026-11-12 22:43:48.735094138 +0000
++++ b/main/sal/rtl/source/macro.hxx	2026-11-12 22:43:48.736828939 +0000
+@@ -55,6 +55,8 @@
  
  #if defined X86_64
  #    define THIS_ARCH "X86_64"
@@ -2010,11 +2016,10 @@ index 05430dc..6a865ef 100644
  #elif defined INTEL
  #    define THIS_ARCH "x86"
  #elif defined POWERPC64
-diff --git a/main/set_soenv.in b/main/set_soenv.in
-index 320c5be..18c0a27 100644
---- a/main/set_soenv.in
-+++ b/main/set_soenv.in
-@@ -622,6 +622,17 @@ elsif ( $platform =~ m/linux/ )
+diff -ruN a/main/set_soenv.in b/main/set_soenv.in
+--- a/main/set_soenv.in	2026-11-12 22:43:48.741806303 +0000
++++ b/main/set_soenv.in	2026-11-12 22:43:48.743003224 +0000
+@@ -622,6 +622,17 @@
        $JRETOOLKITDIR  = '$JAVA_HOME'.$ds."jre".$ds."lib".$ds."alpha".$ds."server";
        $JRETHREADDIR   = '$JAVA_HOME'.$ds."jre".$ds."lib".$ds."alpha".$ds."native_threads";
     }
@@ -2032,11 +2037,10 @@ index 320c5be..18c0a27 100644
     elsif ($platform =~ m/^arm.*?l-/)
     {  print "Setting Linux ARM specific values... ";
        $outfile        = "LinuxARMEnv.Set";
-diff --git a/main/solenv/bin/modules/installer/download.pm b/main/solenv/bin/modules/installer/download.pm
-index b3435e2..64ec0e5 100644
---- a/main/solenv/bin/modules/installer/download.pm
-+++ b/main/solenv/bin/modules/installer/download.pm
-@@ -628,6 +628,10 @@ sub get_download_architecture
+diff -ruN a/main/solenv/bin/modules/installer/download.pm b/main/solenv/bin/modules/installer/download.pm
+--- a/main/solenv/bin/modules/installer/download.pm	2026-11-12 22:43:48.748395494 +0000
++++ b/main/solenv/bin/modules/installer/download.pm	2026-11-12 22:43:48.749934013 +0000
+@@ -628,6 +628,10 @@
  	{
  		$arch = "PPC";
  	}
@@ -2047,11 +2051,9 @@ index b3435e2..64ec0e5 100644
  
  	return $arch;
  }
-diff --git a/main/solenv/bin/update_config_guess.sh b/main/solenv/bin/update_config_guess.sh
-new file mode 100755
-index 0000000..bbbc3dc
---- /dev/null
-+++ b/main/solenv/bin/update_config_guess.sh
+diff -ruN a/main/solenv/bin/update_config_guess.sh b/main/solenv/bin/update_config_guess.sh
+--- a/main/solenv/bin/update_config_guess.sh	1970-01-01 00:00:00.000000000 +0000
++++ b/main/solenv/bin/update_config_guess.sh	2026-11-12 22:43:48.755356750 +0000
 @@ -0,0 +1,37 @@
 +#!/bin/sh
 +#**************************************************************
@@ -2090,11 +2092,14 @@ index 0000000..bbbc3dc
 +    done
 +done
 +exit 0
-diff --git a/main/solenv/gbuild/platform/linux.mk b/main/solenv/gbuild/platform/linux.mk
-index 6ab0b33..c9535f5 100644
---- a/main/solenv/gbuild/platform/linux.mk
-+++ b/main/solenv/gbuild/platform/linux.mk
-@@ -66,6 +66,8 @@ gb_COMPILERDEFS := \
+diff -ruN a/main/solenv/gbuild/platform/linux.mk b/main/solenv/gbuild/platform/linux.mk
+--- a/main/solenv/gbuild/platform/linux.mk	2026-11-12 22:43:48.760355747 +0000
++++ b/main/solenv/gbuild/platform/linux.mk	2026-11-12 22:43:48.761946391 +0000
+@@ -63,9 +63,12 @@
+ 	-DHAVE_GCC_VISIBILITY_FEATURE \
+ 	-DCPPU_ENV=gcc3 \
+ 	-DGXX_INCLUDE_PATH=$(GXX_INCLUDE_PATH) \
++	-DBOOST_TR1_GCC_INCLUDE_PATH=$(notdir $(GXX_INCLUDE_PATH)) \
  
  ifeq ($(CPUNAME),X86_64)
  gb_CPUDEFS := -D$(CPUNAME)
@@ -2103,25 +2108,36 @@ index 6ab0b33..c9535f5 100644
  else
  gb_CPUDEFS := -DX86
  endif
-diff --git a/main/solenv/inc/tg_ext.mk b/main/solenv/inc/tg_ext.mk
-index 2918501..271fc8e 100644
---- a/main/solenv/inc/tg_ext.mk
-+++ b/main/solenv/inc/tg_ext.mk
-@@ -191,6 +191,10 @@ $(PACKAGE_DIR)/$(PATCH_FLAG_FILE) : $(PACKAGE_DIR)/$(ADD_FILES_FLAG_FILE)
+diff -ruN a/main/solenv/inc/settings.mk b/main/solenv/inc/settings.mk
+--- a/main/solenv/inc/settings.mk	2026-11-12 22:43:48.766796508 +0000
++++ b/main/solenv/inc/settings.mk	2026-11-12 22:43:48.768073977 +0000
+@@ -1089,6 +1089,9 @@
+ GXX_INCLUDE_PATH*:=$(COMPATH)/include/c++/$(CCVER)
+ .EXPORT : GXX_INCLUDE_PATH
+ CDEFS+= -DGXX_INCLUDE_PATH=$(GXX_INCLUDE_PATH)
++# Boost TR1 finds libstdc++ headers relative to their directory, which it
++# guesses from the GCC version (c++/16); it may be c++/16.1.1.
++CDEFS+= -DBOOST_TR1_GCC_INCLUDE_PATH=$(GXX_INCLUDE_PATH:f)
+ .ENDIF
+ 
+ # --- extend new environment ----------------------------------
+diff -ruN a/main/solenv/inc/tg_ext.mk b/main/solenv/inc/tg_ext.mk
+--- a/main/solenv/inc/tg_ext.mk	2026-11-12 22:43:48.773050022 +0000
++++ b/main/solenv/inc/tg_ext.mk	2026-11-12 22:43:48.774435384 +0000
+@@ -191,6 +191,10 @@
  .ENDIF          # "$(BSCLIENT)"!=""
  .ENDIF          # "$(GUI)"=="WNT"
  .ENDIF			# "$(PATCH_FILES)"=="none" ||	"$(PATCH_FILES)"==""
 +.IF "$(GUI)"=="UNX"
 +# Old config.guess/config.sub do not know newer CPUs (AArch64).
-+	$(COMMAND_ECHO)$(SOLARENV)/bin/update_config_guess.sh $(PACKAGE_DIR) $(SRC_ROOT)
++	$(COMMAND_ECHO)sh $(SOLARENV)/bin/update_config_guess.sh $(PACKAGE_DIR) $(SRC_ROOT)
 +.ENDIF          # "$(GUI)"=="UNX"
  .IF "$(T_ADDITIONAL_FILES)"!=""
  .IF "$(GUI)"=="WNT"
  # Native W32 tools generate only filedates with even seconds, cygwin also with odd seconds
-diff --git a/main/solenv/inc/unx.mk b/main/solenv/inc/unx.mk
-index 1f4383b..9e22549 100644
---- a/main/solenv/inc/unx.mk
-+++ b/main/solenv/inc/unx.mk
+diff -ruN a/main/solenv/inc/unx.mk b/main/solenv/inc/unx.mk
+--- a/main/solenv/inc/unx.mk	2026-11-12 22:43:48.779932386 +0000
++++ b/main/solenv/inc/unx.mk	2026-11-12 22:43:48.781807291 +0000
 @@ -111,6 +111,10 @@
  .INCLUDE : unxlngr.mk
  .ENDIF
@@ -2133,11 +2149,9 @@ index 1f4383b..9e22549 100644
  .IF "$(COM)$(OS)$(CPU)" == "GCCLINUXA"
  .INCLUDE : unxlnga.mk
  .ENDIF
-diff --git a/main/solenv/inc/unxlngaarch64.mk b/main/solenv/inc/unxlngaarch64.mk
-new file mode 100644
-index 0000000..313d956
---- /dev/null
-+++ b/main/solenv/inc/unxlngaarch64.mk
+diff -ruN a/main/solenv/inc/unxlngaarch64.mk b/main/solenv/inc/unxlngaarch64.mk
+--- a/main/solenv/inc/unxlngaarch64.mk	1970-01-01 00:00:00.000000000 +0000
++++ b/main/solenv/inc/unxlngaarch64.mk	2026-11-12 22:43:48.787319024 +0000
 @@ -0,0 +1,27 @@
 +#**************************************************************
 +#
