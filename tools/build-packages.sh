@@ -130,7 +130,11 @@ for pkg in "${order[@]}"; do
 	fi
 	(cd "$dir" && as_builder makepkg --nodeps --clean --cleanbuild --force \
 	    --noconfirm $pgp)
-	for f in "$dir"/*.pkg.tar.zst; do
+	# Only the files this build made (makepkg --packagelist), not ones an
+	# earlier build of another version left in the directory.
+	mapfile -t built < <(cd "$dir" && as_builder makepkg --packagelist)
+	for f in "${built[@]}"; do
+		[ -e "$f" ] || continue	# a -debug package with no symbols to hold
 		# The files are published as GitHub release files and CI
 		# artifacts: no ":" (an epoch) and no "+" in the name.
 		[[ ${f##*/} =~ ^[A-Za-z0-9._-]+$ ]] || {
