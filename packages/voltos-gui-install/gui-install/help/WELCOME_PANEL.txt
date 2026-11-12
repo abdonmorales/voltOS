@@ -9,6 +9,6 @@ VoltOS uses a ZFS file system with boot environments. Before every software upda
 
 To view the help for any screen of this installer, select the Help button on that screen.
 
-This installer does not upgrade an existing VoltOS installation. To update an installed system, run "sudo pacman -Syu" on it.
+This installer does not upgrade an existing VoltOS installation. To update an installed system, run "doas pacman -Syu" on it.
 
 Note: You can end the installation on any screen up to Installation by selecting the Quit button.

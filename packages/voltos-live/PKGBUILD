@@ -5,12 +5,12 @@
 
 pkgname=voltos-live
 pkgver=0.2.0
-pkgrel=4
+pkgrel=5
 pkgdesc="VoltOS live session: live user, installer shortcut, unattended install"
 arch=('any')
 url="https://github.com/abdonmorales/voltOS"
 license=('MIT')
-depends=('voltos-installer' 'voltos-gui-install' 'voltos-desktop' 'lightdm' 'sudo' 'polkit')
+depends=('voltos-installer' 'voltos-gui-install' 'voltos-desktop' 'lightdm' 'voltos-doas' 'polkit')
 source=('voltos-live-setup' 'voltos-live-setup.service'
         'voltos-autoinstall' 'voltos-autoinstall.service'
         'voltos-live-ready' 'voltos-live-ready.service'
@@ -31,7 +31,4 @@ package() {
         "${pkgdir}"/usr/share/glib-2.0/schemas/95_voltos-live.gschema.override
     install -Dm644 49-voltos-live.rules \
         "${pkgdir}"/usr/share/polkit-1/rules.d/49-voltos-live.rules
-    install -dm750 "${pkgdir}"/etc/sudoers.d
-    echo 'liveuser ALL=(ALL:ALL) NOPASSWD: ALL' >"${pkgdir}"/etc/sudoers.d/90-liveuser
-    chmod 440 "${pkgdir}"/etc/sudoers.d/90-liveuser
 }

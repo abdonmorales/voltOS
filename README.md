@@ -20,7 +20,7 @@ VoltOS is an Arch Linux–based desktop distribution with:
   text-mode installer is the fallback. Both run `voltos-install`, which
   copies the tested live system onto the ZFS pool, so installing works
   offline.
-- **Secure Boot, with your own keys.** `sudo voltos-secureboot enable` enrols
+- **Secure Boot, with your own keys.** `doas voltos-secureboot enable` enrols
   machine-owner keys (plus Microsoft's) and signs ZFSBootMenu and the kernels;
   updates are re-signed automatically.
 
@@ -37,6 +37,7 @@ VoltOS is built for x86_64 (UEFI and BIOS) and, as a newer port, AArch64
 | Live ISO on BIOS | Boots to the live desktop under SeaBIOS in QEMU (CI) |
 | Graphical installer (OpenSolaris gui-install on GTK 3) | CI installs through the GUI (test mode), then boots the result to the login screen |
 | AArch64 | Packages and ISO built in CI on an Arch Linux ARM root; CI boots the live desktop (virtio-gpu) and installs to ZFS, then boots the result through ZFSBootMenu to the login screen on a firmware-only framebuffer (ramfb). Newer and less tested than x86_64; no Secure Boot signing yet |
+| GNOME 2.32 desktop (GTK 2) | In progress: GTK 2 and Nimbus's GTK 2 engine are built (not on the ISO yet); the GNOME 2 platform and desktop come next. MATE stays the default |
 | Updates (`[voltos]` repository) | Signed packages published by CI to GitHub releases after the tests pass; the install test checks that the installed system verifies them |
 | CI (`.github/workflows/iso.yml`) | Builds, boots and installs both architectures; publishes both ISOs on `v*` tags (0.x tags as pre-releases) |
 
@@ -158,7 +159,7 @@ screens are kept; what is Solaris-specific underneath was replaced:
   the progress bar and slideshow. Time zones come from the IANA tz database.
 - **VoltOS choices.** Whole-disk installs only (the fdisk partition editor and
   the upgrade screens are gone), no root password (the account created on the
-  Users screen administers the system with sudo), VoltOS branding, help and
+  Users screen administers the system with doas), VoltOS branding, help and
   slides.
 
 ## Design notes
@@ -226,6 +227,17 @@ signed with the same key) boots normally. Without the secrets the ISO is
 unsigned and still boots wherever Secure Boot is off. CI boots the signed
 ISO with Secure Boot enforced (`tools/smoke-qemu.sh live-secureboot`).
 
+## Administrator access: doas
+
+VoltOS uses [doas](https://github.com/Duncaen/OpenDoas) instead of sudo.
+The account made at installation is in `wheel`, which `/etc/doas.conf`
+allows to run commands as root (`doas pacman -Syu`); root itself is locked.
+The `voltos-doas` package provides it, replaces sudo on systems that had it
+(`pacman -Syu` offers the swap) and keeps a small `sudo` command that hands
+the usual forms (`sudo cmd`, `-u user`, `-i`/`-s`, `-n`) to doas, so scripts,
+`makepkg -s` and AUR helpers keep working. Graphical prompts (the installer,
+settings) use polkit as before.
+
 ## Updates
 
 Installed systems get VoltOS's own packages (OpenZFS, ZFSBootMenu, Nimbus,
@@ -270,10 +282,10 @@ the fingerprint against the one `tools/make-repo-key.sh` printed):
 
 ```sh
 curl -fLO https://github.com/abdonmorales/voltOS/releases/download/repo-$(uname -m)/voltos-repo.asc
-sudo pacman-key --add voltos-repo.asc
-sudo pacman-key --lsign-key <fingerprint>
+doas pacman-key --add voltos-repo.asc
+doas pacman-key --lsign-key <fingerprint>
 # add the [voltos] section above to /etc/pacman.conf, before [core], then:
-sudo pacman -Sy voltos-keyring
+doas pacman -Sy voltos-keyring
 ```
 
 ## Credits

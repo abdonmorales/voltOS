@@ -195,7 +195,7 @@ Install now?" 15 70 || die "installation cancelled"
 
 preflight()
 {
-	[ "$(id -u)" -eq 0 ] || die "must be run as root (try: sudo voltos-install)"
+	[ "$(id -u)" -eq 0 ] || die "must be run as root (try: doas voltos-install)"
 	[ -d /sys/firmware/efi ] ||
 	    die "VoltOS installs need UEFI firmware; this machine booted in BIOS mode"
 	[ -d "$LIVE_ROOT/usr" ] || die "$LIVE_ROOT not found; run this from the VoltOS live medium"
@@ -408,14 +408,21 @@ COMPRESSION="zstd"
 MKINIT
 	in_target mkinitcpio -P
 
-	# Accounts: the user administers the system through sudo; root is locked.
+	# Accounts: the user administers the system through doas; root is locked.
 	in_target useradd -m -G wheel -s /bin/bash -c "$FULLNAME" "$USERNAME"
 	printf '%s:%s\n' "$USERNAME" "$PASSWORD" |
 	    arch-chroot "$TARGET" chpasswd >>"$LOG" 2>&1 ||
 	    die "could not set the password"
 	in_target passwd -l root
-	echo '%wheel ALL=(ALL:ALL) ALL' >"$TARGET/etc/sudoers.d/10-wheel"
-	chmod 440 "$TARGET/etc/sudoers.d/10-wheel"
+	# voltos-doas's configuration, without the live session's rule.
+	cat >"$TARGET/etc/doas.conf" <<'DOAS'
+# VoltOS: administrators are the members of "wheel" (the account made at
+# installation; root is locked).  "persist" remembers the password for a
+# few minutes.  See doas.conf(5); the last matching rule applies.
+permit persist :wheel
+DOAS
+	chmod 400 "$TARGET/etc/doas.conf"
+	rm -f "$TARGET/etc/sudoers.d/90-liveuser"
 
 	# The display manager the live system uses (LightDM for VoltOS).
 	local dm=lightdm.service

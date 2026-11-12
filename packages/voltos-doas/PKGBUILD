@@ -1,0 +1,30 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# VoltOS uses doas (OpenDoas) instead of sudo: members of "wheel" (the
+# account made at install time) run commands as root with "doas"; root
+# itself is locked.  The package replaces sudo on systems that have it
+# (pacman -Syu offers the swap), provides "sudo" for packages that depend
+# on it (base-devel), and keeps a small /usr/bin/sudo that hands the usual
+# forms of the command to doas, so scripts, makepkg -s and AUR helpers keep
+# working.
+
+pkgname=voltos-doas
+pkgver=1.0
+pkgrel=1
+pkgdesc="VoltOS administrator access with doas (replaces sudo)"
+arch=('any')
+url="https://github.com/abdonmorales/voltOS"
+license=('MIT')
+depends=('opendoas' 'sh')
+provides=('sudo')
+conflicts=('sudo')
+replaces=('sudo')
+backup=('etc/doas.conf')
+source=('doas.conf' 'sudo')
+sha256sums=('SKIP' 'SKIP')
+
+package() {
+    # doas refuses a configuration that others can write; 0400 as root.
+    install -Dm400 doas.conf "$pkgdir/etc/doas.conf"
+    install -Dm755 sudo "$pkgdir/usr/bin/sudo"
+}

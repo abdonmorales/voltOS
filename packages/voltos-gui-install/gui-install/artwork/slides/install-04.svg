@@ -10,7 +10,7 @@
         font-weight="600" fill="#ffffff">Keep it current</text>
   <rect x="40" y="88" width="80" height="3" fill="#f0c040"/>
   <text x="40" y="140" font-family="Adwaita Sans, DejaVu Sans, sans-serif" font-size="17"
-        fill="#e8eef5"><tspan x="40" dy="0">Update the whole system with:</tspan><tspan x="40" dy="24"></tspan><tspan x="40" dy="24">      sudo pacman -Syu</tspan><tspan x="40" dy="24"></tspan><tspan x="40" dy="24">Turn on Secure Boot with your own keys:</tspan><tspan x="40" dy="24"></tspan><tspan x="40" dy="24">      sudo voltos-secureboot enable</tspan></text>
+        fill="#e8eef5"><tspan x="40" dy="0">Update the whole system with:</tspan><tspan x="40" dy="24"></tspan><tspan x="40" dy="24">      doas pacman -Syu</tspan><tspan x="40" dy="24"></tspan><tspan x="40" dy="24">Turn on Secure Boot with your own keys:</tspan><tspan x="40" dy="24"></tspan><tspan x="40" dy="24">      doas voltos-secureboot enable</tspan></text>
   <text x="550" y="345" text-anchor="end" font-family="Adwaita Sans, DejaVu Sans, sans-serif"
         font-size="15" fill="#c8d4e2"><tspan font-weight="600">Volt</tspan>OS</text>
 </svg>

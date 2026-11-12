@@ -24,7 +24,7 @@ ZBM_IMAGES=("$ESP/EFI/zbm/zfsbootmenu.EFI" "$ESP/EFI/BOOT/$fallback")
 
 die() { echo "voltos-secureboot: $*" >&2; exit 1; }
 
-need_root() { [ "$(id -u)" -eq 0 ] || die "run as root (sudo voltos-secureboot $1)"; }
+need_root() { [ "$(id -u)" -eq 0 ] || die "run as root (doas voltos-secureboot $1)"; }
 
 status() {
 	[ -d /sys/firmware/efi ] || die "this system did not boot with UEFI"
@@ -43,7 +43,7 @@ enable() {
 voltos-secureboot: the firmware is not in Setup Mode, so new keys cannot be
 enrolled.  Restart into the firmware settings, find Secure Boot, choose
 "Reset to Setup Mode" (or "Clear all Secure Boot keys"), leave Secure Boot
-disabled, boot VoltOS again and re-run:  sudo voltos-secureboot enable
+disabled, boot VoltOS again and re-run:  doas voltos-secureboot enable
 MSG
 		exit 1
 	fi

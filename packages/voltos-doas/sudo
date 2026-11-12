@@ -1,0 +1,29 @@
+#!/bin/sh
+# VoltOS uses doas instead of sudo.  This hands the common forms of sudo to
+# doas so scripts and tools that call sudo keep working:
+#   sudo [-n] [-u user] [-i | -s] [--] [command ...]
+# Anything else: use doas directly (see doas(1)).
+set -e
+user= shell= nonint=
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-u) [ $# -ge 2 ] || { echo "sudo: -u needs a user" >&2; exit 1; }
+	    user=$2; shift 2 ;;
+	-u*) user=${1#-u}; shift ;;
+	--user=*) user=${1#--user=}; shift ;;
+	-n|--non-interactive) nonint=-n; shift ;;
+	-i|--login|-s|--shell) shell=1; shift ;;
+	-E|--preserve-env|--preserve-env=*|-H|--set-home|-k|--reset-timestamp) shift ;;
+	--) shift; break ;;
+	-v|--validate) exec doas $nonint true ;;
+	-*) echo "sudo: option $1 is not supported; VoltOS uses doas (see doas(1))" >&2
+	    exit 1 ;;
+	*) break ;;
+	esac
+done
+if [ $# -eq 0 ]; then
+	# "sudo -i" / "sudo -s" alone: an interactive shell.
+	[ -n "$shell" ] || { echo "usage: sudo [-n] [-u user] [-i | -s] command" >&2; exit 1; }
+	exec doas $nonint ${user:+-u "$user"} -s
+fi
+exec doas $nonint ${user:+-u "$user"} -- "$@"

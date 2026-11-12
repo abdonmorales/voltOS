@@ -2,7 +2,7 @@
 
 pkgname=voltos-secureboot
 pkgver=0.1.0
-pkgrel=3
+pkgrel=4
 pkgdesc="Enable UEFI Secure Boot for VoltOS (own keys via sbctl, signed ZFSBootMenu and kernels)"
 arch=('any')
 url="https://github.com/abdonmorales/voltOS"

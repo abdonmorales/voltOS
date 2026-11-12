@@ -7,6 +7,6 @@ Create the account you use on VoltOS.
   Log-in name: the name you log in with. It must start with a lower-case letter and may contain lower-case letters, digits, "-" and "_".
   User password: enter the password twice.
 
-VoltOS has no root password: root cannot log in. The account created here administers the system with sudo, for example "sudo pacman -Syu".
+VoltOS has no root password: root cannot log in. The account created here administers the system with doas, for example "doas pacman -Syu".
 
 Computer name: the name of this computer on the network. It may contain letters, digits and "-".

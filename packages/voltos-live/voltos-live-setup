@@ -6,6 +6,10 @@ id liveuser >/dev/null 2>&1 && exit 0
 getent group autologin >/dev/null || groupadd -r autologin
 useradd -m -G wheel,autologin -c "VoltOS Live" -s /bin/bash liveuser
 passwd -d liveuser
+# Administrator commands without a password in the live session (doas uses
+# the last matching rule; voltos-install writes a fresh doas.conf).
+grep -qx 'permit nopass liveuser' /etc/doas.conf 2>/dev/null ||
+    echo 'permit nopass liveuser' >>/etc/doas.conf
 install -d -o liveuser -g liveuser /home/liveuser/Desktop
 cp /usr/share/applications/voltos-installer.desktop /home/liveuser/Desktop/
 chown liveuser:liveuser /home/liveuser/Desktop/voltos-installer.desktop

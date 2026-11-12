@@ -8,7 +8,7 @@
 
 pkgname=voltos-gui-install
 pkgver=1.0.0
-pkgrel=1
+pkgrel=2
 pkgdesc="VoltOS graphical installer (the OpenSolaris installer, ported to GTK 3)"
 arch=('x86_64' 'aarch64')
 url="https://github.com/abdonmorales/voltOS"
