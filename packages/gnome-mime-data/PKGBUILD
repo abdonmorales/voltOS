@@ -1,0 +1,28 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# The MIME and application database GnomeVFS reads (GNOME 2 platform).
+# Arch Linux dropped it; from GNOME's final 2.18.0 release.
+
+pkgname=gnome-mime-data
+pkgver=2.18.0
+pkgrel=1
+pkgdesc="MIME type and application data of the GNOME 2 platform"
+arch=('any')
+url="https://gitlab.gnome.org/Archive/gnome-mime-data"
+license=('GPL-2.0-or-later')
+depends=('shared-mime-info')
+makedepends=('intltool')
+source=("https://download.gnome.org/sources/gnome-mime-data/${pkgver%.*}/gnome-mime-data-$pkgver.tar.bz2")
+# From GNOME's gnome-mime-data-2.18.0.sha256sum.
+sha256sums=('37196b5b37085bbcd45c338c36e26898fe35dd5975295f69f48028b1e8436fd7')
+
+build() {
+    cd gnome-mime-data-$pkgver
+    ./configure --prefix=/usr --sysconfdir=/etc
+    make
+}
+
+package() {
+    cd gnome-mime-data-$pkgver
+    make DESTDIR="$pkgdir" install
+}
