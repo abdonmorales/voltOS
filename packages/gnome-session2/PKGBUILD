@@ -40,6 +40,10 @@ build() {
         >"$srcdir/stub-pc/gnome-doc-utils.pc"
     export PKG_CONFIG_PATH="$srcdir/stub-pc"
     CFLAGS+=" -std=gnu17 -fpermissive"
+    # GConf's final release has no gconf-sanity-check-2 (it checked that
+    # ~/.gconf is usable before login; GConf now makes its directories
+    # itself): the session runs true in its place.
+    GCONF_SANITY_CHECK=/usr/bin/true \
     ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
         --libexecdir=/usr/lib/gnome-session --with-gtk=2.0 \
         --with-default-wm=metacity --disable-docbook-docs --disable-schemas-install

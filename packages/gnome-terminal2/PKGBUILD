@@ -34,6 +34,8 @@ build() {
         >"$srcdir/stub-pc/gnome-doc-utils.pc"
     export PKG_CONFIG_PATH="$srcdir/stub-pc"
     CFLAGS+=" -std=gnu17 -fpermissive"
+    # Uses libICE directly but relied on getting it through libSM.
+    export LIBS="-lICE"
     ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
         --with-gtk=2.0 --disable-scrollkeeper --disable-schemas-install
     make

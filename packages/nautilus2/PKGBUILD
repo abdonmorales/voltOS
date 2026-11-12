@@ -31,6 +31,9 @@ prepare() {
 build() {
     cd nautilus-$pkgver
     CFLAGS+=" -std=gnu17 -fpermissive"
+    # Uses GModule and libICE directly but relied on getting them through
+    # GTK 2 and libSM.
+    export LIBS="-lgmodule-2.0 -lICE"
     ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
         --libexecdir=/usr/lib/nautilus --disable-static --disable-packagekit \
         --disable-introspection --disable-update-mimedb --disable-schemas-install
