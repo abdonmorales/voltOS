@@ -13,8 +13,10 @@
 # build is AArch64-only, x86_64 uses Arch's).
 #
 # Packages are built in dependency order with makepkg.  Build-time
-# dependencies are installed from the Arch repositories; packages that
-# depend on other VoltOS packages only need them at install time.
+# dependencies (makedepends) come from the Arch repositories or, for the
+# VoltOS packages built before them (GTK 2 and the GNOME 2 stack build on
+# each other), from this run's repository, which is listed first in a
+# private pacman configuration while building.
 #
 # The OpenZFS tarballs are pinned by sha256 in their PKGBUILDs; their PGP
 # signatures are not checked because a fresh build host has no keys for
@@ -31,9 +33,9 @@ top=$(cd "$(dirname "$0")/.." && pwd)
 carch=$(uname -m)
 repo=$top/out/repo
 [ "$carch" = x86_64 ] || repo=$top/out/repo-$carch
-order=(voltos-keyring linux-lts-aarch64 nimbus-gtk-theme voltos-branding voltos-desktop zfs-utils zfs-dkms
+order=(voltos-keyring linux-lts-aarch64 nimbus-gtk-theme gtk2 gtk-engine-nimbus voltos-branding voltos-desktop zfs-utils zfs-dkms
        zfsbootmenu-efi perl-boolean zfsbootmenu
-       voltos-zfs-snapshots voltos-secureboot voltos-installer voltos-gui-install
+       voltos-zfs-snapshots voltos-secureboot voltos-doas voltos-installer voltos-gui-install
        voltos-live)
 [ "$#" -gt 0 ] && order=("$@")
 
@@ -57,9 +59,37 @@ if [ -n "$REPO_KEY" ]; then
 	gpg --batch --export "$REPO_KEY" >"$top/packages/voltos-keyring/voltos.gpg"
 	echo "$REPO_KEY:4:" >"$top/packages/voltos-keyring/voltos-trusted"
 	chmod 644 "$top/packages/voltos-keyring/voltos.gpg" "$top/packages/voltos-keyring/voltos-trusted"
+	# pacman checks signatures that are present even where they are
+	# optional (the build repository below, build-iso.sh, pacman -U), so
+	# the build host trusts the key it signs with.  --init only makes the
+	# local master key that --lsign-key needs where there is none (the
+	# archlinux container image ships its keyring without one); it keeps
+	# an existing keyring.
+	$SUDO pacman-key --init
+	$SUDO pacman-key --add "$top/packages/voltos-keyring/voltos.gpg"
+	$SUDO pacman-key --lsign-key "$REPO_KEY"
 fi
 
 mkdir -p "$repo"
+# The packages built so far, as a repository pacman can install
+# makedepends from (voltos-build.db; not published).
+buildconf=$(mktemp)
+trap 'repo_key_cleanup; rm -f "$buildconf"' EXIT
+awk -v repo="$repo" '
+	!done && /^\[/ && !/^\[options\]/ {
+		print "[voltos-build]"
+		print "SigLevel = Optional TrustAll"
+		print "Server = file://" repo
+		print ""
+		done = 1
+	}
+	{ print }' /etc/pacman.conf >"$buildconf"
+rm -f "$repo"/voltos-build.*
+# Seeded with what earlier runs left in the repository, so a partial build
+# (build-packages.sh <package>) finds the VoltOS packages it builds on.
+existing=("$repo"/*.pkg.tar.zst)
+[ -e "${existing[0]}" ] || existing=()
+repo-add -q -R "$repo/voltos-build.db.tar.gz" "${existing[@]}"
 pgp=--skippgpcheck
 [ "${VOLTOS_PGP:-0}" = 1 ] && pgp=
 
@@ -76,33 +106,25 @@ for pkg in "${order[@]}"; do
 		continue
 	fi
 	echo "==> Building $pkg"
-	# Install the build-time dependencies (makedepends) from Arch.
+	# Install the build-time dependencies (makedepends).
 	mapfile -t mk < <(cd "$dir" && bash -c \
 	    'source ./PKGBUILD; printf "%s\n" "${makedepends[@]}"' | sed '/^$/d')
 	if [ "${#mk[@]}" -gt 0 ]; then
-		$SUDO pacman -S --needed --noconfirm "${mk[@]}"
+		$SUDO pacman --config "$buildconf" -Sy --needed --noconfirm "${mk[@]}"
 	fi
 	(cd "$dir" && as_builder makepkg --nodeps --clean --cleanbuild --force \
 	    --noconfirm $pgp)
 	for f in "$dir"/*.pkg.tar.zst; do
 		cp "$f" "$repo/"
 		[ -z "$REPO_KEY" ] || repo_sign "$repo/${f##*/}"
+		repo-add -q -R "$repo/voltos-build.db.tar.gz" "$repo/${f##*/}"
 	done
 done
+rm -f "$repo"/voltos-build.*
 
 rm -f "$repo"/voltos.db* "$repo"/voltos.files*
 sign=()
 [ -z "$REPO_KEY" ] || sign=(--sign --key "$REPO_KEY")
 repo-add -q -n -R "${sign[@]}" "$repo/voltos.db.tar.gz" "$repo"/*.pkg.tar.zst
-if [ -n "$REPO_KEY" ]; then
-	# pacman checks signatures that are present even where they are
-	# optional (build-iso.sh, pacman -U), so the build host trusts the key
-	# it just signed with.  --init only makes the local master key that
-	# --lsign-key needs where there is none (the archlinux container image
-	# ships its keyring without one); it keeps an existing keyring.
-	$SUDO pacman-key --init
-	$SUDO pacman-key --add "$top/packages/voltos-keyring/voltos.gpg"
-	$SUDO pacman-key --lsign-key "$REPO_KEY"
-fi
 echo "==> Repository: $repo"
 ls -1 "$repo"
