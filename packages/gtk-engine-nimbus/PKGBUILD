@@ -1,0 +1,45 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# Nimbus's GTK 2 theme engine (libnimbus) and the gtk-2.0 parts of the
+# nimbus, light-nimbus and dark-nimbus themes: the Sun / OpenSolaris look
+# for GTK 2 applications and the GNOME 2 desktop.  Same source as
+# nimbus-gtk-theme, which ships the GTK 3, Metacity and icon parts.
+
+pkgname=gtk-engine-nimbus
+_commit=3eb29096b0fd9eee8c5caa4cdbecc0b0f5c0b423
+pkgver=1.0.r20260927
+pkgrel=1
+pkgdesc="Nimbus GTK 2 theme engine (Sun/OpenSolaris look and feel)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/abdonmorales/nimbus"
+license=('LGPL-2.0-or-later')
+depends=('gtk2' 'nimbus-gtk-theme')
+makedepends=('git' 'autoconf' 'automake' 'libtool' 'intltool' 'gettext'
+             'glib2-devel' 'icon-naming-utils' 'pkgconf' 'gtk2' 'gtk3')
+source=("nimbus::git+https://github.com/abdonmorales/nimbus.git#commit=${_commit}")
+sha256sums=('SKIP')
+
+prepare() {
+    cd nimbus
+    NOCONFIGURE=1 ./autogen.sh || autoreconf -fi
+}
+
+build() {
+    cd nimbus
+    # The engine predates the C23 defaults of current GCC.
+    CFLAGS+=" -std=gnu17"
+    ./configure --prefix=/usr --disable-maintainer-mode
+    make -C gtk-engine
+}
+
+package() {
+    cd nimbus
+    make -C gtk-engine DESTDIR="$srcdir/stage" install
+    # Only the GTK 2 parts; nimbus-gtk-theme has the rest.
+    cd "$srcdir/stage"
+    local d
+    for d in usr/lib/gtk-2.0 usr/share/themes/*/gtk-2.0; do
+        install -d "$pkgdir/$(dirname "$d")"
+        cp -a "$d" "$pkgdir/$d"
+    done
+}

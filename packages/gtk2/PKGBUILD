@@ -1,0 +1,62 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# GTK 2, the toolkit of the GNOME 2 desktop, which Arch Linux no longer
+# ships.  Adapted from the recipe Arch's GNOME maintainers keep in the AUR
+# (Jan Alexander Steffens, Jan de Groot), with their patches: quieter XID
+# collision warnings, and no loading of modules from the current directory
+# (CVE-2024-6655).  VoltOS builds the release tarball for x86_64 and
+# AArch64, and makes Nimbus the default GTK 2 theme.
+
+pkgname=gtk2
+pkgver=2.24.33
+pkgrel=1
+pkgdesc="GObject-based multi-platform GUI toolkit (legacy; GNOME 2's toolkit)"
+url="https://www.gtk.org/"
+arch=('x86_64' 'aarch64')
+license=('LGPL-2.1-or-later')
+depends=('atk' 'cairo' 'desktop-file-utils' 'fontconfig' 'gdk-pixbuf2' 'glib2'
+         'glibc' 'gtk-update-icon-cache' 'libcups' 'librsvg' 'libx11'
+         'libxcomposite' 'libxcursor' 'libxdamage' 'libxext' 'libxfixes' 'libxi'
+         'libxinerama' 'libxrandr' 'libxrender' 'pango' 'shared-mime-info')
+makedepends=('glib2-devel' 'gobject-introspection')
+optdepends=('nimbus-gtk-theme: the default theme (Nimbus)'
+            'python: gtk-builder-convert')
+provides=('libgailutil.so' 'libgdk-x11-2.0.so' 'libgtk-x11-2.0.so')
+install=gtk2.install
+source=("https://download.gnome.org/sources/gtk+/${pkgver%.*}/gtk+-$pkgver.tar.xz"
+        'gtk-query-immodules-2.0.hook'
+        '0001-Lower-severity-of-XID-collision-warnings.patch'
+        '0002-Stop-looking-for-modules-in-cwd.patch')
+# The tarball's from GNOME's gtk+-2.24.33.sha256sum.
+sha256sums=('ac2ac757f5942d318a311a54b0c80b5ef295f299c2a73c632f6bfb1ff49cc6da'
+            'SKIP' 'SKIP' 'SKIP')
+
+prepare() {
+    cd gtk+-$pkgver
+    patch -Np1 -i ../0001-Lower-severity-of-XID-collision-warnings.patch
+    patch -Np1 -i ../0002-Stop-looking-for-modules-in-cwd.patch
+}
+
+build() {
+    cd gtk+-$pkgver
+    # GTK 2 predates the C23 defaults of current GCC.
+    CFLAGS+=" -std=gnu17 -Wno-error=implicit-int -Wno-error=incompatible-pointer-types"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --with-xinput=yes --disable-gtk-doc
+    sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
+    make
+}
+
+package() {
+    cd gtk+-$pkgver
+    make DESTDIR="$pkgdir" install
+
+    install -Dm644 /dev/stdin "$pkgdir/usr/share/gtk-2.0/gtkrc" <<END
+gtk-theme-name = "nimbus"
+gtk-icon-theme-name = "nimbus"
+END
+    install -Dm644 ../gtk-query-immodules-2.0.hook -t "$pkgdir/usr/share/libalpm/hooks"
+
+    # Built by GTK 4, shared with GTK 2/3.
+    rm "$pkgdir/usr/bin/gtk-update-icon-cache"
+}
