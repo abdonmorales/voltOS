@@ -8,6 +8,7 @@
 /packages/*/LICENSE
 /packages/nimbus-gtk-theme/nimbus/
 /packages/gtk-engine-nimbus/nimbus/
+/packages/gconf/gconf/
 /packages/*/*.asc
 __pycache__/
 # Secure Boot private keys must never be committed.

@@ -33,7 +33,7 @@ top=$(cd "$(dirname "$0")/.." && pwd)
 carch=$(uname -m)
 repo=$top/out/repo
 [ "$carch" = x86_64 ] || repo=$top/out/repo-$carch
-order=(voltos-keyring linux-lts-aarch64 nimbus-gtk-theme gtk2 gtk-engine-nimbus pico voltos-branding voltos-desktop zfs-utils zfs-dkms
+order=(voltos-keyring linux-lts-aarch64 nimbus-gtk-theme gtk2 gtk-engine-nimbus orbit2 gconf libbonobo pico voltos-branding voltos-desktop zfs-utils zfs-dkms
        zfsbootmenu-efi perl-boolean zfsbootmenu
        voltos-zfs-snapshots voltos-secureboot voltos-doas voltos-installer voltos-gui-install
        voltos-live)

@@ -1,0 +1,45 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# libbonobo, GNOME 2's component framework (bonobo-activation).  Arch Linux
+# dropped it; adapted from the AUR recipe (PhotonX; Jan de Groot), with its
+# fix for the function-pointer calls current compilers reject, for x86_64
+# and AArch64.
+
+pkgname=libbonobo
+pkgver=2.32.1
+pkgrel=1
+pkgdesc="CORBA component interfaces of the GNOME 2 platform"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/Archive/libbonobo"
+license=('GPL-2.0-or-later' 'LGPL-2.0-or-later')
+depends=('orbit2' 'libxml2' 'glib2' 'popt')
+makedepends=('intltool' 'pkgconf' 'python' 'orbit2' 'libidl2' 'libxml2' 'popt')
+backup=('etc/bonobo-activation/bonobo-activation-config.xml')
+install=libbonobo.install
+source=("https://download.gnome.org/sources/libbonobo/${pkgver%.*}/libbonobo-$pkgver.tar.bz2"
+        bonobo-activation-config.xml
+        libbonobo-2.32.1-activation-base-service.patch)
+# The tarball's from GNOME's libbonobo-2.32.1.sha256sum.
+sha256sums=('9160d4f277646400d3bb6b4fa73636cc6d1a865a32b9d0760e1e9e6ee624976b'
+            '081de245c42de10ebeea3cbcd819c5ce5d0a15b9bdde9c2098302b1e14965af2'
+            'ecbc2d039288533ae143d63f679b39d36329ee1b75fd15fab5976a9c37068b28')
+
+prepare() {
+    cd libbonobo-$pkgver
+    patch -Np1 -i ../libbonobo-2.32.1-activation-base-service.patch
+    sed -i "s#-DG_DISABLE_DEPRECATED##" activation-server/Makefile.in
+}
+
+build() {
+    cd libbonobo-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc \
+        --localstatedir=/var --disable-static --libexecdir=/usr/lib/bonobo
+    make
+}
+
+package() {
+    cd libbonobo-$pkgver
+    make DESTDIR="$pkgdir" install
+    install -m644 ../bonobo-activation-config.xml "$pkgdir/etc/bonobo-activation/"
+}

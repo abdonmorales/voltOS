@@ -1,0 +1,29 @@
+Create the user configuration directory with its parents
+
+The default user source is ~/.config/gconf; without ~/.config the
+daemon had no writable source ("no writable databases").
+
+diff -ru a/backends/markup-backend.c b/backends/markup-backend.c
+--- a/backends/markup-backend.c	2026-11-12 06:59:25.773528989 +0000
++++ b/backends/markup-backend.c	2026-11-12 06:59:25.777292331 +0000
+@@ -276,7 +276,7 @@
+       /* dir_mode without search bits */
+       file_mode = dir_mode & (~0111);
+     }
+-  else if (g_mkdir (root_dir, dir_mode) < 0)
++  else if (g_mkdir_with_parents (root_dir, dir_mode) < 0)
+     {
+       /* Error out even on EEXIST - shouldn't happen anyway */
+       gconf_set_error (err, GCONF_ERROR_FAILED,
+diff -ru a/backends/xml-backend.c b/backends/xml-backend.c
+--- a/backends/xml-backend.c	2026-11-12 06:59:25.773483014 +0000
++++ b/backends/xml-backend.c	2026-11-12 06:59:25.776885766 +0000
+@@ -336,7 +336,7 @@
+       /* dir_mode without search bits */
+       file_mode = dir_mode & (~0111); 
+     }
+-  else if (g_mkdir (root_dir, dir_mode) < 0)
++  else if (g_mkdir_with_parents (root_dir, dir_mode) < 0)
+     {
+       /* Error out even on EEXIST - shouldn't happen anyway */
+       gconf_set_error (err, GCONF_ERROR_FAILED,
