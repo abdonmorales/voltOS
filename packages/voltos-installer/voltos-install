@@ -52,6 +52,8 @@ UNATTENDED=0
 die()
 {
 	echo "voltos-install: $*" >&2
+	# The failed command's own output is in the log, not on the console.
+	[ ! -s "$LOG" ] || tail -n 15 "$LOG" | sed 's/^/voltos-install: | /' >&2
 	if [ "$UNATTENDED" -eq 0 ] && command -v dialog >/dev/null; then
 		dialog --title "Installation failed" --msgbox \
 		    "$*\n\nDetails are in $LOG." 12 70 || true
@@ -438,6 +440,11 @@ DOAS
 	# Every keyring the system ships: archlinux on x86_64; archlinuxarm (and
 	# archlinux, for the few Arch packages VoltOS uses) on AArch64.
 	in_target pacman-key --populate
+	# pacman-key --init starts a gpg-agent in the target that outlives the
+	# chroot and keeps files there open, which can keep the pool busy at
+	# export.
+	arch-chroot "$TARGET" gpgconf --homedir /etc/pacman.d/gnupg --kill all \
+	    >>"$LOG" 2>&1 || true
 	enable_voltos_repo
 
 	# EFI system partition and ZFSBootMenu.
@@ -472,7 +479,17 @@ finish()
 	umount "$TARGET/boot/efi" 2>/dev/null || true
 	run zfs snapshot "$POOL/ROOT/voltos@install"
 	run zfs umount -a
-	run zpool export "$POOL"
+	# A process that has only just let go of the pool (a daemon started in
+	# the chroot) can make the first export fail: give it a few seconds.
+	local try
+	for try in 1 2 3 4 5; do
+		log "+ zpool export $POOL"
+		zpool export "$POOL" >>"$LOG" 2>&1 && break
+		[ "$try" -lt 5 ] || die "command failed: zpool export $POOL"
+		fuser -vm "$TARGET" >>"$LOG" 2>&1 || true
+		sleep 3
+		zfs umount -a >>"$LOG" 2>&1 || true
+	done
 	log "VoltOS is installed on $DISK."
 }
 
