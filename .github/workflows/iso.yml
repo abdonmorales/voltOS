@@ -225,12 +225,45 @@ jobs:
       - name: Build the ISO
         run: sudo tools/alarm-chroot.sh /var/tmp/alarm 'cd /voltos && tools/build-iso.sh'
 
+      # As on x86_64, with Fedora's AArch64 shim (Microsoft UEFI CA 2023).
+      - name: Sign for Secure Boot
+        env:
+          SB_KEY: ${{ secrets.VOLTOS_SB_KEY }}
+          SB_CERT: ${{ secrets.VOLTOS_SB_CERT }}
+        run: |
+          if [ -z "$SB_KEY" ] || [ -z "$SB_CERT" ]; then
+            echo "No Secure Boot secrets: the ISO stays unsigned."
+            exit 0
+          fi
+          sudo apt-get install -yq xorriso mtools dosfstools sbsigntool
+          umask 077
+          printf '%s\n' "$SB_KEY" > "$RUNNER_TEMP/sb.key"
+          printf '%s\n' "$SB_CERT" > "$RUNNER_TEMP/sb.crt"
+          iso=$(ls out/voltos-*-aarch64.iso)
+          sudo VOLTOS_SB_KEY="$RUNNER_TEMP/sb.key" VOLTOS_SB_CERT="$RUNNER_TEMP/sb.crt" \
+            tools/sign-iso.sh "$iso" "$iso.signed"
+          sudo mv "$iso.signed" "$iso"
+          rm -f "$RUNNER_TEMP/sb.key"
+          echo "SB_SIGNED=1" >> "$GITHUB_ENV"
+
       # QEMU on the runner: KVM when the runner offers it, otherwise TCG
       # (much slower, hence the long timeouts).
       - name: Install QEMU and AAVMF
         run: |
           sudo apt-get install -yq qemu-system-arm qemu-efi-aarch64 qemu-utils socat imagemagick
           ls -l /dev/kvm 2>/dev/null || echo "no /dev/kvm: QEMU uses TCG"
+
+      - name: Boot the signed ISO with Secure Boot enforced
+        if: env.SB_SIGNED == '1'
+        env:
+          SB_CERT: ${{ secrets.VOLTOS_SB_CERT }}
+        run: |
+          sudo apt-get install -yq python3-pip
+          sudo pip3 install --break-system-packages virt-firmware
+          printf '%s\n' "$SB_CERT" > "$RUNNER_TEMP/sb.crt"
+          iso=$(ls out/voltos-*-aarch64.iso)
+          sudo -E SMOKE_TIMEOUT=3600 SMOKE_GUEST_WAIT=300 SMOKE_SB_CERT="$RUNNER_TEMP/sb.crt" \
+            SMOKE_SCREENSHOT=out/aarch64-live-secureboot.png tools/smoke-qemu.sh live-secureboot "$iso"
 
       - name: Boot the live desktop (UEFI)
         run: |
@@ -291,6 +324,25 @@ jobs:
           sudo rm -rf out/.key
           sudo chown -R "$(id -u)" out/repo-aarch64
           tools/publish-repo.sh upload out/repo-aarch64 repo-aarch64
+
+      # After publishing, so that this long test (another install, under TCG)
+      # does not hold back package updates.  Secure Boot capable AAVMF in
+      # Setup Mode: voltos-secureboot enrolls the owner's keys and signs
+      # ZFSBootMenu and the kernel, then the machine boots with Secure Boot
+      # enforced.
+      - name: Enable Secure Boot on an installed system and boot with it
+        run: |
+          iso=$(ls out/voltos-*-aarch64.iso)
+          sudo -E SMOKE_TIMEOUT=7200 SMOKE_GUEST_WAIT=300 SMOKE_GPU=ramfb SMOKE_SECBOOT=1 \
+            SMOKE_SCREENSHOT=out/aarch64-secureboot.png tools/smoke-qemu.sh install "$iso"
+
+      - name: Upload Secure Boot screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-aarch64-secureboot
+          if-no-files-found: ignore
+          path: out/aarch64-secureboot*.png
 
   # Releases carry both ISOs.  0.x tags, and tags with a suffix such as
   # v1.0.0-rc1, are published as pre-releases.

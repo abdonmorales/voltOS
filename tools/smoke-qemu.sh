@@ -75,6 +75,11 @@ if [ "$arch" = aarch64 ]; then
 	for v in /usr/share/edk2/aarch64/QEMU_VARS.fd /usr/share/AAVMF/AAVMF_VARS.fd; do
 		[ -f "$v" ] && { ovmf_vars=$v; break; }
 	done
+	# Secure Boot capable (Debian/Ubuntu); with the empty variable store
+	# above it starts in Setup Mode.
+	for c in /usr/share/AAVMF/AAVMF_CODE.secboot.fd /usr/share/edk2/aarch64/QEMU_CODE.secboot.fd; do
+		[ -f "$c" ] && { ovmf_secboot=$c; break; }
+	done
 fi
 for c in /usr/share/edk2/x64/OVMF_CODE.secboot.4m.fd \
     /usr/share/OVMF/OVMF_CODE_4M.secboot.fd; do
@@ -431,6 +436,13 @@ uefi_args()
 		# Secure Boot capable firmware, no keys enrolled (Setup Mode).
 		# The variable store must be SMM-protected for it to work.
 		[ -n "$ovmf_secboot" ] || { echo "secure boot OVMF not found" >&2; exit 1; }
+		if [ "$arch" = aarch64 ]; then
+			# virt keeps the variables in its second flash device;
+			# there is no SMM to protect them.
+			echo "-drive if=pflash,format=raw,unit=0,readonly=on,file=$ovmf_secboot" \
+			     "-drive if=pflash,format=raw,unit=1,file=$tmp/vars.fd"
+			return
+		fi
 		echo "-machine smm=on -global driver=cfi.pflash01,property=secure,value=on" \
 		     "-drive if=pflash,format=raw,unit=0,readonly=on,file=$ovmf_secboot" \
 		     "-drive if=pflash,format=raw,unit=1,file=$tmp/vars.fd"
@@ -511,11 +523,21 @@ live-secureboot)
 	virt-fw-vars -i "$ovmf_vars" -o "$tmp/sbvars.fd" --enroll-redhat \
 	    --add-db 3d8b2a7e-5b6c-4f2a-9c1e-6a1f0b9d7c45 "$cert" \
 	    --secure-boot >/dev/null
-	qemu_boot "$tmp/serial.log" -machine smm=on \
-	    -global driver=cfi.pflash01,property=secure,value=on \
-	    -drive "if=pflash,format=raw,unit=0,readonly=on,file=$ovmf_secboot" \
-	    -drive "if=pflash,format=raw,unit=1,file=$tmp/sbvars.fd" \
-	    -cdrom "$iso"
+	if [ "$arch" = aarch64 ]; then
+		# Both of virt's flash devices the same size (see below).
+		truncate -s "$(stat -L -c %s "$ovmf_secboot")" "$tmp/sbvars.fd"
+		# shellcheck disable=SC2046
+		qemu_boot "$tmp/serial.log" \
+		    -drive "if=pflash,format=raw,unit=0,readonly=on,file=$ovmf_secboot" \
+		    -drive "if=pflash,format=raw,unit=1,file=$tmp/sbvars.fd" \
+		    $(cdrom_args)
+	else
+		qemu_boot "$tmp/serial.log" -machine smm=on \
+		    -global driver=cfi.pflash01,property=secure,value=on \
+		    -drive "if=pflash,format=raw,unit=0,readonly=on,file=$ovmf_secboot" \
+		    -drive "if=pflash,format=raw,unit=1,file=$tmp/sbvars.fd" \
+		    -cdrom "$iso"
+	fi
 	wait_for "$tmp/serial.log" "$LIVE_RE" "$timeout"
 	sb=$(guest_sh 'od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d0-aa1d-00a0c92dd8a7')
 	echo "smoke-qemu.sh: SecureBoot variable: $sb"
