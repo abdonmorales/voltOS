@@ -472,6 +472,25 @@ DOAS
 	    log "efibootmgr failed; the removable-media path EFI/BOOT/$fallback will be used"
 }
 
+# Processes that use the installed system: their root is in $TARGET, or
+# their mount namespace still has the pool's file systems mounted.
+target_processes()
+{
+	local d pid root
+	for d in /proc/[0-9]*; do
+		pid=${d#/proc/}
+		[ "$pid" != "$$" ] && [ "$pid" != "$BASHPID" ] || continue
+		if grep -qs " - zfs $POOL[/ ]" "$d/mountinfo"; then
+			echo "$pid"
+			continue
+		fi
+		root=$(readlink "$d/root" 2>/dev/null) || continue
+		case $root in
+		"$TARGET" | "$TARGET"/*) echo "$pid" ;;
+		esac
+	done
+}
+
 finish()
 {
 	log "Finishing"
@@ -479,15 +498,27 @@ finish()
 	umount "$TARGET/boot/efi" 2>/dev/null || true
 	run zfs snapshot "$POOL/ROOT/voltos@install"
 	run zfs umount -a
-	# A process that has only just let go of the pool (a daemon started in
-	# the chroot) can make the first export fail: give it a few seconds.
-	local try
+	# A process left behind by arch-chroot (a daemon a package script or
+	# pacman-key started) keeps the pool busy: it runs in the chroot's own
+	# mount namespace, which still has the pool's file systems mounted
+	# after they are unmounted here.  Stop such processes and try again.
+	local try pids
 	for try in 1 2 3 4 5; do
 		log "+ zpool export $POOL"
 		zpool export "$POOL" >>"$LOG" 2>&1 && break
 		[ "$try" -lt 5 ] || die "command failed: zpool export $POOL"
-		fuser -vm "$TARGET" >>"$LOG" 2>&1 || true
-		sleep 3
+		pids=$(target_processes)
+		if [ -n "$pids" ]; then
+			log "Stopping processes left in the target: $(echo $pids)"
+			# shellcheck disable=SC2086
+			ps -o pid=,args= -p "$(echo $pids | tr ' ' ,)" >>"$LOG" 2>&1 || true
+			# shellcheck disable=SC2086
+			kill -TERM $pids 2>/dev/null || true
+			sleep 2
+			# shellcheck disable=SC2086
+			kill -KILL $(target_processes) 2>/dev/null || true
+		fi
+		sleep 2
 		zfs umount -a >>"$LOG" 2>&1 || true
 	done
 	log "VoltOS is installed on $DISK."

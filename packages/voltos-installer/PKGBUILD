@@ -2,7 +2,7 @@
 
 pkgname=voltos-installer
 pkgver=0.4.0
-pkgrel=7
+pkgrel=8
 pkgdesc="Guided VoltOS installer: ZFS root, boot environments, ZFSBootMenu"
 arch=('any')
 url="https://github.com/abdonmorales/voltOS"
