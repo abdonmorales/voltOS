@@ -7,7 +7,7 @@
 
 pkgname=nautilus2
 pkgver=2.32.2.1
-pkgrel=1
+pkgrel=2
 pkgdesc="File manager and desktop of GNOME 2"
 arch=('x86_64' 'aarch64')
 url="https://gitlab.gnome.org/GNOME/nautilus"
@@ -59,4 +59,11 @@ package() {
         rm -f "$pkgdir"/etc/gconf/schemas/*.schemas
     fi
     rmdir -p "$pkgdir/etc/gconf/schemas" 2>/dev/null || :
+    # The extension library's development files have the names GNOME's
+    # libnautilus-extension (for Nautilus 4) uses; nothing builds against
+    # Nautilus 2's, so only the library itself (.so.1) is kept.
+    rm -rf "$pkgdir"/usr/include/nautilus "$pkgdir"/usr/lib/libnautilus-extension.so \
+        "$pkgdir"/usr/lib/pkgconfig/libnautilus-extension.pc \
+        "$pkgdir"/usr/share/gtk-doc/html/libnautilus-extension
+    rmdir -p "$pkgdir"/usr/lib/pkgconfig "$pkgdir"/usr/share/gtk-doc/html 2>/dev/null || :
 }
