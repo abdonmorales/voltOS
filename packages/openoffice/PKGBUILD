@@ -24,7 +24,7 @@ pkgname=openoffice
 pkgver=4.1.17
 _build=9818
 _srcrev=49c05bc6fd
-pkgrel=1
+pkgrel=2
 pkgdesc="Apache OpenOffice office suite (Writer, Calc, Impress, Draw, Math, Base)"
 arch=('x86_64' 'aarch64')
 url="https://www.openoffice.org"
@@ -144,6 +144,16 @@ _package_aarch64() {
     bsdtar -xf "$archive" -C "$tree"
     install -d "$pkgdir/opt"
     cp -a "$tree"/*/openoffice4 "$pkgdir/opt/"
+    # The archive is a portable installation: files owned by whoever built
+    # it (the build user, group-writable), and the user profile inside the
+    # installation.  Installed in /opt it must be root's and read-only, with
+    # the profile in each user's home, as in Apache's packages.
+    chown -R root:root "$pkgdir/opt/openoffice4"
+    chmod -R go-w "$pkgdir/opt/openoffice4"
+    sed -i 's|^UserInstallation=.*|UserInstallation=$SYSUSERCONFIG/.openoffice/4|' \
+        "$pkgdir/opt/openoffice4/program/bootstraprc"
+    grep -qx 'UserInstallation=$SYSUSERCONFIG/.openoffice/4' \
+        "$pkgdir/opt/openoffice4/program/bootstraprc"
     # The desktop integration, as Apache's freedesktop-menus package (which
     # the x86_64 build takes) makes it: menu entries, icons, MIME types.
     (cd "$main/sysui/unxlngaarch64.pro/misc/openoffice" &&
