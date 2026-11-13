@@ -1,6 +1,6 @@
 diff -ruN a/main/bridges/prj/build.lst b/main/bridges/prj/build.lst
---- a/main/bridges/prj/build.lst	2026-11-12 22:43:48.655966522 +0000
-+++ b/main/bridges/prj/build.lst	2026-11-12 22:43:48.657238263 +0000
+--- a/main/bridges/prj/build.lst	2026-11-13 00:35:32.775600962 +0000
++++ b/main/bridges/prj/build.lst	2026-11-13 00:35:32.777498778 +0000
 @@ -17,6 +17,7 @@
  br	bridges\source\cpp_uno\gcc3_linux_s390x		nmake	-	u	br_gcc3l3_64 br_unotypes br_inc NULL
  br	bridges\source\cpp_uno\gcc3_linux_sparc		nmake	-	u	br_gcc3ls br_unotypes br_cppuno_shared br_inc NULL
@@ -11,7 +11,7 @@ diff -ruN a/main/bridges/prj/build.lst b/main/bridges/prj/build.lst
  br	bridges\source\cpp_uno\gcc3_linux_alpha		nmake	-	u	br_gcc3ll br_unotypes NULL
 diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.cxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.cxx
 --- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.cxx	1970-01-01 00:00:00.000000000 +0000
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.cxx	2026-11-12 22:43:48.662900703 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.cxx	2026-11-13 00:35:32.831255179 +0000
 @@ -0,0 +1,193 @@
 +/**************************************************************
 + * 
@@ -208,7 +208,7 @@ diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.cxx b/main/bridge
 +} // namespace aarch64
 diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.hxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.hxx
 --- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.hxx	1970-01-01 00:00:00.000000000 +0000
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.hxx	2026-11-12 22:43:48.668523772 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.hxx	2026-11-13 00:35:33.071255193 +0000
 @@ -0,0 +1,81 @@
 +/**************************************************************
 + * 
@@ -293,7 +293,7 @@ diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/abi.hxx b/main/bridge
 +#endif
 diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/call.s b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/call.s
 --- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/call.s	1970-01-01 00:00:00.000000000 +0000
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/call.s	2026-11-12 22:43:48.674147209 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/call.s	2026-11-13 00:35:33.159255198 +0000
 @@ -0,0 +1,152 @@
 +/**************************************************************
 + *
@@ -449,7 +449,7 @@ diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/call.s b/main/bridges
 +	.section .note.GNU-stack, "", %progbits
 diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/cpp2uno.cxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/cpp2uno.cxx
 --- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/cpp2uno.cxx	1970-01-01 00:00:00.000000000 +0000
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/cpp2uno.cxx	2026-11-12 22:43:48.680116239 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/cpp2uno.cxx	2026-11-13 00:35:33.169212691 +0000
 @@ -0,0 +1,499 @@
 +/**************************************************************
 + * 
@@ -952,7 +952,7 @@ diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/cpp2uno.cxx b/main/br
 +}
 diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/except.cxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/except.cxx
 --- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/except.cxx	1970-01-01 00:00:00.000000000 +0000
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/except.cxx	2026-11-12 22:43:48.686196984 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/except.cxx	2026-11-13 00:35:33.271255205 +0000
 @@ -0,0 +1,326 @@
 +/**************************************************************
 + * 
@@ -1282,7 +1282,7 @@ diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/except.cxx b/main/bri
 +
 diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/makefile.mk b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/makefile.mk
 --- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/makefile.mk	1970-01-01 00:00:00.000000000 +0000
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/makefile.mk	2026-11-12 22:43:48.692020208 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/makefile.mk	2026-11-13 00:35:33.455255216 +0000
 @@ -0,0 +1,76 @@
 +#**************************************************************
 +#  
@@ -1362,7 +1362,7 @@ diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/makefile.mk b/main/br
 +    touch $@
 diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/share.hxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/share.hxx
 --- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/share.hxx	1970-01-01 00:00:00.000000000 +0000
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/share.hxx	2026-11-12 22:43:48.697888607 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/share.hxx	2026-11-13 00:35:33.459255216 +0000
 @@ -0,0 +1,86 @@
 +/**************************************************************
 + * 
@@ -1452,7 +1452,7 @@ diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/share.hxx b/main/brid
 +}
 diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/uno2cpp.cxx b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/uno2cpp.cxx
 --- a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/uno2cpp.cxx	1970-01-01 00:00:00.000000000 +0000
-+++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/uno2cpp.cxx	2026-11-12 22:43:48.703306189 +0000
++++ b/main/bridges/source/cpp_uno/gcc3_linux_aarch64/uno2cpp.cxx	2026-11-13 00:35:33.468988456 +0000
 @@ -0,0 +1,490 @@
 +/**************************************************************
 + * 
@@ -1945,8 +1945,8 @@ diff -ruN a/main/bridges/source/cpp_uno/gcc3_linux_aarch64/uno2cpp.cxx b/main/br
 +
 +} } }
 diff -ruN a/main/desktop/source/deployment/misc/dp_platform.cxx b/main/desktop/source/deployment/misc/dp_platform.cxx
---- a/main/desktop/source/deployment/misc/dp_platform.cxx	2026-11-12 22:43:48.708898216 +0000
-+++ b/main/desktop/source/deployment/misc/dp_platform.cxx	2026-11-12 22:43:48.710596308 +0000
+--- a/main/desktop/source/deployment/misc/dp_platform.cxx	2026-11-13 00:35:33.474902115 +0000
++++ b/main/desktop/source/deployment/misc/dp_platform.cxx	2026-11-13 00:35:33.739255233 +0000
 @@ -35,6 +35,7 @@
  #define PLATFORM_WIN_X86            "windows_x86"
  #define PLATFORM_LINUX_X86          "linux_x86"
@@ -1967,8 +1967,8 @@ diff -ruN a/main/desktop/source/deployment/misc/dp_platform.cxx b/main/desktop/s
              ret = checkOSandCPU(OUSTR("kFreeBSD"), OUSTR("x86"));
          else if (token.equals(OUSTR(PLATFORM_KFREEBSD_X86_64)))
 diff -ruN a/main/icu/makefile.mk b/main/icu/makefile.mk
---- a/main/icu/makefile.mk	2026-11-12 22:43:48.716058569 +0000
-+++ b/main/icu/makefile.mk	2026-11-12 22:43:48.717442752 +0000
+--- a/main/icu/makefile.mk	2026-11-13 00:35:33.746858636 +0000
++++ b/main/icu/makefile.mk	2026-11-13 00:35:33.748482507 +0000
 @@ -98,6 +98,10 @@
  
  CONFIGURE_DIR=source
@@ -1981,8 +1981,8 @@ diff -ruN a/main/icu/makefile.mk b/main/icu/makefile.mk
  
  #CONFIGURE_FLAGS=--enable-layout --enable-static --enable-shared=yes --enable-64bit-libs=no
 diff -ruN a/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx b/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx
---- a/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx	2026-11-12 22:43:48.722654821 +0000
-+++ b/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx	2026-11-12 22:43:48.723824731 +0000
+--- a/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx	2026-11-13 00:35:33.754059340 +0000
++++ b/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx	2026-11-13 00:35:33.755798053 +0000
 @@ -41,6 +41,8 @@
  #define JFW_PLUGIN_ARCH "sparc"
  #elif defined X86_64
@@ -1993,20 +1993,22 @@ diff -ruN a/main/jvmfwk/plugins/sunmajor/pluginlib/vendorbase.hxx b/main/jvmfwk/
  #define JFW_PLUGIN_ARCH "i386"
  #elif defined POWERPC64
 diff -ruN a/main/openssl/makefile.mk b/main/openssl/makefile.mk
---- a/main/openssl/makefile.mk	2026-11-12 22:43:48.729269226 +0000
-+++ b/main/openssl/makefile.mk	2026-11-12 22:43:48.730407533 +0000
-@@ -76,6 +76,8 @@
+--- a/main/openssl/makefile.mk	2026-11-13 00:35:33.761202942 +0000
++++ b/main/openssl/makefile.mk	2026-11-13 00:35:33.763152693 +0000
+@@ -76,6 +76,10 @@
  		.ELSE
  			CONFIGURE_ACTION=Configure linux-generic32 no-dso no-shared $(NO_ASM)
  		.ENDIF
 +	.ELIF "$(CPUNAME)" == "AARCH64"
-+		CONFIGURE_ACTION=Configure linux-aarch64 no-dso no-shared $(NO_ASM)
++		# no-asm: 1.0.2's ARMv8 SHA code is not position independent, and
++		# libcrypto.a goes into shared libraries (serf).
++		CONFIGURE_ACTION=Configure linux-aarch64 no-dso no-shared no-asm
  	.ELIF "$(BUILD64)" == "1"
  		.IF "$(UNAME)" == "GNU/kFreeBSD"
  			CONFIGURE_ACTION=Configure debian-kfreebsd-amd64 no-dso no-shared $(NO_ASM)
 diff -ruN a/main/sal/rtl/source/macro.hxx b/main/sal/rtl/source/macro.hxx
---- a/main/sal/rtl/source/macro.hxx	2026-11-12 22:43:48.735094138 +0000
-+++ b/main/sal/rtl/source/macro.hxx	2026-11-12 22:43:48.736828939 +0000
+--- a/main/sal/rtl/source/macro.hxx	2026-11-13 00:35:33.768897532 +0000
++++ b/main/sal/rtl/source/macro.hxx	2026-11-13 00:35:33.770666483 +0000
 @@ -55,6 +55,8 @@
  
  #if defined X86_64
@@ -2017,8 +2019,8 @@ diff -ruN a/main/sal/rtl/source/macro.hxx b/main/sal/rtl/source/macro.hxx
  #    define THIS_ARCH "x86"
  #elif defined POWERPC64
 diff -ruN a/main/set_soenv.in b/main/set_soenv.in
---- a/main/set_soenv.in	2026-11-12 22:43:48.741806303 +0000
-+++ b/main/set_soenv.in	2026-11-12 22:43:48.743003224 +0000
+--- a/main/set_soenv.in	2026-11-13 00:35:33.776523806 +0000
++++ b/main/set_soenv.in	2026-11-13 00:35:33.778327893 +0000
 @@ -622,6 +622,17 @@
        $JRETOOLKITDIR  = '$JAVA_HOME'.$ds."jre".$ds."lib".$ds."alpha".$ds."server";
        $JRETHREADDIR   = '$JAVA_HOME'.$ds."jre".$ds."lib".$ds."alpha".$ds."native_threads";
@@ -2038,8 +2040,8 @@ diff -ruN a/main/set_soenv.in b/main/set_soenv.in
     {  print "Setting Linux ARM specific values... ";
        $outfile        = "LinuxARMEnv.Set";
 diff -ruN a/main/solenv/bin/modules/installer/download.pm b/main/solenv/bin/modules/installer/download.pm
---- a/main/solenv/bin/modules/installer/download.pm	2026-11-12 22:43:48.748395494 +0000
-+++ b/main/solenv/bin/modules/installer/download.pm	2026-11-12 22:43:48.749934013 +0000
+--- a/main/solenv/bin/modules/installer/download.pm	2026-11-13 00:35:33.784523121 +0000
++++ b/main/solenv/bin/modules/installer/download.pm	2026-11-13 00:35:33.839255239 +0000
 @@ -628,6 +628,10 @@
  	{
  		$arch = "PPC";
@@ -2053,7 +2055,7 @@ diff -ruN a/main/solenv/bin/modules/installer/download.pm b/main/solenv/bin/modu
  }
 diff -ruN a/main/solenv/bin/update_config_guess.sh b/main/solenv/bin/update_config_guess.sh
 --- a/main/solenv/bin/update_config_guess.sh	1970-01-01 00:00:00.000000000 +0000
-+++ b/main/solenv/bin/update_config_guess.sh	2026-11-12 22:43:48.755356750 +0000
++++ b/main/solenv/bin/update_config_guess.sh	2026-11-13 00:35:33.903255243 +0000
 @@ -0,0 +1,37 @@
 +#!/bin/sh
 +#**************************************************************
@@ -2093,8 +2095,8 @@ diff -ruN a/main/solenv/bin/update_config_guess.sh b/main/solenv/bin/update_conf
 +done
 +exit 0
 diff -ruN a/main/solenv/gbuild/platform/linux.mk b/main/solenv/gbuild/platform/linux.mk
---- a/main/solenv/gbuild/platform/linux.mk	2026-11-12 22:43:48.760355747 +0000
-+++ b/main/solenv/gbuild/platform/linux.mk	2026-11-12 22:43:48.761946391 +0000
+--- a/main/solenv/gbuild/platform/linux.mk	2026-11-13 00:35:33.914246492 +0000
++++ b/main/solenv/gbuild/platform/linux.mk	2026-11-13 00:35:33.915917994 +0000
 @@ -63,9 +63,12 @@
  	-DHAVE_GCC_VISIBILITY_FEATURE \
  	-DCPPU_ENV=gcc3 \
@@ -2109,8 +2111,8 @@ diff -ruN a/main/solenv/gbuild/platform/linux.mk b/main/solenv/gbuild/platform/l
  gb_CPUDEFS := -DX86
  endif
 diff -ruN a/main/solenv/inc/settings.mk b/main/solenv/inc/settings.mk
---- a/main/solenv/inc/settings.mk	2026-11-12 22:43:48.766796508 +0000
-+++ b/main/solenv/inc/settings.mk	2026-11-12 22:43:48.768073977 +0000
+--- a/main/solenv/inc/settings.mk	2026-11-13 00:35:33.921589491 +0000
++++ b/main/solenv/inc/settings.mk	2026-11-13 00:35:33.923076171 +0000
 @@ -1089,6 +1089,9 @@
  GXX_INCLUDE_PATH*:=$(COMPATH)/include/c++/$(CCVER)
  .EXPORT : GXX_INCLUDE_PATH
@@ -2121,9 +2123,24 @@ diff -ruN a/main/solenv/inc/settings.mk b/main/solenv/inc/settings.mk
  .ENDIF
  
  # --- extend new environment ----------------------------------
+diff -ruN a/main/solenv/inc/startup/startup.mk b/main/solenv/inc/startup/startup.mk
+--- a/main/solenv/inc/startup/startup.mk	2026-11-13 00:35:33.929600433 +0000
++++ b/main/solenv/inc/startup/startup.mk	2026-11-13 00:35:33.930904074 +0000
+@@ -74,7 +74,10 @@
+ TMPDIR        *:= $/tmp
+ DIVFILE       *=  $(TMPFILE)
+ 
+-MAXLINELENGTH	= 65530
++# Dependency lines grow with the length of the source path (helpcontent2
++# went past 65530 when built under a package build directory); the line
++# buffer is allocated to this size, so a larger value costs nothing.
++MAXLINELENGTH	= 1048574
+ 
+ # Recipe execution configuration
+ SHELL := $(OOO_SHELL)
 diff -ruN a/main/solenv/inc/tg_ext.mk b/main/solenv/inc/tg_ext.mk
---- a/main/solenv/inc/tg_ext.mk	2026-11-12 22:43:48.773050022 +0000
-+++ b/main/solenv/inc/tg_ext.mk	2026-11-12 22:43:48.774435384 +0000
+--- a/main/solenv/inc/tg_ext.mk	2026-11-13 00:35:33.936114745 +0000
++++ b/main/solenv/inc/tg_ext.mk	2026-11-13 00:35:33.937280627 +0000
 @@ -191,6 +191,10 @@
  .ENDIF          # "$(BSCLIENT)"!=""
  .ENDIF          # "$(GUI)"=="WNT"
@@ -2136,8 +2153,8 @@ diff -ruN a/main/solenv/inc/tg_ext.mk b/main/solenv/inc/tg_ext.mk
  .IF "$(GUI)"=="WNT"
  # Native W32 tools generate only filedates with even seconds, cygwin also with odd seconds
 diff -ruN a/main/solenv/inc/unx.mk b/main/solenv/inc/unx.mk
---- a/main/solenv/inc/unx.mk	2026-11-12 22:43:48.779932386 +0000
-+++ b/main/solenv/inc/unx.mk	2026-11-12 22:43:48.781807291 +0000
+--- a/main/solenv/inc/unx.mk	2026-11-13 00:35:33.942154733 +0000
++++ b/main/solenv/inc/unx.mk	2026-11-13 00:35:33.943436299 +0000
 @@ -111,6 +111,10 @@
  .INCLUDE : unxlngr.mk
  .ENDIF
@@ -2151,7 +2168,7 @@ diff -ruN a/main/solenv/inc/unx.mk b/main/solenv/inc/unx.mk
  .ENDIF
 diff -ruN a/main/solenv/inc/unxlngaarch64.mk b/main/solenv/inc/unxlngaarch64.mk
 --- a/main/solenv/inc/unxlngaarch64.mk	1970-01-01 00:00:00.000000000 +0000
-+++ b/main/solenv/inc/unxlngaarch64.mk	2026-11-12 22:43:48.787319024 +0000
++++ b/main/solenv/inc/unxlngaarch64.mk	2026-11-13 00:35:33.948212773 +0000
 @@ -0,0 +1,27 @@
 +#**************************************************************
 +#
