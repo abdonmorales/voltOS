@@ -38,7 +38,7 @@ VoltOS is built for x86_64 (UEFI and BIOS) and, as a newer port, AArch64
 | Graphical installer (OpenSolaris gui-install on GTK 3) | CI installs through the GUI (test mode), then boots the result to the login screen |
 | AArch64 | Packages and ISO built in CI on an Arch Linux ARM root; CI boots the live desktop (virtio-gpu) and installs to ZFS, then boots the result through ZFSBootMenu to the login screen on a firmware-only framebuffer (ramfb). Newer and less tested than x86_64; no Secure Boot signing yet |
 | GNOME 2.32 desktop (GTK 2) | Built: GTK 2 with Nimbus's engine, the GNOME 2 platform and the desktop (Metacity, panel, session, settings daemon, Nautilus, terminal, control center), with VoltOS's defaults in `voltos-gnome2`. Runs in a test X session; power off/restart/suspend through logind still to be tried on a booted system. Not on the ISO; planned to replace GNOME Flashback around VoltOS 1.5. MATE stays the default |
-| Apache OpenOffice 4.1.17 | In the `[voltos]` repository for x86_64 (`doas pacman -S openoffice`); Writer runs with the Nimbus look. Too big for the ISO (2 GiB limit). Apache publishes no AArch64 build |
+| Apache OpenOffice 4.1.17 | In the `[voltos]` repository (`doas pacman -S openoffice`). x86_64: Apache's build. AArch64: built from source with VoltOS's port (OpenOffice's own UNO bridge test passes; the package installs and starts under qemu-user). Too big for the ISO (2 GiB limit) |
 | Updates (`[voltos]` repository) | Signed packages published by CI to GitHub releases after the tests pass; the install test checks that the installed system verifies them |
 | CI (`.github/workflows/iso.yml`) | Builds, boots and installs both architectures; publishes both ISOs on `v*` tags (0.x tags as pre-releases) |
 
@@ -208,12 +208,22 @@ screens are kept; what is Solaris-specific underneath was replaced:
   and suspend. Manuals are left out (they need gnome-doc-utils, which
   needs Python 2).
 - **Office suite.** Apache OpenOffice, the line of Sun's StarOffice and
-  OpenOffice.org, repackaged from Apache's own Linux build into
-  /opt/openoffice4. It draws with GTK 2, so it matches the desktop; its
-  launcher asks for that look in MATE too, where OpenOffice would otherwise
-  fall back to its plain X11 one. Building it from source is a long job
-  (an old toolchain and Java) for no visible gain, so it is not. It is
-  installed from the repository, not the ISO, which has no room for it.
+  OpenOffice.org, in /opt/openoffice4. It draws with GTK 2, so it matches
+  the desktop; its launcher asks for that look in MATE too, where
+  OpenOffice would otherwise fall back to its plain X11 one. On x86_64 it
+  is repackaged from Apache's own Linux build. Apache publishes no AArch64
+  build and OpenOffice 4.1 does not support the CPU, so there it is built
+  from Apache's source release with VoltOS's port
+  (`packages/openoffice/0001-Linux-AArch64-port.patch`): the platform for
+  OpenOffice's build system, and a C++ UNO bridge for the AArch64 calling
+  convention (AAPCS64), the assembler-level code every OpenOffice
+  component calls through. `packages/openoffice/aarch64-bridge-test.cxx`
+  tests it against GCC-compiled virtual calls; OpenOffice's own bridge
+  test runs in the build. `0002-Build-with-GCC-16.patch` and the recipe
+  make 2010s code build with today's compilers. The build takes over an
+  hour on GitHub's ARM runner, so it has its own workflow
+  (`openoffice-aarch64.yml`); the ISO workflow publishes the result. It
+  is installed from the repository, not the ISO, which has no room for it.
 - **Secure Boot.** Installed systems: firmware -> signed ZFSBootMenu ->
   signed kernel (ZFSBootMenu's locked-down kernel only kexecs kernels signed
   by a key in the firmware db, so `voltos-secureboot` signs both). Put the
