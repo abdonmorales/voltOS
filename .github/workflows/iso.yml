@@ -336,13 +336,25 @@ jobs:
           sudo -E SMOKE_TIMEOUT=7200 SMOKE_GUEST_WAIT=300 SMOKE_GPU=ramfb SMOKE_SECBOOT=1 \
             SMOKE_SCREENSHOT=out/aarch64-secureboot.png tools/smoke-qemu.sh install "$iso"
 
-      - name: Upload Secure Boot screenshots
+      # The OpenSolaris graphical installer in its test mode, as on x86_64:
+      # from the live desktop to the installed system's login screen.
+      - name: Install with the graphical installer and boot the result
+        # Also when the Secure Boot test failed: separate results.
+        if: ${{ !cancelled() }}
+        run: |
+          iso=$(ls out/voltos-*-aarch64.iso)
+          sudo -E SMOKE_TIMEOUT=7200 SMOKE_GUEST_WAIT=300 \
+            SMOKE_SCREENSHOT=out/aarch64-install-gui.png tools/smoke-qemu.sh install-gui "$iso"
+
+      - name: Upload Secure Boot and graphical installer screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots-aarch64-secureboot
+          name: screenshots-aarch64-secureboot-gui
           if-no-files-found: ignore
-          path: out/aarch64-secureboot*.png
+          path: |
+            out/aarch64-secureboot*.png
+            out/aarch64-install-gui*.png
 
   # Releases carry both ISOs.  0.x tags, and tags with a suffix such as
   # v1.0.0-rc1, are published as pre-releases.
