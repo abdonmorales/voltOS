@@ -26,7 +26,10 @@
 # the installed system must have [voltos] enabled and fetch and verify
 # updates from it, standing in for the published repository),
 # SMOKE_GPU (AArch64 display device: virtio-gpu-pci, the default, or ramfb,
-# a firmware-only framebuffer).
+# a firmware-only framebuffer),
+# SMOKE_GNOME2=1 (install, with SMOKE_REPO: then install the GNOME 2.32
+# desktop from that repository, log in to it, and restart and power off
+# the machine from its shutdown dialog).
 #
 set -euo pipefail
 
@@ -326,6 +329,100 @@ app_screenshots()
 	done
 }
 
+# gnome2_session: wait for volt's GNOME 2.32 session (LightDM autologin),
+# and set g2env to the environment its programs need (display, X
+# authority, session bus), taken from gnome-session itself.
+gnome2_session()
+{
+	local i=0 pid
+	while [ "$i" -lt 300 ]; do
+		pid=$(guest_sh 'pgrep -u volt -x gnome-session | head -n 1')
+		if [ -n "$pid" ] && [ -n "$(guest_sh 'pgrep -u volt -x gnome-panel')" ]; then
+			g2env=$(guest_sh "tr '\\0' '\\n' </proc/$pid/environ | grep -E '^(DISPLAY|XAUTHORITY|DBUS_SESSION_BUS_ADDRESS)=' | tr '\\n' ' '")
+			echo "smoke-qemu.sh: GNOME 2.32 session up: $g2env"
+			return 0
+		fi
+		sleep 5
+		i=$((i + 5))
+	done
+	echo "smoke-qemu.sh: no GNOME 2.32 session" >&2
+	guest_sh 'journalctl -b -u lightdm --no-pager | tail -n 40; tail -n 40 /home/volt/.xsession-errors' >&2
+	return 1
+}
+
+# gnome2_shutdown_dialog: ask volt's session manager for its shutdown
+# dialog (the panel's System > Shut Down; Shutdown is gnome-session's D-Bus
+# method for it), and screenshot it.
+gnome2_shutdown_dialog()
+{
+	guest_sh "runuser -u volt -- env $g2env dbus-send --session --type=method_call --dest=org.gnome.SessionManager /org/gnome/SessionManager org.gnome.SessionManager.Shutdown" >/dev/null
+	sleep 10
+	screenshot "$1"
+}
+
+# check_gnome2 <repo dir>: install the GNOME 2.32 desktop (voltos-gnome2)
+# from <repo dir> in place of GNOME Flashback, log volt in to it, and
+# restart and power off from its shutdown dialog: gnome-session asks
+# systemd-logind (VoltOS's patch; GNOME 2 used ConsoleKit).  The machine
+# must restart, then power off.
+check_gnome2()
+{
+	local http out log
+	python3 -m http.server 8089 --bind 127.0.0.1 --directory "$1" \
+	    >"$tmp/http-gnome2.log" 2>&1 &
+	http=$!
+	sleep 2
+	out=$(SMOKE_GUEST_WAIT=1200 guest_sh '
+		sed -i "/^\[voltos\]/,/^Server/ s|^Server = .*|Server = http://10.0.2.2:8089|" /etc/pacman.conf
+		# --ask=4: yes to removing what GNOME 2 replaces (Flashback, ...).
+		pacman -Sy --noconfirm --ask=4 voltos-gnome2 xdotool >/tmp/gnome2-install.log 2>&1
+		echo "rc=$?"
+		tail -n 5 /tmp/gnome2-install.log')
+	kill "$http" 2>/dev/null || true
+	printf '%s\n' "$out"
+	printf '%s\n' "$out" | grep -q '^rc=0$' || {
+		echo "smoke-qemu.sh: installing voltos-gnome2 failed" >&2
+		guest_sh 'tail -n 40 /tmp/gnome2-install.log' >&2
+		exit 1
+	}
+	guest_sh '
+		groupadd -rf autologin
+		gpasswd -a volt autologin >/dev/null
+		mkdir -p /etc/lightdm/lightdm.conf.d
+		printf "[Seat:*]\nautologin-user=volt\nautologin-session=gnome2\n" >/etc/lightdm/lightdm.conf.d/99-smoke-gnome2.conf
+		systemctl restart lightdm' >/dev/null
+	gnome2_session || exit 1
+	sleep 20
+	screenshot gnome2
+
+	# Restart: the dialog's Restart button.
+	gnome2_shutdown_dialog gnome2-shutdown-dialog
+	guest_sh "runuser -u volt -- env $g2env xdotool key alt+r" >/dev/null
+	wait_qemu_exit 300
+	grep -aq 'reboot: Restarting system' "$tmp/boot.log" || {
+		echo "smoke-qemu.sh: GNOME 2.32's Restart did not restart the machine" >&2
+		tail -n 60 "$tmp/boot.log" >&2
+		exit 1
+	}
+	echo "smoke-qemu.sh: GNOME 2.32 restarted the machine"
+
+	# Power off: the dialog's own timeout (60 s), whose action is Shut Down.
+	log=$tmp/boot-gnome2.log
+	# shellcheck disable=SC2086
+	qemu_boot "$log" $uefi -drive "file=$tmp/disk.qcow2,if=virtio,format=qcow2"
+	wait_for "$log" "$INSTALLED_RE" "$timeout"
+	gnome2_session || exit 1
+	sleep 20
+	gnome2_shutdown_dialog gnome2-shutdown-timeout
+	wait_qemu_exit 300
+	grep -aq 'reboot: Power down' "$log" || {
+		echo "smoke-qemu.sh: GNOME 2.32's Shut Down did not power the machine off" >&2
+		tail -n 60 "$log" >&2
+		exit 1
+	}
+	echo "smoke-qemu.sh: GNOME 2.32 powered the machine off"
+}
+
 uefi_args()
 {
 	[ -n "$ovmf_code" ] || { echo "OVMF not found (install edk2-ovmf)" >&2; exit 1; }
@@ -529,6 +626,12 @@ install)
 		}
 		echo "smoke-qemu.sh: booted with Secure Boot enforced"
 		screenshot secureboot
+	fi
+
+	# SMOKE_GNOME2=1 (needs SMOKE_REPO): the GNOME 2.32 desktop on the
+	# installed system; ends with the machine powered off.
+	if [ "${SMOKE_GNOME2:-0}" = 1 ] && [ -n "${SMOKE_REPO:-}" ]; then
+		check_gnome2 "$SMOKE_REPO"
 	fi
 	;;
 *)

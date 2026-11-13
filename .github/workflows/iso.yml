@@ -96,7 +96,9 @@ jobs:
         run: |
           iso=$(ls out/voltos-*-x86_64.iso)
           [ "${REPO_SIGNED:-0}" = 1 ] && export SMOKE_REPO=out/repo
-          SMOKE_SCREENSHOT=out/installed.png tools/smoke-qemu.sh install "$iso"
+          # Then GNOME 2.32 in place of Flashback: restart and power off
+          # from its shutdown dialog (gnome-session through logind).
+          SMOKE_GNOME2=1 SMOKE_SCREENSHOT=out/installed.png tools/smoke-qemu.sh install "$iso"
 
       - name: Install with the graphical installer and boot the result
         run: |
