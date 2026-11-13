@@ -282,6 +282,19 @@ Server = https://github.com/abdonmorales/voltOS/releases/download/repo-$arch
 Everything else comes from Arch Linux (Arch Linux ARM on AArch64) as usual,
 so `pacman -Syu` updates both.
 
+**x86_64 systems installed before November 13, 2026** got Arch Linux's stock
+mirrorlist, which lists every server commented out, so `pacman -Syu` stops
+with "no servers configured for repository". Add a server once (AArch64
+systems are not affected):
+
+```sh
+echo 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' | doas tee -a /etc/pacman.d/mirrorlist
+```
+
+Newer ISOs, and systems installed from them, start with Arch's geo-routed
+mirror and two fallbacks (`archiso/airootfs/etc/pacman.d/mirrorlist`);
+`reflector` ranks mirrors from where you are.
+
 The repository is the files of two GitHub releases, `repo-x86_64` and
 `repo-aarch64`, which CI updates on every push to `main` once that
 architecture's build and tests have passed (`tools/publish-repo.sh`). A

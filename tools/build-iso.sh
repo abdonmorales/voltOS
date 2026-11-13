@@ -47,6 +47,9 @@ aarch64)
 	    "$profile/packages.x86_64" >"$profile/packages.aarch64"
 	# Arch Linux ARM signs its packages with its own keys.
 	echo archlinuxarm-keyring >>"$profile/packages.aarch64"
+	# Arch Linux ARM's own mirrorlist (its pacman-mirrorlist package)
+	# names its servers; the profile's is Arch Linux's (x86_64).
+	rm -f "$profile/airootfs/etc/pacman.d/mirrorlist"
 	# memdisk is syslinux's (BIOS) RAM-disk helper; it does not exist here.
 	sed -i 's/ memdisk / /' "$profile/airootfs/etc/mkinitcpio.conf.d/archiso.conf"
 	rm "$profile/packages.x86_64"
