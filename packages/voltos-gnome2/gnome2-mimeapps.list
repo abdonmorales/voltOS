@@ -1,0 +1,9 @@
+# Default applications in the GNOME 2.32 session (gnome2-session puts this
+# file's directory first in XDG_DATA_DIRS).  A user's own choices, made
+# with System > Preferences > Preferred Applications or "Open With", come
+# first.  Types not listed here keep the system's defaults.
+[Default Applications]
+inode/directory=nautilus-folder-handler.desktop
+x-directory/normal=nautilus-folder-handler.desktop
+application/x-gnome-saved-search=nautilus-folder-handler.desktop
+x-scheme-handler/trash=nautilus-folder-handler.desktop

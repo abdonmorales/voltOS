@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=GNOME 2.32
+Comment=The GNOME 2.32 desktop (Metacity, panel, Nautilus)
+Exec=/usr/lib/voltos-gnome2/gnome2-session
+TryExec=gnome-session
+Type=Application
+DesktopNames=GNOME2;GNOME

@@ -5,13 +5,17 @@
 # the OpenSolaris-style blue gradient; desktop icons), as voltos-desktop
 # does for MATE.  "GNOME 2.32" appears in LightDM's session list.
 #
+# In the GNOME 2 session, GNOME 2's applications are the defaults: Nautilus
+# opens folders, GNOME Terminal is the terminal, and MATE's counterparts are
+# left out of the menus (see gnome2-session).  MATE's session is unchanged.
+#
 # GNOME 2's window manager, panel and session take the commands GNOME
 # Flashback uses, so the two cannot be installed together; GNOME 2 is
 # planned to replace Flashback as VoltOS's second session around 1.5.
 
 pkgname=voltos-gnome2
 pkgver=2026.11
-pkgrel=1
+pkgrel=2
 pkgdesc="GNOME 2.32 desktop with VoltOS's defaults (Nimbus)"
 arch=('any')
 url="https://github.com/abdonmorales/voltOS"
@@ -19,16 +23,37 @@ license=('MIT')
 depends=('gnome-session2' 'gnome-settings-daemon2' 'metacity2' 'gnome-panel2'
          'nautilus2' 'gnome-terminal2' 'gnome-control-center2'
          'gtk-engine-nimbus' 'nimbus-gtk-theme' 'voltos-branding' 'gconf'
-         'gnome-keyring' 'polkit-gnome')
+         'gnome-keyring' 'polkit-gnome' 'xdg-desktop-portal-gtk')
 # Replaces GNOME Flashback: pacman offers to remove it along with the GNOME 3
 # programs GNOME 2 takes the place of (metacity, gnome-panel, gnome-session,
 # gnome-settings-daemon, nautilus; each GNOME 2 package declares its own), and
 # GNOME 3's desktop portal, which needs GNOME 3's Nautilus.
 conflicts=('gnome-flashback' 'xdg-desktop-portal-gnome')
 install=voltos-gnome2.install
-source=('voltos-gnome2.entries')
-sha256sums=('SKIP')
+source=('voltos-gnome2.entries'
+        'gnome2.desktop'
+        'gnome2-session'
+        'gnome2-mimeapps.list'
+        'gnome2-portals.conf'
+        'nm-applet.desktop'
+        'hide-mate-terminal.desktop'
+        'hide-caja-browser.desktop'
+        'hide-mate-font-viewer.desktop')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     install -Dm644 voltos-gnome2.entries "$pkgdir/usr/share/voltos-gnome2/voltos-gnome2.entries"
+
+    # The session (gnome-session2 installs none): GNOME 2's applications as
+    # the defaults in it, through the directories gnome2-session puts
+    # first in the XDG search paths.
+    install -Dm644 gnome2.desktop "$pkgdir/usr/share/xsessions/gnome2.desktop"
+    install -Dm755 gnome2-session "$pkgdir/usr/lib/voltos-gnome2/gnome2-session"
+    local apps=$pkgdir/usr/share/voltos-gnome2/applications id
+    install -Dm644 gnome2-mimeapps.list "$apps/gnome2-mimeapps.list"
+    for id in mate-terminal caja-browser mate-font-viewer; do
+        install -Dm644 hide-$id.desktop "$apps/$id.desktop"
+    done
+    install -Dm644 nm-applet.desktop "$pkgdir/etc/xdg/voltos-gnome2/autostart/nm-applet.desktop"
+    install -Dm644 gnome2-portals.conf "$pkgdir/usr/share/xdg-desktop-portal/gnome2-portals.conf"
 }

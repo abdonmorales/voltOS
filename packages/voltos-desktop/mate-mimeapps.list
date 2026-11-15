@@ -1,0 +1,7 @@
+# Default applications in the MATE session (XDG_CURRENT_DESKTOP=MATE).
+# With the GNOME 2.32 desktop also installed, Nautilus offers to open
+# folders too: in MATE, Caja does.  A user's own choices come first.
+[Default Applications]
+inode/directory=caja-folder-handler.desktop
+x-directory/normal=caja-folder-handler.desktop
+application/x-mate-saved-search=caja-folder-handler.desktop

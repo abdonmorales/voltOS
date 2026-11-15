@@ -229,6 +229,13 @@ screens are kept; what is Solaris-specific underneath was replaced:
   then pick "GNOME 2.32" in the greeter. To go back:
   `doas pacman -S gnome-flashback metacity` (it offers to remove GNOME 2). `voltos-gnome2` sets the same look
   as MATE's (Nimbus, the blue gradient, desktop icons) as GConf defaults.
+  In the GNOME 2 session GNOME 2's own applications are the defaults:
+  Nautilus opens folders and draws the desktop, GNOME Terminal is the
+  terminal, and MATE's counterparts (Caja, MATE Terminal) are left out of
+  its menus; MATE keeps its own in its session. Where GNOME 2 has no
+  application of its own in VoltOS yet (text editor, image and document
+  viewers, archive manager, calculator, system monitor), MATE's, which
+  are their GNOME 2 originals continued, stay in use.
   The session uses logind, not ConsoleKit, for log out, restart, power off
   and suspend. Manuals are left out (they need gnome-doc-utils, which
   needs Python 2).

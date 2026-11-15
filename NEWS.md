@@ -22,6 +22,11 @@ Safer updates and verifiable downloads.
   the README.
 - **Version in os-release.** `/usr/lib/os-release` gives the VoltOS version
   (`VERSION_ID=0.2.0`).
+- **GNOME 2's applications in the GNOME 2 session.** With `voltos-gnome2`
+  installed, the GNOME 2.32 session uses Nautilus for folders and GNOME
+  Terminal as the terminal, and leaves MATE's Caja and MATE Terminal out of
+  its menus; the MATE session keeps Caja.  NetworkManager's icon now shows
+  in GNOME 2's panel (its autostart entry skipped sessions named GNOME).
 - **Installer.** It keeps its log on the installed system
   (`/var/log/voltos-install.log`), and stops processes left running in the
   new system before it exports the pool, which on AArch64 could fail with

@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# Start a GNOME 2.32 session with GNOME 2's own applications as the
+# defaults: the session's directories come first in the XDG search paths,
+# so their files take the place of the system's ones in this session only
+# (MATE, on the same system, is unaffected).
+#
+#   /usr/share/voltos-gnome2/applications   default applications
+#       (gnome2-mimeapps.list) and menu entries hidden in GNOME 2: MATE's
+#       counterparts of GNOME 2's applications
+#   /etc/xdg/voltos-gnome2/autostart        autostart entries changed for
+#       GNOME 2
+#
+# "GNOME" in XDG_CURRENT_DESKTOP is what GNOME 2's own entries ask for
+# (OnlyShowIn=GNOME); "GNOME2" first selects this session's defaults.
+export XDG_CURRENT_DESKTOP=GNOME2:GNOME
+export XDG_DATA_DIRS="/usr/share/voltos-gnome2:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+export XDG_CONFIG_DIRS="/etc/xdg/voltos-gnome2:${XDG_CONFIG_DIRS:-/etc/xdg}"
+exec gnome-session "$@"

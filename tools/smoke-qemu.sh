@@ -346,7 +346,7 @@ gnome2_session()
 	while [ "$i" -lt 300 ]; do
 		pid=$(guest_sh 'pgrep -u volt -x gnome-session | head -n 1')
 		if [ -n "$pid" ] && [ -n "$(guest_sh 'pgrep -u volt -x gnome-panel')" ]; then
-			g2env=$(guest_sh "tr '\\0' '\\n' </proc/$pid/environ | grep -E '^(DISPLAY|XAUTHORITY|DBUS_SESSION_BUS_ADDRESS)=' | tr '\\n' ' '")
+			g2env=$(guest_sh "tr '\\0' '\\n' </proc/$pid/environ | grep -E '^(DISPLAY|XAUTHORITY|DBUS_SESSION_BUS_ADDRESS|XDG_CURRENT_DESKTOP|XDG_DATA_DIRS|XDG_CONFIG_DIRS)=' | tr '\\n' ' '")
 			echo "smoke-qemu.sh: GNOME 2.32 session up: $g2env"
 			return 0
 		fi
@@ -402,6 +402,23 @@ check_gnome2()
 	gnome2_session || exit 1
 	sleep 20
 	screenshot gnome2
+
+	# GNOME 2's applications are the session's defaults (gnome2-session):
+	# Nautilus opens folders, MATE's terminal is not in the menus, and
+	# NetworkManager's applet runs in the panel.
+	out=$(guest_sh "runuser -u volt -- env $g2env sh -c '
+		echo desktop=\$XDG_CURRENT_DESKTOP
+		gio mime inode/directory | head -n 1
+		grep -qx Hidden=true /usr/share/voltos-gnome2/applications/mate-terminal.desktop && echo mate-terminal-hidden
+		pgrep -u volt -x nm-applet >/dev/null && echo nm-applet'")
+	printf '%s\n' "$out" | sed 's/^/smoke-qemu.sh: GNOME 2 defaults: /'
+	case $(echo $out) in
+	"desktop=GNOME2:GNOME "*nautilus-folder-handler.desktop*" mate-terminal-hidden nm-applet") ;;
+	*)
+		echo "smoke-qemu.sh: GNOME 2's applications are not the session's defaults" >&2
+		exit 1
+		;;
+	esac
 
 	# Restart: the dialog's Restart button.
 	gnome2_shutdown_dialog gnome2-shutdown-dialog
