@@ -4,7 +4,7 @@
 
 pkgname=zfs-dkms
 pkgver=2.4.4
-pkgrel=1
+pkgrel=2
 pkgdesc="Kernel modules for the Zettabyte File System."
 arch=('any')
 url="https://zfsonlinux.org/"
@@ -51,6 +51,16 @@ package() {
     depends=("zfs-utils=${pkgver}" 'dkms')
 
     cd "${srcdir}"/${pkgname%-dkms}-${pkgver}
+
+    # VoltOS boots from ZFS: a kernel this OpenZFS release cannot build for
+    # leaves the next boot without its root file system.  Depending on a
+    # kernel below the newest one OpenZFS supports (META's Linux-Maximum)
+    # makes pacman refuse such a kernel update, with nothing to confirm,
+    # until a zfs-dkms that supports it is published.
+    local max
+    max=$(sed -n 's/^Linux-Maximum: *//p' META)
+    [[ $max =~ ^[0-9]+\.[0-9]+$ ]] || { echo "META has no Linux-Maximum" >&2; return 1; }
+    depends+=("linux-lts<${max%.*}.$((${max#*.} + 1))")
 
     dkmsdir="${pkgdir}/usr/src/${pkgname%-dkms}-${pkgver}"
     install -d "${dkmsdir}"/{config,scripts}

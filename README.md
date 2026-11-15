@@ -282,6 +282,24 @@ Server = https://github.com/abdonmorales/voltOS/releases/download/repo-$arch
 Everything else comes from Arch Linux (Arch Linux ARM on AArch64) as usual,
 so `pacman -Syu` updates both.
 
+Every pacman transaction first snapshots the boot environment
+(`voltos-zfs-snapshots`; the newest ten are kept as
+`zroot/ROOT/voltos@pacman-<date>`), so an update that goes wrong is undone
+by booting that snapshot from ZFSBootMenu, or with `zfs rollback`.
+
+The root file system needs the ZFS module, which DKMS builds for each
+kernel, and each OpenZFS release supports kernels up to a version of its
+own. `zfs-dkms` depends on a `linux-lts` below the first one it does not
+support, so when Arch moves to a kernel OpenZFS cannot build for yet,
+`pacman -Syu` stops with "installing linux-lts (…) breaks dependency
+'linux-lts<…' required by zfs-dkms" instead of leaving a system that cannot
+mount its root. Until VoltOS publishes a `zfs-dkms` for the new kernel,
+update everything else:
+
+```sh
+doas pacman -Syu --ignore linux-lts,linux-lts-headers
+```
+
 **x86_64 systems installed before November 13, 2026** got Arch Linux's stock
 mirrorlist, which lists every server commented out, so `pacman -Syu` stops
 with "no servers configured for repository". Add a server once (AArch64
