@@ -472,15 +472,21 @@ DOAS
 	    log "efibootmgr failed; the removable-media path EFI/BOOT/$fallback will be used"
 }
 
-# Processes that use the installed system: their root is in $TARGET, or
-# their mount namespace still has the pool's file systems mounted.
+# Processes that use the installed system: their root is in $TARGET or,
+# with "all", they run in another mount namespace that still has the
+# pool's file systems mounted after they were unmounted here.  Services of
+# the live system with their own mount namespace see the target mounted
+# too until it is unmounted, so "all" is only for after unmounting.
 target_processes()
 {
-	local d pid root
+	local d pid root ns
+	ns=$(readlink /proc/$$/ns/mnt)
 	for d in /proc/[0-9]*; do
 		pid=${d#/proc/}
 		[ "$pid" != "$$" ] && [ "$pid" != "$BASHPID" ] || continue
-		if grep -qs " - zfs $POOL[/ ]" "$d/mountinfo"; then
+		if [ "${1:-}" = all ] &&
+		    [ "$(readlink "$d/ns/mnt" 2>/dev/null)" != "$ns" ] &&
+		    grep -qs " - zfs $POOL[/ ]" "$d/mountinfo"; then
 			echo "$pid"
 			continue
 		fi
@@ -491,33 +497,42 @@ target_processes()
 	done
 }
 
+# Stop processes that use the installed system (target_processes $1),
+# naming each in the log.
+stop_target_processes()
+{
+	local pids pid
+	pids=$(target_processes "${1:-}")
+	[ -n "$pids" ] || return 0
+	for pid in $pids; do
+		log "Stopping a process left in the target: $pid $(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null)"
+	done
+	# shellcheck disable=SC2086
+	kill -TERM $pids 2>/dev/null || true
+	sleep 2
+	pids=$(target_processes "${1:-}")
+	# shellcheck disable=SC2086
+	[ -z "$pids" ] || kill -KILL $pids 2>/dev/null || true
+}
+
 finish()
 {
 	log "Finishing"
+	stop_target_processes
 	sync
 	umount "$TARGET/boot/efi" 2>/dev/null || true
+	# The installation log, for the installed system's owner.
+	install -Dm600 "$LOG" "$TARGET/var/log/voltos-install.log"
 	run zfs snapshot "$POOL/ROOT/voltos@install"
 	run zfs umount -a
-	# A process left behind by arch-chroot (a daemon a package script or
-	# pacman-key started) keeps the pool busy: it runs in the chroot's own
-	# mount namespace, which still has the pool's file systems mounted
-	# after they are unmounted here.  Stop such processes and try again.
-	local try pids
+	local try
 	for try in 1 2 3 4 5; do
 		log "+ zpool export $POOL"
 		zpool export "$POOL" >>"$LOG" 2>&1 && break
 		[ "$try" -lt 5 ] || die "command failed: zpool export $POOL"
-		pids=$(target_processes)
-		if [ -n "$pids" ]; then
-			log "Stopping processes left in the target: $(echo $pids)"
-			# shellcheck disable=SC2086
-			ps -o pid=,args= -p "$(echo $pids | tr ' ' ,)" >>"$LOG" 2>&1 || true
-			# shellcheck disable=SC2086
-			kill -TERM $pids 2>/dev/null || true
-			sleep 2
-			# shellcheck disable=SC2086
-			kill -KILL $(target_processes) 2>/dev/null || true
-		fi
+		# Something still holds the pool: a process in a mount namespace
+		# of its own that kept the file systems mounted.
+		stop_target_processes all
 		sleep 2
 		zfs umount -a >>"$LOG" 2>&1 || true
 	done

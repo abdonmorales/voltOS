@@ -611,6 +611,10 @@ install)
 		tail -n 60 "$tmp/install.log" >&2
 		exit 1
 	fi
+	# Processes the installer had to stop to release the pool (none, as a
+	# rule): reported, to find what starts them.
+	grep -a 'Stopping a process left in the target' "$tmp/install.log" |
+	    sed 's/^.*\[voltos-install\] /smoke-qemu.sh: installer: /' >&2 || :
 	wait_qemu_exit 900
 
 	# Second boot: firmware -> ZFSBootMenu -> zroot/ROOT/voltos -> LightDM.
@@ -622,6 +626,11 @@ install)
 	sleep 10
 	screenshot
 	check_doas
+	# The installer leaves its log on the installed system.
+	[ "$(guest_sh 'grep -c "\[voltos-install\] Finishing" /var/log/voltos-install.log')" = 1 ] || {
+		echo "smoke-qemu.sh: no installation log in /var/log/voltos-install.log" >&2
+		exit 1
+	}
 	[ -z "${SMOKE_REPO:-}" ] || check_updates "$SMOKE_REPO"
 
 	if [ "${SMOKE_SECBOOT:-0}" = 1 ]; then
