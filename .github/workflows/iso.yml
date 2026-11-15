@@ -385,5 +385,5 @@ jobs:
           pre=
           case "$GITHUB_REF_NAME" in v0.*|*-*) pre=--prerelease ;; esac
           gh release create "$GITHUB_REF_NAME" $pre --title "VoltOS $GITHUB_REF_NAME" \
-            --notes "VoltOS for x86_64 (UEFI and BIOS) and AArch64 (64-bit ARM with UEFI). Only the x86_64 ISO is signed for Secure Boot (when the signing secrets are set); AArch64 is newer and less tested." \
+            --notes "VoltOS for x86_64 (UEFI and BIOS) and AArch64 (64-bit ARM with UEFI). Both ISOs are signed for Secure Boot when the signing secrets are set; otherwise turn Secure Boot off to boot them, and turn it on after installing with voltos-secureboot enable. AArch64 is newer and less tested. Check downloads against SHA256SUMS and SHA256SUMS-aarch64." \
             --generate-notes artifacts/voltos-*.iso artifacts/SHA256SUMS artifacts/SHA256SUMS-aarch64
