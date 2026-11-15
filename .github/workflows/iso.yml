@@ -2,7 +2,7 @@ name: VoltOS ISO
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'dev-*']
     tags: ['v*']
   pull_request:
   workflow_dispatch:
