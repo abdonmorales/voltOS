@@ -365,6 +365,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          path: source
       - uses: actions/download-artifact@v4
         with:
           name: voltos-x86_64
@@ -408,7 +412,11 @@ jobs:
           fi
           pre=
           case "$GITHUB_REF_NAME" in v0.*|*-*) pre=--prerelease ;; esac
+          # The release's own section of NEWS.md ("## 0.2.0 ..." for v0.2.0).
+          ver=${GITHUB_REF_NAME#v}
+          awk -v v="$ver" '$1 == "##" { f = ($2 == v) ; next } f' source/NEWS.md >notes.md
+          [ -s notes.md ] || echo "No section for $ver in NEWS.md." >notes.md
           gh release create "$GITHUB_REF_NAME" $pre --title "VoltOS $GITHUB_REF_NAME" \
-            --notes "VoltOS for x86_64 (UEFI and BIOS) and AArch64 (64-bit ARM with UEFI). Both ISOs are signed for Secure Boot when the signing secrets are set; otherwise turn Secure Boot off to boot them, and turn it on after installing with voltos-secureboot enable. AArch64 is newer and less tested. Check downloads against SHA256SUMS and SHA256SUMS-aarch64, whose signatures (.asc) are by the VoltOS signing key, fingerprint 5580 7487 EFAB 5F26 D4A3 2EFF 48A0 A16B EDE3 47A7." \
+            --notes "$(cat notes.md; echo; echo '---'; echo)VoltOS for x86_64 (UEFI and BIOS) and AArch64 (64-bit ARM with UEFI). Both ISOs are signed for Secure Boot when the signing secrets are set; otherwise turn Secure Boot off to boot them, and turn it on after installing with voltos-secureboot enable. AArch64 is newer and less tested. Check downloads against SHA256SUMS and SHA256SUMS-aarch64, whose signatures (.asc) are by the VoltOS signing key, fingerprint 5580 7487 EFAB 5F26 D4A3 2EFF 48A0 A16B EDE3 47A7." \
             --generate-notes artifacts/voltos-*.iso artifacts/SHA256SUMS artifacts/SHA256SUMS-aarch64 \
             $(ls artifacts/SHA256SUMS*.asc artifacts/voltos-signing-key.asc 2>/dev/null)
