@@ -373,6 +373,30 @@ jobs:
         with:
           name: voltos-aarch64
           path: artifacts
+      # The checksum files are signed with the VoltOS package key (the one
+      # installed systems trust for updates), so a download can be checked
+      # against a key that does not come from the same place as the ISO.
+      - name: Sign the checksums
+        env:
+          REPO_KEY: ${{ secrets.VOLTOS_REPO_KEY }}
+        run: |
+          if [ -z "$REPO_KEY" ]; then
+            echo "No VOLTOS_REPO_KEY: the checksums stay unsigned."
+            exit 0
+          fi
+          export GNUPGHOME
+          GNUPGHOME=$(mktemp -d)
+          printf '%s\n' "$REPO_KEY" | gpg --batch --quiet --import
+          fpr=$(gpg --batch --with-colons --list-secret-keys | awk -F: '/^fpr/ {print $10; exit}')
+          cd artifacts
+          for f in SHA256SUMS SHA256SUMS-aarch64; do
+            gpg --batch --yes --armor --detach-sign --local-user "$fpr" --output "$f.asc" "$f"
+            gpg --batch --verify "$f.asc" "$f"
+          done
+          gpg --batch --armor --export "$fpr" >voltos-signing-key.asc
+          gpgconf --kill gpg-agent
+          rm -rf "$GNUPGHOME"
+
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -385,5 +409,6 @@ jobs:
           pre=
           case "$GITHUB_REF_NAME" in v0.*|*-*) pre=--prerelease ;; esac
           gh release create "$GITHUB_REF_NAME" $pre --title "VoltOS $GITHUB_REF_NAME" \
-            --notes "VoltOS for x86_64 (UEFI and BIOS) and AArch64 (64-bit ARM with UEFI). Both ISOs are signed for Secure Boot when the signing secrets are set; otherwise turn Secure Boot off to boot them, and turn it on after installing with voltos-secureboot enable. AArch64 is newer and less tested. Check downloads against SHA256SUMS and SHA256SUMS-aarch64." \
-            --generate-notes artifacts/voltos-*.iso artifacts/SHA256SUMS artifacts/SHA256SUMS-aarch64
+            --notes "VoltOS for x86_64 (UEFI and BIOS) and AArch64 (64-bit ARM with UEFI). Both ISOs are signed for Secure Boot when the signing secrets are set; otherwise turn Secure Boot off to boot them, and turn it on after installing with voltos-secureboot enable. AArch64 is newer and less tested. Check downloads against SHA256SUMS and SHA256SUMS-aarch64, whose signatures (.asc) are by the VoltOS signing key, fingerprint 5580 7487 EFAB 5F26 D4A3 2EFF 48A0 A16B EDE3 47A7." \
+            --generate-notes artifacts/voltos-*.iso artifacts/SHA256SUMS artifacts/SHA256SUMS-aarch64 \
+            $(ls artifacts/SHA256SUMS*.asc artifacts/voltos-signing-key.asc 2>/dev/null)

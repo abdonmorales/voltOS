@@ -73,6 +73,31 @@ tools/
   publish-repo.sh        publish the package repository (CI)
 ```
 
+## Downloading
+
+Releases are on the [releases page](https://github.com/abdonmorales/voltOS/releases):
+`voltos-<date>-x86_64.iso` and `voltos-<date>-aarch64.iso`, with their
+checksums (`SHA256SUMS`, `SHA256SUMS-aarch64`) and the checksums' signatures
+(`.asc`) by the VoltOS signing key, the key installed systems trust for
+updates:
+
+```
+5580 7487 EFAB 5F26 D4A3  2EFF 48A0 A16B EDE3 47A7
+VoltOS Package Signing Key 2026
+```
+
+To check a download (the key is also attached to each release as
+`voltos-signing-key.asc`; compare its fingerprint with the one above):
+
+```sh
+gpg --import voltos-signing-key.asc
+gpg --verify SHA256SUMS.asc SHA256SUMS
+sha256sum --check --ignore-missing SHA256SUMS
+```
+
+Write the ISO to a USB stick (`dd`, or any image writer) and boot it in UEFI
+mode (x86_64 also boots with BIOS).
+
 ## Building
 
 On Arch Linux:
