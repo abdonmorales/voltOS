@@ -7,6 +7,12 @@ on:
   pull_request:
   workflow_dispatch:
 
+# A push to a dev-* branch cancels that branch's run still in progress;
+# runs for main and tags are never cancelled (each has a group of its own).
+concurrency:
+  group: iso-${{ startsWith(github.ref, 'refs/heads/dev-') && github.ref || github.run_id }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
