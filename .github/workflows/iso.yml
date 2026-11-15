@@ -111,6 +111,29 @@ jobs:
           SMOKE_SECBOOT=1 SMOKE_SCREENSHOT=out/secureboot.png \
             tools/smoke-qemu.sh install "$iso"
 
+      # Installed systems are not reinstalled between releases: install the
+      # previous release's ISO, update it with pacman -Syu (VoltOS's packages
+      # from this build, Arch's from its mirrors) and boot it again.
+      - name: Upgrade an installation of the previous release
+        if: env.REPO_SIGNED == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          pacman -S --needed --noconfirm github-cli
+          prev=$(gh api "repos/$GH_REPO/releases" --jq '.[] | select(.draft | not) | .tag_name' |
+                 grep -E '^v[0-9]' | grep -vx "$GITHUB_REF_NAME" | sort -V | tail -n 1)
+          if [ -z "$prev" ]; then
+            echo "No earlier release to upgrade from."
+            exit 0
+          fi
+          echo "Upgrading an installation of $prev"
+          mkdir -p prev
+          gh release download "$prev" --dir prev --pattern 'voltos-*-x86_64.iso'
+          SMOKE_UPGRADE=1 SMOKE_REPO=out/repo SMOKE_SCREENSHOT=out/upgrade.png \
+            tools/smoke-qemu.sh install "$(ls prev/voltos-*-x86_64.iso)"
+          rm -rf prev
+
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4

@@ -29,7 +29,10 @@
 # a firmware-only framebuffer),
 # SMOKE_GNOME2=1 (install, with SMOKE_REPO: then install the GNOME 2.32
 # desktop from that repository, log in to it, and restart and power off
-# the machine from its shutdown dialog).
+# the machine from its shutdown dialog),
+# SMOKE_UPGRADE=1 (install, with SMOKE_REPO and an earlier release's ISO:
+# then update the installed system with pacman -Syu, VoltOS's packages from
+# SMOKE_REPO, and check that it boots again).
 #
 set -euo pipefail
 
@@ -428,6 +431,69 @@ check_gnome2()
 	echo "smoke-qemu.sh: GNOME 2.32 powered the machine off"
 }
 
+# check_upgrade <repo dir>: upgrade the installed system (installed from an
+# earlier release's ISO) with pacman -Syu, VoltOS's packages from <repo dir>
+# and Arch's from its mirrors, as a user would; then check that the ZFS
+# module was built for every kernel, that VoltOS's packages are the new
+# ones, and that the system boots to the login screen again.
+check_upgrade()
+{
+	local http out pkg want have
+	python3 -m http.server 8089 --bind 127.0.0.1 --directory "$1" \
+	    >"$tmp/http-upgrade.log" 2>&1 &
+	http=$!
+	sleep 2
+	out=$(SMOKE_GUEST_WAIT=2400 guest_sh '
+		. /usr/lib/os-release; echo "from=${VERSION_ID:-0.1.0}"
+		sed -i "/^\[voltos\]/,/^Server/ s|^Server = .*|Server = http://10.0.2.2:8089|" /etc/pacman.conf
+		pacman -Syu --noconfirm >/tmp/upgrade.log 2>&1
+		echo "rc=$?"
+		tail -n 5 /tmp/upgrade.log
+		for m in /usr/lib/modules/*/vmlinuz; do
+			d=${m%/vmlinuz}
+			if find "$d" -name "zfs.ko*" | grep -q .; then
+				echo "zfs-module ${d##*/}"
+			else
+				echo "no-zfs-module ${d##*/}"
+			fi
+		done
+		pacman -Q voltos-branding voltos-installer zfs-dkms linux-lts')
+	kill "$http" 2>/dev/null || true
+	printf '%s\n' "$out"
+	printf '%s\n' "$out" | grep -q '^rc=0$' || {
+		echo "smoke-qemu.sh: pacman -Syu failed on the installed system" >&2
+		guest_sh 'tail -n 60 /tmp/upgrade.log' >&2
+		exit 1
+	}
+	if printf '%s\n' "$out" | grep -q '^no-zfs-module'; then
+		echo "smoke-qemu.sh: a kernel has no ZFS module after the upgrade" >&2
+		guest_sh 'dkms status; grep -i -A5 dkms /tmp/upgrade.log | tail -n 40' >&2
+		exit 1
+	fi
+	for pkg in voltos-branding voltos-installer; do
+		want=$(cd "$1" && ls "$pkg"-[0-9]*.pkg.tar.zst | sort -V | tail -n 1 |
+		    sed "s/^$pkg-//; s/-[^-]*\.pkg\.tar\.zst$//")
+		have=$(printf '%s\n' "$out" | sed -n "s/^$pkg //p")
+		[ "$have" = "$want" ] || {
+			echo "smoke-qemu.sh: $pkg is $have after the upgrade, not $want" >&2
+			exit 1
+		}
+	done
+
+	# The upgraded system boots: firmware -> ZFSBootMenu -> LightDM.
+	guest_sh 'systemctl poweroff' >/dev/null
+	wait_qemu_exit 900
+	# shellcheck disable=SC2086
+	qemu_boot "$tmp/upgraded.log" $uefi \
+	    -drive "file=$tmp/disk.qcow2,if=virtio,format=qcow2"
+	wait_for "$tmp/upgraded.log" "$INSTALLED_RE" "$timeout"
+	wait_greeter "$timeout"
+	sleep 10
+	screenshot upgraded
+	out=$(guest_sh '. /usr/lib/os-release; echo "$PRETTY_NAME"; uname -r')
+	printf '%s\n' "$out" | sed 's/^/smoke-qemu.sh: upgraded system: /'
+}
+
 uefi_args()
 {
 	[ -n "$ovmf_code" ] || { echo "OVMF not found (install edk2-ovmf)" >&2; exit 1; }
@@ -626,7 +692,9 @@ install)
 	sleep 10
 	screenshot
 	check_doas
-	# The installer leaves its log on the installed system.
+	# The installer leaves its log on the installed system (since 0.2.0;
+	# not when SMOKE_UPGRADE installs an earlier release).
+	[ "${SMOKE_UPGRADE:-0}" = 1 ] ||
 	[ "$(guest_sh 'grep -c "\[voltos-install\] Finishing" /var/log/voltos-install.log')" = 1 ] || {
 		echo "smoke-qemu.sh: no installation log in /var/log/voltos-install.log" >&2
 		exit 1
@@ -657,6 +725,12 @@ install)
 		}
 		echo "smoke-qemu.sh: booted with Secure Boot enforced"
 		screenshot secureboot
+	fi
+
+	# SMOKE_UPGRADE=1 (needs SMOKE_REPO; <iso> is an earlier release):
+	# update the installed system to SMOKE_REPO's packages and boot it.
+	if [ "${SMOKE_UPGRADE:-0}" = 1 ] && [ -n "${SMOKE_REPO:-}" ]; then
+		check_upgrade "$SMOKE_REPO"
 	fi
 
 	# SMOKE_GNOME2=1 (needs SMOKE_REPO): the GNOME 2.32 desktop on the
