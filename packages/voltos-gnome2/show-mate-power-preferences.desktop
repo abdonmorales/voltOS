@@ -1,0 +1,12 @@
+[Desktop Entry]
+# MATE's settings for the volume, power and screensaver daemons GNOME 2
+# uses: in GNOME 2's System > Preferences too.  OnlyShowIn=MATE dropped.
+Name=Power Management
+Comment=Configure power management
+Icon=mate-power-manager
+Exec=mate-power-preferences
+Terminal=false
+Type=Application
+Categories=Settings;HardwareSettings;
+Keywords=MATE;power;management;preferences;settings;
+StartupNotify=true

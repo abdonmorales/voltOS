@@ -235,7 +235,10 @@ screens are kept; what is Solaris-specific underneath was replaced:
   its menus; MATE keeps its own in its session. Where GNOME 2 has no
   application of its own in VoltOS yet (text editor, image and document
   viewers, archive manager, calculator, system monitor), MATE's, which
-  are their GNOME 2 originals continued, stay in use.
+  are their GNOME 2 originals continued, stay in use. So do MATE's volume
+  control, power manager and screensaver (with the panel's Lock Screen),
+  which also run in the GNOME 2 session: GNOME 2.32's own need GStreamer
+  0.10 and ConsoleKit, which are gone.
   The session uses logind, not ConsoleKit, for log out, restart, power off
   and suspend. Manuals are left out (they need gnome-doc-utils, which
   needs Python 2).

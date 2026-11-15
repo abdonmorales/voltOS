@@ -404,16 +404,22 @@ check_gnome2()
 	screenshot gnome2
 
 	# GNOME 2's applications are the session's defaults (gnome2-session):
-	# Nautilus opens folders, MATE's terminal is not in the menus, and
-	# NetworkManager's applet runs in the panel.
+	# Nautilus opens folders, MATE's terminal is not in the menus,
+	# NetworkManager's applet runs in the panel, and so do MATE's volume
+	# control, power manager and screensaver, which the panel's Lock Screen
+	# (gnome-screensaver-command) reaches.
 	out=$(guest_sh "runuser -u volt -- env $g2env sh -c '
 		echo desktop=\$XDG_CURRENT_DESKTOP
 		gio mime inode/directory | head -n 1
 		grep -qx Hidden=true /usr/share/voltos-gnome2/applications/mate-terminal.desktop && echo mate-terminal-hidden
-		pgrep -u volt -x nm-applet >/dev/null && echo nm-applet'")
+		pgrep -u volt -x nm-applet >/dev/null && echo nm-applet
+		for d in mate-volume-control-status-icon mate-power-manager mate-screensaver; do
+			pgrep -u volt -f \"^(/usr/bin/)?\$d\" >/dev/null && echo \$d
+		done
+		/usr/lib/voltos-gnome2/bin/gnome-screensaver-command --query >/dev/null 2>&1 && echo lock-command'")
 	printf '%s\n' "$out" | sed 's/^/smoke-qemu.sh: GNOME 2 defaults: /'
 	case $(echo $out) in
-	"desktop=GNOME2:GNOME "*nautilus-folder-handler.desktop*" mate-terminal-hidden nm-applet") ;;
+	"desktop=GNOME2:GNOME "*nautilus-folder-handler.desktop*" mate-terminal-hidden nm-applet mate-volume-control-status-icon mate-power-manager mate-screensaver lock-command") ;;
 	*)
 		echo "smoke-qemu.sh: GNOME 2's applications are not the session's defaults" >&2
 		exit 1

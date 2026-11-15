@@ -27,6 +27,10 @@ Safer updates and verifiable downloads.
   Terminal as the terminal, and leaves MATE's Caja and MATE Terminal out of
   its menus; the MATE session keeps Caja.  NetworkManager's icon now shows
   in GNOME 2's panel (its autostart entry skipped sessions named GNOME).
+- **Volume, power management and screen locking in GNOME 2.** MATE's volume
+  control, power manager and screensaver now run in the GNOME 2.32 session
+  too (they did not before: no volume icon, no battery, no lock), and the
+  panel's Lock Screen uses MATE's screensaver.
 - **Installer.** It keeps its log on the installed system
   (`/var/log/voltos-install.log`), and stops processes left running in the
   new system before it exports the pool, which on AArch64 could fail with

@@ -1,0 +1,12 @@
+[Desktop Entry]
+# MATE's settings for the volume, power and screensaver daemons GNOME 2
+# uses: in GNOME 2's System > Preferences too.  OnlyShowIn=MATE dropped.
+Name=Sound
+Comment=Change sound volume and sound events
+Exec=mate-volume-control
+Icon=multimedia-volume-control
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=GTK;Settings;HardwareSettings;AudioVideo;Audio;Mixer;
+Keywords=MATE;volume;control;mixer;settings;sound;events;
