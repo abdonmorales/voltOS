@@ -1,0 +1,72 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# GNOME Media 2.32's volume control: GNOME 2's sound preferences and the
+# panel's volume icon, on PulseAudio (PipeWire provides it).  From GNOME's
+# release, for x86_64 and AArch64.  The rest of GNOME Media (the sound
+# recorder, the GStreamer properties and mixer) needs GStreamer 0.10, which
+# is gone, and is left out, as are the manuals.
+
+pkgname=gnome-media2
+pkgver=2.32.0
+pkgrel=1
+pkgdesc="Volume control of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/Archive/gnome-media"
+license=('GPL-2.0-or-later')
+depends=('gtk2' 'gconf' 'glib2' 'libpulse' 'libcanberra-gtk2' 'libunique' 'libxml2'
+         'sound-theme-freedesktop')
+makedepends=('intltool' 'gtk2' 'gconf' 'libpulse' 'libcanberra-gtk2' 'libunique'
+             'libxml2' 'glib2-devel')
+conflicts=('gnome-media')
+_domain=gnome-media
+source=("https://download.gnome.org/sources/gnome-media/${pkgver%.*}/gnome-media-$pkgver.tar.bz2")
+# From GNOME's gnome-media-2.32.0.sha256sum.
+sha256sums=('2b0ad4decd75406398f46e82a170e53bcbc6e1bdc3363f03a07b00f59c2fe5e6')
+
+prepare() {
+    # The tarball's config.guess and config.sub (2010) predate AArch64;
+    # use the build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
+}
+
+build() {
+    cd gnome-media-$pkgver
+    # gnome-doc-utils (Python 2) is gone: satisfy configure's check with a stub.
+    mkdir -p "$srcdir/stub-pc"
+    printf 'Name: gnome-doc-utils\nDescription: stub\nVersion: 0.20.10\n' \
+        >"$srcdir/stub-pc/gnome-doc-utils.pc"
+    export PKG_CONFIG_PATH="$srcdir/stub-pc"
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --libexecdir=/usr/lib/gnome-media --disable-static \
+        --disable-scrollkeeper --disable-schemas-install \
+        --enable-pulseaudio --disable-profiles --disable-grecord \
+        --disable-gstprops --disable-gstmix
+    make
+}
+
+package() {
+    cd gnome-media-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
+        install -d "$pkgdir/usr/share/gconf/schemas"
+        gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/$pkgname.schemas" \
+            --domain "$_domain" "$pkgdir"/etc/gconf/schemas/*.schemas
+        rm -f "$pkgdir"/etc/gconf/schemas/*.schemas
+    fi
+    rmdir -p "$pkgdir/etc/gconf/schemas" 2>/dev/null || :
+    # GNOME 2's applications in the GNOME 2 session, MATE's in MATE's
+    # (voltos-gnome2 hides MATE's in GNOME 2).
+    local _f
+    for _f in "$pkgdir"/usr/share/applications/*.desktop; do
+        if grep -q '^NotShowIn=' "$_f"; then
+            sed -i 's/^NotShowIn=\(.*[^;]\);*$/NotShowIn=\1;MATE;/' "$_f"
+        elif ! grep -q '^OnlyShowIn=' "$_f"; then
+            sed -i '/^\[Desktop Entry\]$/a NotShowIn=MATE;' "$_f"
+        fi
+    done
+}

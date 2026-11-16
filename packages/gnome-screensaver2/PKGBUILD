@@ -1,0 +1,78 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# GNOME Screensaver 2.30, GNOME 2's screensaver and screen locker (MATE's is
+# its fork).  From GNOME's release, for x86_64 and AArch64, on logind in
+# place of ConsoleKit (0001).  It takes GNOME Screensaver 3's commands, so
+# the two cannot be installed together.
+
+pkgname=gnome-screensaver2
+pkgver=2.30.2
+pkgrel=1
+pkgdesc="Screensaver and screen locker of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/Archive/gnome-screensaver"
+license=('GPL-2.0-or-later')
+depends=('gtk2' 'gconf' 'dbus-glib' 'gnome-desktop2' 'gnome-menus2' 'libgnomekbd2'
+         'libnotify' 'libxss' 'libxxf86vm' 'pam' 'systemd')
+makedepends=('intltool' 'gtk2' 'gconf' 'dbus-glib' 'gnome-desktop2' 'gnome-menus2'
+             'libgnomekbd2' 'libnotify' 'libxss' 'libxxf86vm' 'libxext' 'mesa'
+             'glib2-devel')
+conflicts=('gnome-screensaver')
+backup=('etc/pam.d/gnome-screensaver')
+_domain=gnome-screensaver
+source=("https://download.gnome.org/sources/gnome-screensaver/${pkgver%.*}/gnome-screensaver-$pkgver.tar.bz2"
+        '0001-logind-instead-of-consolekit.patch'
+        'gnome-screensaver.pam')
+# The tarball's from GNOME's gnome-screensaver-2.30.2.sha256sum.
+sha256sums=('dd52ef278b23ec5abe5974548c2d576eeaeb5294c85e9f2efd6231ecc9ca09fa'
+            'SKIP'
+            'SKIP')
+
+prepare() {
+    # The tarball's config.guess and config.sub (2010) predate AArch64;
+    # use the build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
+    cd gnome-screensaver-$pkgver
+    patch -Np1 -i ../0001-logind-instead-of-consolekit.patch
+    # libnotify 0.7 dropped notify_notification_new's widget argument.
+    sed -i 's/notify_notification_new (summary, escaped_text, NULL, NULL)/notify_notification_new (summary, escaped_text, NULL)/' \
+        src/gs-lock-plug.c
+}
+
+build() {
+    cd gnome-screensaver-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --libexecdir=/usr/lib/gnome-screensaver --with-pam-prefix=/etc \
+        --enable-pam --enable-locking --disable-schemas-install \
+        --with-mit-ext --with-xf86gamma-ext --with-libgl \
+        --with-kbd-layout-indicator --with-libnotify
+    make
+}
+
+package() {
+    cd gnome-screensaver-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    install -Dm644 "$srcdir/gnome-screensaver.pam" "$pkgdir/etc/pam.d/gnome-screensaver"
+    if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
+        install -d "$pkgdir/usr/share/gconf/schemas"
+        gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/$pkgname.schemas" \
+            --domain "$_domain" "$pkgdir"/etc/gconf/schemas/*.schemas
+        rm -f "$pkgdir"/etc/gconf/schemas/*.schemas
+    fi
+    rmdir -p "$pkgdir/etc/gconf/schemas" 2>/dev/null || :
+    # GNOME 2's applications in the GNOME 2 session, MATE's in MATE's
+    # (voltos-gnome2 hides MATE's in GNOME 2).
+    local _f
+    for _f in "$pkgdir"/usr/share/applications/*.desktop; do
+        if grep -q '^NotShowIn=' "$_f"; then
+            sed -i 's/^NotShowIn=\(.*[^;]\);*$/NotShowIn=\1;MATE;/' "$_f"
+        elif ! grep -q '^OnlyShowIn=' "$_f"; then
+            sed -i '/^\[Desktop Entry\]$/a NotShowIn=MATE;' "$_f"
+        fi
+    done
+}

@@ -1,3 +1,0 @@
-#!/bin/sh
-# See gnome-screensaver-command.
-exec mate-screensaver-preferences "$@"

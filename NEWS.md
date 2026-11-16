@@ -33,10 +33,16 @@ Safer updates and verifiable downloads.
   the MATE session keeps MATE's applications and its defaults.
   NetworkManager's icon now shows in GNOME 2's panel (its autostart entry
   skipped sessions named GNOME).
-- **Volume, power management and screen locking in GNOME 2.** MATE's volume
-  control, power manager and screensaver now run in the GNOME 2.32 session
-  too (they did not before: no volume icon, no battery, no lock), and the
-  panel's Lock Screen uses MATE's screensaver.
+- **Volume, power management and screen locking in GNOME 2.** The GNOME
+  2.32 session had no volume icon, no power management and no screen lock.
+  Now it has GNOME 2's own: the volume control and its panel icon
+  (`gnome-media2`, on PulseAudio, which PipeWire provides), GNOME
+  Screensaver 2.30 (`gnome-screensaver2`; the panel's Lock Screen and
+  `loginctl lock-session` lock it) and GNOME Power Manager 2.32
+  (`gnome-power-manager2`: battery and AC policy, lid, brightness, suspend
+  and hibernate, power statistics).  Both were written for ConsoleKit and
+  the screensaver/power manager for UPower 0.9; VoltOS's patches move them
+  to logind and today's UPower.
 - **Installer.** It keeps its log on the installed system
   (`/var/log/voltos-install.log`), and stops processes left running in the
   new system before it exports the pool, which on AArch64 could fail with

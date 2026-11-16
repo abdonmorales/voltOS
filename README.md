@@ -236,13 +236,16 @@ screens are kept; what is Solaris-specific underneath was replaced:
   gtkmm 2.24) and GNOME Utilities (Screenshot, Dictionary, Disk Usage
   Analyzer, Search for Files, System Log). MATE's counterparts, which are
   their forks, are left out of GNOME 2's menus, and GNOME 2's out of
-  MATE's; each session opens files with its own. MATE's volume control,
-  power manager and screensaver (with the panel's Lock Screen) run in the
-  GNOME 2 session too: GNOME 2.32's own need GStreamer 0.10 and
-  ConsoleKit, which are gone. Left out of the GNOME 2 applications: their
+  MATE's; each session opens files with its own. The session's volume
+  control (GNOME Media 2.32's, on PulseAudio/PipeWire), screensaver and
+  locker (GNOME Screensaver 2.30) and power management (GNOME Power
+  Manager 2.32: battery, lid, brightness, suspend and hibernate) are
+  GNOME 2's too, patched to use logind and today's UPower where they used
+  ConsoleKit and UPower 0.9. Left out of the GNOME 2 applications: their
   manuals (gnome-doc-utils needs Python 2), Python plugins (PyGTK), gedit's
-  spell checker (Enchant 1) and Eye of GNOME's colour management (Little
-  CMS 1).
+  spell checker (Enchant 1), Eye of GNOME's colour management (Little
+  CMS 1), GNOME Media's sound recorder (GStreamer 0.10) and the power
+  statistics' processor wakeups (gone from UPower).
   The session uses logind, not ConsoleKit, for log out, restart, power off
   and suspend. Manuals are left out (they need gnome-doc-utils, which
   needs Python 2).

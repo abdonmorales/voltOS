@@ -406,9 +406,9 @@ check_gnome2()
 	# GNOME 2's applications are the session's defaults (gnome2-session):
 	# Nautilus, gedit, Evince, Eye of GNOME and File Roller open their
 	# files, MATE's Pluma and terminal are not in the menus,
-	# NetworkManager's applet runs in the panel, and so do MATE's volume
-	# control, power manager and screensaver, which the panel's Lock Screen
-	# (gnome-screensaver-command) reaches.
+	# NetworkManager's applet runs in the panel, and so do GNOME 2's volume
+	# control, power manager and screensaver, which answers the panel's
+	# Lock Screen (gnome-screensaver-command).
 	out=$(guest_sh "runuser -u volt -- env $g2env sh -c '
 		echo desktop=\$XDG_CURRENT_DESKTOP
 		for t in inode/directory text/plain application/pdf image/png application/zip; do
@@ -417,13 +417,13 @@ check_gnome2()
 		grep -qx Hidden=true /usr/share/voltos-gnome2/applications/pluma.desktop && echo pluma-hidden
 		grep -qx Hidden=true /usr/share/voltos-gnome2/applications/mate-terminal.desktop && echo mate-terminal-hidden
 		pgrep -u volt -x nm-applet >/dev/null && echo nm-applet
-		for d in mate-volume-control-status-icon mate-power-manager mate-screensaver; do
+		for d in gnome-volume-control-applet gnome-power-manager gnome-screensaver; do
 			pgrep -u volt -f \"^(/usr/bin/)?\$d\" >/dev/null && echo \$d
 		done
-		/usr/lib/voltos-gnome2/bin/gnome-screensaver-command --query >/dev/null 2>&1 && echo lock-command'")
+		gnome-screensaver-command --query >/dev/null 2>&1 && echo lock-command'")
 	printf '%s\n' "$out" | sed 's/^/smoke-qemu.sh: GNOME 2 defaults: /'
 	case $(echo $out) in
-	"desktop=GNOME2:GNOME inode/directory=nautilus-folder-handler.desktop text/plain=gedit.desktop application/pdf=evince.desktop image/png=eog.desktop application/zip=file-roller.desktop pluma-hidden mate-terminal-hidden nm-applet mate-volume-control-status-icon mate-power-manager mate-screensaver lock-command") ;;
+	"desktop=GNOME2:GNOME inode/directory=nautilus-folder-handler.desktop text/plain=gedit.desktop application/pdf=evince.desktop image/png=eog.desktop application/zip=file-roller.desktop pluma-hidden mate-terminal-hidden nm-applet gnome-volume-control-applet gnome-power-manager gnome-screensaver lock-command") ;;
 	*)
 		echo "smoke-qemu.sh: GNOME 2's applications are not the session's defaults" >&2
 		exit 1

@@ -1,0 +1,51 @@
+logind in place of ConsoleKit: the session object to listen to for Lock
+and Unlock (loginctl lock-session, unlock-session) comes from logind's
+GetSessionByPID instead of ConsoleKit's GetCurrentSession.  logind has no
+ActiveChanged signal, so the screensaver no longer pauses while another
+session is in front.
+
+diff -ru gnome-screensaver-2.30.2.orig/src/gs-listener-dbus.c gnome-screensaver-2.30.2/src/gs-listener-dbus.c
+--- gnome-screensaver-2.30.2.orig/src/gs-listener-dbus.c	2026-11-16 00:31:58.705451381 +0000
++++ gnome-screensaver-2.30.2/src/gs-listener-dbus.c	2026-11-16 00:31:58.720057711 +0000
+@@ -22,6 +22,7 @@
+ 
+ #include "config.h"
+ #include <stdlib.h>
++#include <unistd.h>
+ #include <stdio.h>
+ #include <time.h>
+ #include <string.h>
+@@ -59,10 +60,12 @@
+ 
+ #define HAL_DEVICE_INTERFACE "org.freedesktop.Hal.Device"
+ 
+-#define CK_NAME              "org.freedesktop.ConsoleKit"
+-#define CK_MANAGER_PATH      "/org/freedesktop/ConsoleKit/Manager"
+-#define CK_MANAGER_INTERFACE "org.freedesktop.ConsoleKit.Manager"
+-#define CK_SESSION_INTERFACE "org.freedesktop.ConsoleKit.Session"
++/* logind, in place of ConsoleKit: it sends Lock and Unlock to the session
++ * object as ConsoleKit did (loginctl lock-session, unlock-session). */
++#define CK_NAME              "org.freedesktop.login1"
++#define CK_MANAGER_PATH      "/org/freedesktop/login1"
++#define CK_MANAGER_INTERFACE "org.freedesktop.login1.Manager"
++#define CK_SESSION_INTERFACE "org.freedesktop.login1.Session"
+ 
+ #define SESSION_NAME         "org.gnome.SessionManager"
+ #define SESSION_PATH         "/org/gnome/SessionManager"
+@@ -2013,11 +2016,15 @@
+ 
+         dbus_error_init (&error);
+ 
+-        message = dbus_message_new_method_call (CK_NAME, CK_MANAGER_PATH, CK_MANAGER_INTERFACE, "GetCurrentSession");
++        message = dbus_message_new_method_call (CK_NAME, CK_MANAGER_PATH, CK_MANAGER_INTERFACE, "GetSessionByPID");
+         if (message == NULL) {
+                 gs_debug ("Couldn't allocate the dbus message");
+                 return NULL;
+         }
++        {
++                dbus_uint32_t pid = getpid ();
++                dbus_message_append_args (message, DBUS_TYPE_UINT32, &pid, DBUS_TYPE_INVALID);
++        }
+ 
+         /* FIXME: use async? */
+         reply = dbus_connection_send_with_reply_and_block (listener->priv->system_connection,

@@ -1,5 +1,0 @@
-#!/bin/sh
-# GNOME 2.32's panel locks the screen with gnome-screensaver-command; in
-# VoltOS's GNOME 2 session MATE's screensaver does it (gnome2-session puts
-# this directory first in PATH).
-exec mate-screensaver-command "$@"

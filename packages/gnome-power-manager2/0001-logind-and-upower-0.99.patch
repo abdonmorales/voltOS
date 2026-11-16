@@ -1,0 +1,1004 @@
+GNOME Power Manager 2.32 on logind and UPower 0.99 (VoltOS).
+
+- egg-console-kit.c talks to logind instead of ConsoleKit: the session
+  (active, remote) is the caller's logind session, whose Active property
+  changes stand in for ConsoleKit's ActiveChanged; stop and restart are
+  logind's PowerOff and Reboot.  It also suspends and hibernates (logind's
+  Suspend and Hibernate, waiting for PrepareForSleep(false) so that, as
+  with UPower's old synchronous calls, they return after waking up), and
+  tells whether the machine can (CanSuspend, CanHibernate): UPower no
+  longer does either.
+- UpClient's "changed" signal is gone: on-battery and lid-is-closed
+  property notifications call the same handlers.
+- UpClient's "device-changed" is gone: each device's own notifications
+  do; "device-removed" now gives the device's object path.
+- up_client_enumerate_devices_sync is gone (the device list is always
+  there), and so is the processor wakeup statistics API (UpWakeups):
+  up-wakeups-compat.h reports it missing, so the statistics window leaves
+  out its Processor page.
+- libnotify 0.7: notify_notification_new takes three arguments and no
+  longer points at a status icon.
+
+diff -ruN gnome-power-manager-2.32.0.orig/src/egg-console-kit.c gnome-power-manager-2.32.0/src/egg-console-kit.c
+--- gnome-power-manager-2.32.0.orig/src/egg-console-kit.c	2026-11-16 00:35:43.547136541 +0000
++++ gnome-power-manager-2.32.0/src/egg-console-kit.c	2026-11-16 00:36:23.988636832 +0000
+@@ -19,37 +19,38 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+  */
+ 
++/*
++ * VoltOS: logind in place of ConsoleKit.  The session is the caller's
++ * logind session; stop and restart are logind's PowerOff and Reboot, and
++ * suspend and hibernate (added here, as UPower no longer does them) are
++ * logind's Suspend and Hibernate, which return only after the machine has
++ * woken up again, as UPower's did.
++ */
++
+ #include "config.h"
+ 
+ #include <string.h>
+ #include <unistd.h>
+-#include <stdio.h>
+ #include <glib.h>
+-#include <dbus/dbus-glib.h>
+-#include <dbus/dbus.h>
++#include <gio/gio.h>
+ 
+ #include "egg-debug.h"
+ #include "egg-console-kit.h"
+ 
++#define LOGIND_NAME			"org.freedesktop.login1"
++#define LOGIND_PATH			"/org/freedesktop/login1"
++#define LOGIND_MANAGER_INTERFACE	"org.freedesktop.login1.Manager"
++#define LOGIND_SESSION_INTERFACE	"org.freedesktop.login1.Session"
++
+ static void     egg_console_kit_finalize	(GObject		*object);
+ 
+ #define EGG_CONSOLE_KIT_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), EGG_TYPE_CONSOLE_KIT, EggConsoleKitPrivate))
+ 
+-#define CONSOLEKIT_NAME			"org.freedesktop.ConsoleKit"
+-#define CONSOLEKIT_PATH			"/org/freedesktop/ConsoleKit"
+-#define CONSOLEKIT_INTERFACE		"org.freedesktop.ConsoleKit"
+-
+-#define CONSOLEKIT_MANAGER_PATH	 	"/org/freedesktop/ConsoleKit/Manager"
+-#define CONSOLEKIT_MANAGER_INTERFACE    "org.freedesktop.ConsoleKit.Manager"
+-#define CONSOLEKIT_SEAT_INTERFACE       "org.freedesktop.ConsoleKit.Seat"
+-#define CONSOLEKIT_SESSION_INTERFACE    "org.freedesktop.ConsoleKit.Session"
+-
+ struct EggConsoleKitPrivate
+ {
+-	DBusGConnection		*connection;
+-	DBusGProxy		*proxy_manager;
+-	DBusGProxy		*proxy_session;
+-	gchar			*session_id;
++	GDBusConnection		*bus;
++	GDBusProxy		*session;
++	gboolean		 active;
+ };
+ 
+ enum {
+@@ -57,307 +58,294 @@
+ 	EGG_CONSOLE_KIT_LAST_SIGNAL
+ };
+ 
+-static gpointer egg_console_kit_object = NULL;
+ static guint signals [EGG_CONSOLE_KIT_LAST_SIGNAL] = { 0 };
+ G_DEFINE_TYPE (EggConsoleKit, egg_console_kit, G_TYPE_OBJECT)
+ 
+-/**
+- * egg_console_kit_restart:
+- **/
++static gboolean
++egg_console_kit_manager_call (EggConsoleKit *console, const gchar *method,
++			      GVariant *parameters, GVariant **result, GError **error)
++{
++	GVariant *reply;
++
++	if (console->priv->bus == NULL) {
++		if (parameters != NULL)
++			g_variant_unref (g_variant_ref_sink (parameters));
++		g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_NOT_CONNECTED,
++				     "no connection to the system bus");
++		return FALSE;
++	}
++	reply = g_dbus_connection_call_sync (console->priv->bus, LOGIND_NAME, LOGIND_PATH,
++					     LOGIND_MANAGER_INTERFACE, method, parameters,
++					     NULL, G_DBUS_CALL_FLAGS_NONE, G_MAXINT, NULL, error);
++	if (reply == NULL)
++		return FALSE;
++	if (result != NULL)
++		*result = reply;
++	else
++		g_variant_unref (reply);
++	return TRUE;
++}
++
++/* CanPowerOff, CanReboot, CanSuspend, CanHibernate: "yes", or "challenge"
++ * (polkit asks for a password) */
++static gboolean
++egg_console_kit_can (EggConsoleKit *console, const gchar *method,
++		     gboolean *can, GError **error)
++{
++	GVariant *reply = NULL;
++	const gchar *answer;
++
++	*can = FALSE;
++	if (!egg_console_kit_manager_call (console, method, NULL, &reply, error))
++		return FALSE;
++	g_variant_get (reply, "(&s)", &answer);
++	*can = (g_strcmp0 (answer, "yes") == 0 || g_strcmp0 (answer, "challenge") == 0);
++	g_variant_unref (reply);
++	return TRUE;
++}
++
+ gboolean
+-egg_console_kit_restart (EggConsoleKit *console, GError **error)
++egg_console_kit_stop (EggConsoleKit *console, GError **error)
+ {
+-	gboolean ret;
+-	GError *error_local = NULL;
+-
+ 	g_return_val_if_fail (EGG_IS_CONSOLE_KIT (console), FALSE);
+-	g_return_val_if_fail (console->priv->proxy_manager != NULL, FALSE);
+-
+-	ret = dbus_g_proxy_call (console->priv->proxy_manager, "Restart", &error_local,
+-				 G_TYPE_INVALID, G_TYPE_INVALID);
+-	if (!ret) {
+-		egg_warning ("Couldn't restart: %s", error_local->message);
+-		if (error != NULL)
+-			*error = g_error_new (1, 0, "%s", error_local->message);
+-		g_error_free (error_local);
+-	}
+-	return ret;
++	return egg_console_kit_manager_call (console, "PowerOff",
++					     g_variant_new ("(b)", TRUE), NULL, error);
+ }
+ 
+-/**
+- * egg_console_kit_stop:
+- **/
+ gboolean
+-egg_console_kit_stop (EggConsoleKit *console, GError **error)
++egg_console_kit_restart (EggConsoleKit *console, GError **error)
+ {
+-	gboolean ret;
+-	GError *error_local = NULL;
+-
+ 	g_return_val_if_fail (EGG_IS_CONSOLE_KIT (console), FALSE);
+-	g_return_val_if_fail (console->priv->proxy_manager != NULL, FALSE);
+-
+-	ret = dbus_g_proxy_call (console->priv->proxy_manager, "Stop", &error_local,
+-				 G_TYPE_INVALID, G_TYPE_INVALID);
+-	if (!ret) {
+-		egg_warning ("Couldn't stop: %s", error_local->message);
+-		if (error != NULL)
+-			*error = g_error_new (1, 0, "%s", error_local->message);
+-		g_error_free (error_local);
+-	}
+-	return ret;
++	return egg_console_kit_manager_call (console, "Reboot",
++					     g_variant_new ("(b)", TRUE), NULL, error);
+ }
+ 
+-/**
+- * egg_console_kit_can_stop:
+- **/
+ gboolean
+ egg_console_kit_can_stop (EggConsoleKit *console, gboolean *can_stop, GError **error)
+ {
+-	gboolean ret;
+-	GError *error_local = NULL;
+-
+ 	g_return_val_if_fail (EGG_IS_CONSOLE_KIT (console), FALSE);
+-	g_return_val_if_fail (console->priv->proxy_manager != NULL, FALSE);
+-
+-	ret = dbus_g_proxy_call (console->priv->proxy_manager, "CanStop", &error_local,
+-				 G_TYPE_INVALID,
+-				 G_TYPE_BOOLEAN, can_stop, G_TYPE_INVALID);
+-	if (!ret) {
+-		egg_warning ("Couldn't do CanStop: %s", error_local->message);
+-		if (error != NULL)
+-			*error = g_error_new (1, 0, "%s", error_local->message);
+-		g_error_free (error_local);
+-		/* CanStop was only added in new versions of ConsoleKit,
+-		 * so assume true if this failed */
+-		*can_stop = TRUE;
+-	}
+-	return ret;
++	return egg_console_kit_can (console, "CanPowerOff", can_stop, error);
+ }
+ 
+-/**
+- * egg_console_kit_can_restart:
+- **/
+ gboolean
+ egg_console_kit_can_restart (EggConsoleKit *console, gboolean *can_restart, GError **error)
+ {
+-	gboolean ret;
+-	GError *error_local = NULL;
+-
+ 	g_return_val_if_fail (EGG_IS_CONSOLE_KIT (console), FALSE);
+-	g_return_val_if_fail (console->priv->proxy_manager != NULL, FALSE);
+-
+-	ret = dbus_g_proxy_call (console->priv->proxy_manager, "CanRestart", &error_local,
+-				 G_TYPE_INVALID,
+-				 G_TYPE_BOOLEAN, can_restart, G_TYPE_INVALID);
+-	if (!ret) {
+-		egg_warning ("Couldn't do CanRestart: %s", error_local->message);
+-		if (error != NULL)
+-			*error = g_error_new (1, 0, "%s", error_local->message);
+-		g_error_free (error_local);
+-		/* CanRestart was only added in new versions of ConsoleKit,
+-		 * so assume true if this failed */
+-		*can_restart = TRUE;
+-	}
+-	return ret;
++	return egg_console_kit_can (console, "CanReboot", can_restart, error);
+ }
+ 
+-/**
+- * egg_console_kit_is_local:
+- *
+- * Return value: Returns whether the session is local
+- **/
+ gboolean
+-egg_console_kit_is_local (EggConsoleKit *console)
++egg_console_kit_can_suspend (EggConsoleKit *console, gboolean *can_suspend, GError **error)
+ {
+-	gboolean ret = FALSE;
+-	gboolean value = FALSE;
+-	GError *error = NULL;
++	g_return_val_if_fail (EGG_IS_CONSOLE_KIT (console), FALSE);
++	return egg_console_kit_can (console, "CanSuspend", can_suspend, error);
++}
+ 
++gboolean
++egg_console_kit_can_hibernate (EggConsoleKit *console, gboolean *can_hibernate, GError **error)
++{
+ 	g_return_val_if_fail (EGG_IS_CONSOLE_KIT (console), FALSE);
++	return egg_console_kit_can (console, "CanHibernate", can_hibernate, error);
++}
+ 
+-	/* maybe console kit does not know about our session */
+-	if (console->priv->proxy_session == NULL) {
+-		egg_warning ("no ConsoleKit session");
+-		goto out;
+-	}
++/* Sleeping: logind announces PrepareForSleep(true) before the machine goes
++ * to sleep and PrepareForSleep(false) once it has woken up. */
++typedef struct {
++	GMainContext	*context;
++	gboolean	 started;
++	gboolean	 finished;
++} EggConsoleKitSleep;
+ 
+-	/* is our session local */
+-	ret = dbus_g_proxy_call (console->priv->proxy_session, "IsLocal", &error, G_TYPE_INVALID,
+-				 G_TYPE_BOOLEAN, &value, G_TYPE_INVALID);
+-	if (!ret) {
+-		g_warning ("IsLocal failed: %s", error->message);
+-		g_error_free (error);
+-		goto out;
+-	}
++static void
++egg_console_kit_prepare_for_sleep_cb (GDBusConnection *bus, const gchar *sender,
++				      const gchar *path, const gchar *interface,
++				      const gchar *signal, GVariant *parameters,
++				      gpointer user_data)
++{
++	EggConsoleKitSleep *sleep = user_data;
++	gboolean start;
++
++	g_variant_get (parameters, "(b)", &start);
++	if (start)
++		sleep->started = TRUE;
++	else if (sleep->started)
++		sleep->finished = TRUE;
++	g_main_context_wakeup (sleep->context);
++}
++
++static gboolean
++egg_console_kit_sleep (EggConsoleKit *console, const gchar *method, GError **error)
++{
++	EggConsoleKitSleep sleep = { NULL, FALSE, FALSE };
++	guint id;
++	gint64 deadline;
++	gboolean ret;
+ 
+-	/* return value only if we successed */
+-	ret = value;
+-out:
++	if (console->priv->bus == NULL)
++		return egg_console_kit_manager_call (console, method,
++						     g_variant_new ("(b)", TRUE), NULL, error);
++
++	/* the signal is delivered in a context of our own, so that nothing
++	 * else runs while waiting, as with UPower's synchronous call */
++	sleep.context = g_main_context_new ();
++	g_main_context_push_thread_default (sleep.context);
++	id = g_dbus_connection_signal_subscribe (console->priv->bus, LOGIND_NAME,
++						 LOGIND_MANAGER_INTERFACE, "PrepareForSleep",
++						 LOGIND_PATH, NULL, G_DBUS_SIGNAL_FLAGS_NONE,
++						 egg_console_kit_prepare_for_sleep_cb, &sleep, NULL);
++	ret = egg_console_kit_manager_call (console, method,
++					    g_variant_new ("(b)", TRUE), NULL, error);
++	if (ret) {
++		/* an inhibitor can stop the machine from sleeping at all */
++		deadline = g_get_monotonic_time () + 30 * G_USEC_PER_SEC;
++		while (!sleep.finished &&
++		       (sleep.started || g_get_monotonic_time () < deadline)) {
++			if (!g_main_context_iteration (sleep.context, FALSE))
++				g_usleep (100 * 1000);
++		}
++		if (!sleep.started)
++			egg_warning ("logind did not put the machine to sleep");
++	}
++	g_dbus_connection_signal_unsubscribe (console->priv->bus, id);
++	while (g_main_context_iteration (sleep.context, FALSE))
++		;
++	g_main_context_pop_thread_default (sleep.context);
++	g_main_context_unref (sleep.context);
+ 	return ret;
+ }
+ 
+-/**
+- * egg_console_kit_is_active:
+- *
+- * Return value: Returns whether the session is active on the Seat that it is attached to.
+- **/
+ gboolean
+-egg_console_kit_is_active (EggConsoleKit *console)
++egg_console_kit_suspend (EggConsoleKit *console, GError **error)
+ {
+-	gboolean ret = FALSE;
+-	gboolean value = FALSE;
+-	GError *error = NULL;
++	g_return_val_if_fail (EGG_IS_CONSOLE_KIT (console), FALSE);
++	return egg_console_kit_sleep (console, "Suspend", error);
++}
+ 
++gboolean
++egg_console_kit_hibernate (EggConsoleKit *console, GError **error)
++{
+ 	g_return_val_if_fail (EGG_IS_CONSOLE_KIT (console), FALSE);
++	return egg_console_kit_sleep (console, "Hibernate", error);
++}
+ 
+-	/* maybe console kit does not know about our session */
+-	if (console->priv->proxy_session == NULL) {
+-		egg_warning ("no ConsoleKit session");
+-		goto out;
+-	}
++gboolean
++egg_console_kit_is_local (EggConsoleKit *console)
++{
++	GVariant *remote;
++	gboolean ret = TRUE;
+ 
+-	/* is our session active */
+-	ret = dbus_g_proxy_call (console->priv->proxy_session, "IsActive", &error, G_TYPE_INVALID,
+-				 G_TYPE_BOOLEAN, &value, G_TYPE_INVALID);
+-	if (!ret) {
+-		g_warning ("IsActive failed: %s", error->message);
+-		g_error_free (error);
+-		goto out;
++	g_return_val_if_fail (EGG_IS_CONSOLE_KIT (console), FALSE);
++	if (console->priv->session == NULL)
++		return TRUE;
++	remote = g_dbus_proxy_get_cached_property (console->priv->session, "Remote");
++	if (remote != NULL) {
++		ret = !g_variant_get_boolean (remote);
++		g_variant_unref (remote);
+ 	}
+-
+-	/* return value only if we successed */
+-	ret = value;
+-out:
+ 	return ret;
+ }
+ 
+-/**
+- * egg_console_kit_active_changed_cb:
+- **/
++gboolean
++egg_console_kit_is_active (EggConsoleKit *console)
++{
++	g_return_val_if_fail (EGG_IS_CONSOLE_KIT (console), FALSE);
++	/* without logind, act as ConsoleKit's absence did: assume active */
++	if (console->priv->session == NULL)
++		return TRUE;
++	return console->priv->active;
++}
++
+ static void
+-egg_console_kit_active_changed_cb (DBusGProxy *proxy, gboolean active, EggConsoleKit *console)
++egg_console_kit_properties_changed_cb (GDBusProxy *proxy, GVariant *changed,
++				       GStrv invalidated, EggConsoleKit *console)
+ {
++	gboolean active;
++
++	if (!g_variant_lookup (changed, "Active", "b", &active))
++		return;
++	if (active == console->priv->active)
++		return;
++	console->priv->active = active;
+ 	egg_debug ("emitting active: %i", active);
+ 	g_signal_emit (console, signals [EGG_CONSOLE_KIT_ACTIVE_CHANGED], 0, active);
+ }
+ 
+-/**
+- * egg_console_kit_class_init:
+- * @klass: The EggConsoleKitClass
+- **/
+ static void
+ egg_console_kit_class_init (EggConsoleKitClass *klass)
+ {
+ 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
+ 	object_class->finalize = egg_console_kit_finalize;
+-	g_type_class_add_private (klass, sizeof (EggConsoleKitPrivate));
+ 	signals [EGG_CONSOLE_KIT_ACTIVE_CHANGED] =
+ 		g_signal_new ("active-changed",
+ 			      G_TYPE_FROM_CLASS (object_class), G_SIGNAL_RUN_LAST,
+ 			      G_STRUCT_OFFSET (EggConsoleKitClass, active_changed),
+ 			      NULL, NULL, g_cclosure_marshal_VOID__BOOLEAN,
+ 			      G_TYPE_NONE, 1, G_TYPE_BOOLEAN);
++	g_type_class_add_private (klass, sizeof (EggConsoleKitPrivate));
+ }
+ 
+-/**
+- * egg_console_kit_init:
+- **/
+ static void
+ egg_console_kit_init (EggConsoleKit *console)
+ {
+-	gboolean ret;
+ 	GError *error = NULL;
+-	guint32 pid;
++	GVariant *reply = NULL;
++	GVariant *active;
++	const gchar *path;
+ 
+ 	console->priv = EGG_CONSOLE_KIT_GET_PRIVATE (console);
+-	console->priv->proxy_manager = NULL;
+-	console->priv->session_id = NULL;
++	console->priv->active = TRUE;
+ 
+-	/* connect to D-Bus */
+-	console->priv->connection = dbus_g_bus_get (DBUS_BUS_SYSTEM, &error);
+-	if (console->priv->connection == NULL) {
+-		egg_warning ("Failed to connect to the D-Bus daemon: %s", error->message);
++	console->priv->bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
++	if (console->priv->bus == NULL) {
++		egg_warning ("cannot connect to the system bus: %s", error->message);
+ 		g_error_free (error);
+-		goto out;
++		return;
+ 	}
+ 
+-	/* connect to ConsoleKit */
+-	console->priv->proxy_manager =
+-		dbus_g_proxy_new_for_name (console->priv->connection, CONSOLEKIT_NAME,
+-					   CONSOLEKIT_MANAGER_PATH, CONSOLEKIT_MANAGER_INTERFACE);
+-	if (console->priv->proxy_manager == NULL) {
+-		egg_warning ("cannot connect to ConsoleKit");
+-		goto out;
++	if (!egg_console_kit_manager_call (console, "GetSessionByPID",
++					   g_variant_new ("(u)", (guint32) getpid ()),
++					   &reply, &error)) {
++		egg_warning ("no logind session: %s", error->message);
++		g_error_free (error);
++		return;
+ 	}
+-
+-	/* get the session we are running in */
+-	pid = getpid ();
+-	ret = dbus_g_proxy_call (console->priv->proxy_manager, "GetSessionForUnixProcess", &error,
+-				 G_TYPE_UINT, pid,
+-				 G_TYPE_INVALID,
+-				 DBUS_TYPE_G_OBJECT_PATH, &console->priv->session_id,
+-				 G_TYPE_INVALID);
+-	if (!ret) {
+-		egg_warning ("Failed to get session for pid %i: %s", pid, error->message);
++	g_variant_get (reply, "(&o)", &path);
++	console->priv->session = g_dbus_proxy_new_sync (console->priv->bus,
++							G_DBUS_PROXY_FLAGS_NONE, NULL,
++							LOGIND_NAME, path,
++							LOGIND_SESSION_INTERFACE,
++							NULL, &error);
++	g_variant_unref (reply);
++	if (console->priv->session == NULL) {
++		egg_warning ("cannot reach the logind session: %s", error->message);
+ 		g_error_free (error);
+-		goto out;
++		return;
+ 	}
+-	egg_debug ("ConsoleKit session ID: %s", console->priv->session_id);
+-
+-	/* connect to session */
+-	console->priv->proxy_session =
+-		dbus_g_proxy_new_for_name (console->priv->connection, CONSOLEKIT_NAME,
+-					   console->priv->session_id, CONSOLEKIT_SESSION_INTERFACE);
+-	if (console->priv->proxy_session == NULL) {
+-		egg_warning ("cannot connect to: %s", console->priv->session_id);
+-		goto out;
++	active = g_dbus_proxy_get_cached_property (console->priv->session, "Active");
++	if (active != NULL) {
++		console->priv->active = g_variant_get_boolean (active);
++		g_variant_unref (active);
+ 	}
+-	dbus_g_proxy_add_signal (console->priv->proxy_session, "ActiveChanged", G_TYPE_BOOLEAN, G_TYPE_INVALID);
+-	dbus_g_proxy_connect_signal (console->priv->proxy_session, "ActiveChanged",
+-				     G_CALLBACK (egg_console_kit_active_changed_cb), console, NULL);
+-
+-out:
+-	return;
++	g_signal_connect (console->priv->session, "g-properties-changed",
++			  G_CALLBACK (egg_console_kit_properties_changed_cb), console);
+ }
+ 
+-/**
+- * egg_console_kit_finalize:
+- * @object: The object to finalize
+- **/
+ static void
+ egg_console_kit_finalize (GObject *object)
+ {
+ 	EggConsoleKit *console;
+ 
+ 	g_return_if_fail (EGG_IS_CONSOLE_KIT (object));
+-
+ 	console = EGG_CONSOLE_KIT (object);
+-
+-	g_return_if_fail (console->priv != NULL);
+-	if (console->priv->proxy_manager != NULL)
+-		g_object_unref (console->priv->proxy_manager);
+-	if (console->priv->proxy_session != NULL)
+-		g_object_unref (console->priv->proxy_session);
+-	g_free (console->priv->session_id);
+-
++	if (console->priv->session != NULL)
++		g_object_unref (console->priv->session);
++	if (console->priv->bus != NULL)
++		g_object_unref (console->priv->bus);
+ 	G_OBJECT_CLASS (egg_console_kit_parent_class)->finalize (object);
+ }
+ 
+-/**
+- * egg_console_kit_new:
+- *
+- * Return value: a new EggConsoleKit object.
+- **/
+ EggConsoleKit *
+ egg_console_kit_new (void)
+ {
+-	if (egg_console_kit_object != NULL) {
+-		g_object_ref (egg_console_kit_object);
+-	} else {
+-		egg_console_kit_object = g_object_new (EGG_TYPE_CONSOLE_KIT, NULL);
+-		g_object_add_weak_pointer (egg_console_kit_object, &egg_console_kit_object);
+-	}
+-
+-	return EGG_CONSOLE_KIT (egg_console_kit_object);
++	return g_object_new (EGG_TYPE_CONSOLE_KIT, NULL);
+ }
+-
+diff -ruN gnome-power-manager-2.32.0.orig/src/egg-console-kit.h gnome-power-manager-2.32.0/src/egg-console-kit.h
+--- gnome-power-manager-2.32.0.orig/src/egg-console-kit.h	2026-11-16 00:35:43.546947171 +0000
++++ gnome-power-manager-2.32.0/src/egg-console-kit.h	2026-11-16 00:36:24.005235732 +0000
+@@ -64,6 +64,16 @@
+ gboolean	 egg_console_kit_can_restart		(EggConsoleKit	*console,
+ 							 gboolean	*can_restart,
+ 							 GError		**error);
++gboolean	 egg_console_kit_can_suspend		(EggConsoleKit	*console,
++							 gboolean	*can_suspend,
++							 GError		**error);
++gboolean	 egg_console_kit_can_hibernate		(EggConsoleKit	*console,
++							 gboolean	*can_hibernate,
++							 GError		**error);
++gboolean	 egg_console_kit_suspend		(EggConsoleKit	*console,
++							 GError		**error);
++gboolean	 egg_console_kit_hibernate		(EggConsoleKit	*console,
++							 GError		**error);
+ 
+ G_END_DECLS
+ 
+diff -ruN gnome-power-manager-2.32.0.orig/src/gpm-backlight.c gnome-power-manager-2.32.0/src/gpm-backlight.c
+--- gnome-power-manager-2.32.0.orig/src/gpm-backlight.c	2026-11-16 00:35:43.547754723 +0000
++++ gnome-power-manager-2.32.0/src/gpm-backlight.c	2026-11-16 00:36:50.679030678 +0000
+@@ -722,6 +722,12 @@
+  * We only control the first laptop_panel object if there are more than one.
+  **/
+ static void
++gpm_backlight_client_notify_cb (UpClient *client, GParamSpec *pspec, GpmBacklight *backlight)
++{
++	gpm_backlight_client_changed_cb (client, backlight);
++}
++
++static void
+ gpm_backlight_init (GpmBacklight *backlight)
+ {
+ 	gboolean lid_is_present = TRUE;
+@@ -739,8 +745,12 @@
+ 
+ 	/* we use up_client for the ac-adapter-changed signal */
+ 	backlight->priv->client = up_client_new ();
+-	g_signal_connect (backlight->priv->client, "changed",
+-			  G_CALLBACK (gpm_backlight_client_changed_cb), backlight);
++	/* UPower 0.99 replaced UpClient's "changed" with property
++	 * notifications */
++	g_signal_connect (backlight->priv->client, "notify::on-battery",
++			  G_CALLBACK (gpm_backlight_client_notify_cb), backlight);
++	g_signal_connect (backlight->priv->client, "notify::lid-is-closed",
++			  G_CALLBACK (gpm_backlight_client_notify_cb), backlight);
+ 
+ 	/* gets caps */
+ 	backlight->priv->can_dim = gpm_brightness_has_hw (backlight->priv->brightness);
+diff -ruN gnome-power-manager-2.32.0.orig/src/gpm-button.c gnome-power-manager-2.32.0/src/gpm-button.c
+--- gnome-power-manager-2.32.0.orig/src/gpm-button.c	2026-11-16 00:35:43.547843041 +0000
++++ gnome-power-manager-2.32.0/src/gpm-button.c	2026-11-16 00:36:50.679671974 +0000
+@@ -303,6 +303,12 @@
+  * @button: This class instance
+  **/
+ static void
++gpm_button_client_notify_cb (UpClient *client, GParamSpec *pspec, GpmButton *button)
++{
++	gpm_button_client_changed_cb (client, button);
++}
++
++static void
+ gpm_button_init (GpmButton *button)
+ {
+ 	button->priv = GPM_BUTTON_GET_PRIVATE (button);
+@@ -316,8 +322,12 @@
+ 
+ 	button->priv->client = up_client_new ();
+ 	button->priv->lid_is_closed = up_client_get_lid_is_closed (button->priv->client);
+-	g_signal_connect (button->priv->client, "changed",
+-			  G_CALLBACK (gpm_button_client_changed_cb), button);
++	/* UPower 0.99 replaced UpClient's "changed" with property
++	 * notifications */
++	g_signal_connect (button->priv->client, "notify::on-battery",
++			  G_CALLBACK (gpm_button_client_notify_cb), button);
++	g_signal_connect (button->priv->client, "notify::lid-is-closed",
++			  G_CALLBACK (gpm_button_client_notify_cb), button);
+ 
+ 	/* register the brightness keys */
+ 	gpm_button_xevent_key (button, XF86XK_PowerOff, GPM_BUTTON_POWER);
+diff -ruN gnome-power-manager-2.32.0.orig/src/gpm-control.c gnome-power-manager-2.32.0/src/gpm-control.c
+--- gnome-power-manager-2.32.0.orig/src/gpm-control.c	2026-11-16 00:35:43.548097836 +0000
++++ gnome-power-manager-2.32.0/src/gpm-control.c	2026-11-16 00:36:36.694233240 +0000
+@@ -143,13 +143,13 @@
+ 	gboolean lock_gnome_keyring;
+ 	GnomeKeyringResult keyres;
+ 	GpmScreensaver *screensaver;
++	EggConsoleKit *console;
+ 	guint32 throttle_cookie = 0;
+ 
+ 	screensaver = gpm_screensaver_new ();
+ 
+-	g_object_get (control->priv->client,
+-		      "can-suspend", &allowed,
+-		      NULL);
++	console = egg_console_kit_new ();
++	egg_console_kit_can_suspend (console, &allowed, NULL);
+ 	if (!allowed) {
+ 		egg_debug ("cannot suspend as not allowed from policy");
+ 		g_set_error_literal (error, GPM_CONTROL_ERROR, GPM_CONTROL_ERROR_GENERAL, "Cannot suspend");
+@@ -178,7 +178,7 @@
+ 	egg_debug ("emitting sleep");
+ 	g_signal_emit (control, signals [SLEEP], 0, GPM_CONTROL_ACTION_SUSPEND);
+ 
+-	ret = up_client_suspend_sync (control->priv->client, NULL, error);
++	ret = egg_console_kit_suspend (console, error);
+ 
+ 	egg_debug ("emitting resume");
+ 	g_signal_emit (control, signals [RESUME], 0, GPM_CONTROL_ACTION_SUSPEND);
+@@ -194,6 +194,7 @@
+ 		gpm_networkmanager_wake ();
+ 
+ out:
++	g_object_unref (console);
+ 	g_object_unref (screensaver);
+ 	return ret;
+ }
+@@ -211,13 +212,13 @@
+ 	gboolean lock_gnome_keyring;
+ 	GnomeKeyringResult keyres;
+ 	GpmScreensaver *screensaver;
++	EggConsoleKit *console;
+ 	guint32 throttle_cookie = 0;
+ 
+ 	screensaver = gpm_screensaver_new ();
+ 
+-	g_object_get (control->priv->client,
+-		      "can-hibernate", &allowed,
+-		      NULL);
++	console = egg_console_kit_new ();
++	egg_console_kit_can_hibernate (console, &allowed, NULL);
+ 	if (!allowed) {
+ 		egg_debug ("cannot hibernate as not allowed from policy");
+ 		g_set_error_literal (error, GPM_CONTROL_ERROR, GPM_CONTROL_ERROR_GENERAL, "Cannot hibernate");
+@@ -246,7 +247,7 @@
+ 	egg_debug ("emitting sleep");
+ 	g_signal_emit (control, signals [SLEEP], 0, GPM_CONTROL_ACTION_HIBERNATE);
+ 
+-	ret = up_client_hibernate_sync (control->priv->client, NULL, error);
++	ret = egg_console_kit_hibernate (console, error);
+ 
+ 	egg_debug ("emitting resume");
+ 	g_signal_emit (control, signals [RESUME], 0, GPM_CONTROL_ACTION_HIBERNATE);
+@@ -262,6 +263,7 @@
+ 		gpm_networkmanager_wake ();
+ 
+ out:
++	g_object_unref (console);
+ 	g_object_unref (screensaver);
+ 	return ret;
+ }
+diff -ruN gnome-power-manager-2.32.0.orig/src/gpm-engine.c gnome-power-manager-2.32.0/src/gpm-engine.c
+--- gnome-power-manager-2.32.0.orig/src/gpm-engine.c	2026-11-16 00:35:43.547780807 +0000
++++ gnome-power-manager-2.32.0/src/gpm-engine.c	2026-11-16 00:37:23.447827150 +0000
+@@ -812,6 +812,23 @@
+ /**
+  * gpm_engine_coldplug_idle_cb:
+  **/
++static void gpm_engine_device_changed_cb (UpClient *client, UpDevice *device, GpmEngine *engine);
++
++/* UPower 0.99 replaced UpClient's "device-changed" with the devices' own
++ * property notifications */
++static void
++gpm_engine_device_notify_cb (UpDevice *device, GParamSpec *pspec, GpmEngine *engine)
++{
++	gpm_engine_device_changed_cb (engine->priv->client, device, engine);
++}
++
++static void
++gpm_engine_watch_device (GpmEngine *engine, UpDevice *device)
++{
++	g_signal_connect (device, "notify",
++			  G_CALLBACK (gpm_engine_device_notify_cb), engine);
++}
++
+ static gboolean
+ gpm_engine_coldplug_idle_cb (GpmEngine *engine)
+ {
+@@ -829,7 +846,8 @@
+ 	g_return_val_if_fail (GPM_IS_ENGINE (engine), FALSE);
+ 
+ 	/* get devices from UPower */
+-	ret = up_client_enumerate_devices_sync (engine->priv->client, NULL, &error);
++	/* UPower 0.99 lists its devices without being asked */
++	ret = TRUE;
+ 	if (!ret) {
+ 		egg_error ("failed to get device list: %s", error->message);
+ 		g_error_free (error);
+@@ -871,6 +889,7 @@
+ 		device = g_ptr_array_index (engine->priv->array, i);
+ 		gpm_engine_device_add (engine, device);
+ 		gpm_engine_check_recall (engine, device);
++		gpm_engine_watch_device (engine, device);
+ 	}
+ out:
+ 	/* never repeat */
+@@ -885,6 +904,7 @@
+ {
+ 	/* add to list */
+ 	g_ptr_array_add (engine->priv->array, g_object_ref (device));
++	gpm_engine_watch_device (engine, device);
+ 	gpm_engine_check_recall (engine, device);
+ 
+ 	gpm_engine_recalculate_state (engine);
+@@ -894,13 +914,21 @@
+  * gpm_engine_device_removed_cb:
+  **/
+ static void
+-gpm_engine_device_removed_cb (UpClient *client, UpDevice *device, GpmEngine *engine)
++gpm_engine_device_removed_cb (UpClient *client, const gchar *object_path, GpmEngine *engine)
+ {
+-	gboolean ret;
+-	ret = g_ptr_array_remove (engine->priv->array, device);
+-	if (!ret)
++	guint i;
++	UpDevice *device;
++
++	/* UPower 0.99 names the removed device by its object path */
++	for (i = 0; i < engine->priv->array->len; i++) {
++		device = g_ptr_array_index (engine->priv->array, i);
++		if (g_strcmp0 (up_device_get_object_path (device), object_path) != 0)
++			continue;
++		g_signal_handlers_disconnect_by_data (device, engine);
++		g_ptr_array_remove_index (engine->priv->array, i);
++		gpm_engine_recalculate_state (engine);
+ 		return;
+-	gpm_engine_recalculate_state (engine);
++	}
+ }
+ 
+ 
+@@ -1091,8 +1119,6 @@
+ 			  G_CALLBACK (gpm_engine_device_added_cb), engine);
+ 	g_signal_connect (engine->priv->client, "device-removed",
+ 			  G_CALLBACK (gpm_engine_device_removed_cb), engine);
+-	g_signal_connect (engine->priv->client, "device-changed",
+-			  G_CALLBACK (gpm_engine_device_changed_cb), engine);
+ 
+ 	engine->priv->conf = gconf_client_get_default ();
+ 	gconf_client_notify_add (engine->priv->conf, GPM_CONF_DIR,
+diff -ruN gnome-power-manager-2.32.0.orig/src/gpm-manager.c gnome-power-manager-2.32.0/src/gpm-manager.c
+--- gnome-power-manager-2.32.0.orig/src/gpm-manager.c	2026-11-16 00:35:43.548170837 +0000
++++ gnome-power-manager-2.32.0/src/gpm-manager.c	2026-11-16 00:36:55.687031781 +0000
+@@ -480,12 +480,8 @@
+ 	/* close any existing notification of this class */
+ 	gpm_manager_notify_close (manager, *notification_class);
+ 
+-	/* if the status icon is hidden, don't point at it */
+-	if (manager->priv->status_icon != NULL &&
+-	    gtk_status_icon_is_embedded (manager->priv->status_icon))
+-		notification = notify_notification_new_with_status_icon (title, message, icon, manager->priv->status_icon);
+-	else
+-		notification = notify_notification_new (title, message, icon, NULL);
++	/* libnotify 0.7 no longer points notifications at a status icon */
++	notification = notify_notification_new (title, message, icon);
+ 	notify_notification_set_timeout (notification, timeout);
+ 	notify_notification_set_urgency (notification, urgency);
+ 	g_signal_connect (notification, "closed", G_CALLBACK (gpm_manager_notification_closed_cb), notification_class);
+@@ -1905,6 +1901,12 @@
+  * @manager: This class instance
+  **/
+ static void
++gpm_manager_client_notify_cb (UpClient *client, GParamSpec *pspec, GpmManager *manager)
++{
++	gpm_manager_client_changed_cb (client, manager);
++}
++
++static void
+ gpm_manager_init (GpmManager *manager)
+ {
+ 	gboolean check_type_cpu;
+@@ -1940,8 +1942,12 @@
+ 	manager->priv->disks = gpm_disks_new ();
+ 	manager->priv->conf = gconf_client_get_default ();
+ 	manager->priv->client = up_client_new ();
+-	g_signal_connect (manager->priv->client, "changed",
+-			  G_CALLBACK (gpm_manager_client_changed_cb), manager);
++	/* UPower 0.99 replaced UpClient's "changed" with property
++	 * notifications */
++	g_signal_connect (manager->priv->client, "notify::on-battery",
++			  G_CALLBACK (gpm_manager_client_notify_cb), manager);
++	g_signal_connect (manager->priv->client, "notify::lid-is-closed",
++			  G_CALLBACK (gpm_manager_client_notify_cb), manager);
+ 
+ 	/* use libnotify */
+ 	notify_init (GPM_NAME);
+diff -ruN gnome-power-manager-2.32.0.orig/src/gpm-prefs-core.c gnome-power-manager-2.32.0/src/gpm-prefs-core.c
+--- gnome-power-manager-2.32.0.orig/src/gpm-prefs-core.c	2026-11-16 00:35:43.547601381 +0000
++++ gnome-power-manager-2.32.0/src/gpm-prefs-core.c	2026-11-16 00:36:36.695048039 +0000
+@@ -940,12 +940,12 @@
+ 
+ 	/* are we allowed to shutdown? */
+ 	prefs->priv->can_shutdown = TRUE;
++	egg_console_kit_can_suspend (prefs->priv->console, &prefs->priv->can_suspend, NULL);
++	egg_console_kit_can_hibernate (prefs->priv->console, &prefs->priv->can_hibernate, NULL);
+ 	egg_console_kit_can_stop (prefs->priv->console, &prefs->priv->can_shutdown, NULL);
+ 
+ 	/* get values from UpClient */
+ 	g_object_get (prefs->priv->client,
+-		      "can-suspend", &prefs->priv->can_suspend,
+-		      "can-hibernate", &prefs->priv->can_hibernate,
+ 		      NULL);
+ 
+ 	prefs->priv->builder = gtk_builder_new ();
+diff -ruN gnome-power-manager-2.32.0.orig/src/gpm-statistics.c gnome-power-manager-2.32.0/src/gpm-statistics.c
+--- gnome-power-manager-2.32.0.orig/src/gpm-statistics.c	2026-11-16 00:35:43.547256705 +0000
++++ gnome-power-manager-2.32.0/src/gpm-statistics.c	2026-11-16 00:37:46.388712550 +0000
+@@ -30,6 +30,8 @@
+ #include <dbus/dbus-glib.h>
+ #include <gconf/gconf-client.h>
+ #include <libupower-glib/upower.h>
++#include <gio/gio.h>
++#include "up-wakeups-compat.h"
+ 
+ #include "egg-debug.h"
+ #include "egg-color.h"
+@@ -1186,9 +1188,21 @@
+ /**
+  * gpm_stats_add_device:
+  **/
++static void gpm_stats_device_changed_cb (UpClient *client, UpDevice *device, gpointer user_data);
++
++static void
++gpm_stats_device_notify_cb (UpDevice *device, GParamSpec *pspec, gpointer user_data)
++{
++	gpm_stats_device_changed_cb (NULL, device, user_data);
++}
++
+ static void
+ gpm_stats_add_device (UpDevice *device)
+ {
++	/* UPower 0.99 replaced UpClient's "device-changed" with the devices'
++	 * own property notifications */
++	g_signal_connect (device, "notify", G_CALLBACK (gpm_stats_device_notify_cb), NULL);
++
+ 	const gchar *id;
+ 	GtkTreeIter iter;
+ 	const gchar *text;
+@@ -1252,14 +1266,13 @@
+  * gpm_stats_device_removed_cb:
+  **/
+ static void
+-gpm_stats_device_removed_cb (UpClient *client, UpDevice *device, gpointer user_data)
++gpm_stats_device_removed_cb (UpClient *client, const gchar *object_path, gpointer user_data)
+ {
+-	const gchar *object_path;
+ 	GtkTreeIter iter;
+ 	gchar *id = NULL;
+ 	gboolean ret;
+ 
+-	object_path = up_device_get_object_path (device);
++	/* UPower 0.99 names the removed device by its object path */
+ 	egg_debug ("removed:   %s", object_path);
+ 	if (g_strcmp0 (current_device, object_path) == 0) {
+ 		gtk_list_store_clear (list_store_info);
+@@ -1754,12 +1767,11 @@
+ 	client = up_client_new ();
+ 
+ 	wakeups = up_wakeups_new ();
+-	g_signal_connect (wakeups, "data-changed", G_CALLBACK (gpm_stats_data_changed_cb), NULL);
++	if (wakeups != NULL)
++		g_signal_connect (wakeups, "data-changed", G_CALLBACK (gpm_stats_data_changed_cb), NULL);
+ 
+ 	/* coldplug */
+-	ret = up_client_enumerate_devices_sync (client, NULL, NULL);
+-	if (!ret)
+-		goto out;
++	/* UPower 0.99 lists its devices without being asked */
+ 	devices = up_client_get_devices (client);
+ 
+ 	/* add devices in visually pleasing order */
+@@ -1775,7 +1787,6 @@
+ 	/* connect now the coldplug is done */
+ 	g_signal_connect (client, "device-added", G_CALLBACK (gpm_stats_device_added_cb), NULL);
+ 	g_signal_connect (client, "device-removed", G_CALLBACK (gpm_stats_device_removed_cb), NULL);
+-	g_signal_connect (client, "device-changed", G_CALLBACK (gpm_stats_device_changed_cb), NULL);
+ 
+ 	/* set current device */
+ 	if (devices->len > 0) {
+@@ -1819,7 +1830,8 @@
+ out:
+ 	g_object_unref (gconf_client);
+ 	g_object_unref (client);
+-	g_object_unref (wakeups);
++	if (wakeups != NULL)
++		g_object_unref (wakeups);
+ 	g_object_unref (builder);
+ 	g_object_unref (list_store_info);
+ unique_out:
+diff -ruN gnome-power-manager-2.32.0.orig/src/up-wakeups-compat.h gnome-power-manager-2.32.0/src/up-wakeups-compat.h
+--- gnome-power-manager-2.32.0.orig/src/up-wakeups-compat.h	1970-01-01 00:00:00.000000000 +0000
++++ gnome-power-manager-2.32.0/src/up-wakeups-compat.h	2026-11-16 00:37:46.371733756 +0000
+@@ -0,0 +1,25 @@
++/*
++ * VoltOS: UPower 0.99 dropped its processor wakeup statistics (UpWakeups).
++ * These stand-ins report that the capability is missing, so the statistics
++ * window leaves out its "Processor" page.
++ */
++#ifndef UP_WAKEUPS_COMPAT_H
++#define UP_WAKEUPS_COMPAT_H
++
++#include <glib.h>
++
++typedef struct _UpWakeups UpWakeups;
++typedef struct _UpWakeupItem UpWakeupItem;
++
++static inline UpWakeups *up_wakeups_new (void) { return NULL; }
++static inline gboolean up_wakeups_get_has_capability (UpWakeups *w) { return FALSE; }
++static inline guint up_wakeups_get_total_sync (UpWakeups *w, GCancellable *c, GError **e)
++{ g_set_error_literal (e, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED, "not supported"); return 0; }
++static inline GPtrArray *up_wakeups_get_data_sync (UpWakeups *w, GCancellable *c, GError **e) { return NULL; }
++static inline const gchar *up_wakeup_item_get_cmdline (UpWakeupItem *i) { return NULL; }
++static inline const gchar *up_wakeup_item_get_details (UpWakeupItem *i) { return NULL; }
++static inline guint up_wakeup_item_get_id (UpWakeupItem *i) { return 0; }
++static inline gboolean up_wakeup_item_get_is_userspace (UpWakeupItem *i) { return FALSE; }
++static inline gdouble up_wakeup_item_get_value (UpWakeupItem *i) { return 0; }
++
++#endif

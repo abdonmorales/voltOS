@@ -42,7 +42,8 @@ order=(voltos-keyring linux-lts-aarch64 nimbus-gtk-theme gtk2 gtk-engine-nimbus 
        metacity2 libsoup2 libgweather2 gnome-panel2 gnome-session2
        gnome-settings-daemon2 gnome-terminal2 nautilus2 gnome-control-center2
        gtksourceview2 gedit2 eog2 evince2 file-roller2 gcalctool2 gtkmm2
-       gnome-system-monitor2 gnome-utils2
+       gnome-system-monitor2 gnome-utils2 gnome-media2 gnome-screensaver2
+       gnome-power-manager2
        pico voltos-branding voltos-desktop voltos-gnome2 openoffice zfs-utils zfs-dkms
        zfsbootmenu-efi perl-boolean zfsbootmenu
        voltos-zfs-snapshots voltos-secureboot voltos-doas voltos-installer voltos-gui-install

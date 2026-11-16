@@ -8,8 +8,8 @@
 # In the GNOME 2 session, GNOME 2's applications are the defaults (Nautilus,
 # GNOME Terminal, gedit, Eye of GNOME, Evince, File Roller, gcalctool, System
 # Monitor, GNOME Utilities) and MATE's counterparts are left out of the menus
-# (see gnome2-session); in MATE, GNOME 2's are.  MATE's own volume control,
-# power manager and screensaver run in GNOME 2 too.
+# (see gnome2-session); in MATE, GNOME 2's are.  So are GNOME 2's volume
+# control, screensaver and power manager.
 #
 # GNOME 2's window manager, panel and session take the commands GNOME
 # Flashback uses, so the two cannot be installed together; GNOME 2 is
@@ -27,8 +27,8 @@ depends=('gnome-session2' 'gnome-settings-daemon2' 'metacity2' 'gnome-panel2'
          'gtk-engine-nimbus' 'nimbus-gtk-theme' 'voltos-branding' 'gconf'
          'gnome-keyring' 'polkit-gnome' 'xdg-desktop-portal-gtk'
          'gedit2' 'eog2' 'evince2' 'file-roller2' 'gcalctool2' 'gnome-system-monitor2'
-         'gnome-utils2'
-         'network-manager-applet' 'mate-media' 'mate-power-manager' 'mate-screensaver')
+         'gnome-utils2' 'gnome-media2' 'gnome-screensaver2' 'gnome-power-manager2'
+         'network-manager-applet')
 # Replaces GNOME Flashback: pacman offers to remove it along with the GNOME 3
 # programs GNOME 2 takes the place of (metacity, gnome-panel, gnome-session,
 # gnome-settings-daemon, nautilus; each GNOME 2 package declares its own), and
@@ -53,17 +53,8 @@ source=('voltos-gnome2.entries'
         'hide-mate-dictionary.desktop'
         'hide-mate-disk-usage-analyzer.desktop'
         'hide-mate-search-tool.desktop'
-        'hide-mate-system-log.desktop'
-        'show-mate-volume-control.desktop'
-        'show-mate-power-preferences.desktop'
-        'show-mate-power-statistics.desktop'
-        'show-mate-screensaver-preferences.desktop'
-        'autostart-mate-volume-control-status-icon.desktop'
-        'autostart-mate-power-manager.desktop'
-        'autostart-mate-screensaver.desktop'
-        'gnome-screensaver-command'
-        'gnome-screensaver-preferences')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+        'hide-mate-system-log.desktop')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     install -Dm644 voltos-gnome2.entries "$pkgdir/usr/share/voltos-gnome2/voltos-gnome2.entries"
@@ -76,15 +67,10 @@ package() {
     local apps=$pkgdir/usr/share/voltos-gnome2/applications id
     install -Dm644 gnome2-mimeapps.list "$apps/gnome2-mimeapps.list"
     local f
-    for f in hide-*.desktop show-*.desktop; do
+    for f in hide-*.desktop; do
         install -Dm644 "$f" "$apps/${f#*-}"
     done
     local auto=$pkgdir/etc/xdg/voltos-gnome2/autostart
     install -Dm644 nm-applet.desktop "$auto/nm-applet.desktop"
-    for f in autostart-*.desktop; do
-        install -Dm644 "$f" "$auto/${f#autostart-}"
-    done
-    install -Dm755 gnome-screensaver-command gnome-screensaver-preferences \
-        -t "$pkgdir/usr/lib/voltos-gnome2/bin"
     install -Dm644 gnome2-portals.conf "$pkgdir/usr/share/xdg-desktop-portal/gnome2-portals.conf"
 }
