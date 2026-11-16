@@ -50,7 +50,7 @@ build() {
     CFLAGS+=" -std=gnu17 -fpermissive -Wno-error"
     export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
     ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
-        --libexecdir=/usr/lib/gnome-power-manager --disable-scrollkeeper \
+        --libexecdir=/usr/lib/gnome-power-manager --sbindir=/usr/bin --disable-scrollkeeper \
         --disable-schemas-install --disable-applets --disable-tests \
         --disable-strict --disable-docbook-docs
     make

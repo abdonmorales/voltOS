@@ -58,6 +58,25 @@ package() {
     cd gnome-screensaver-$pkgver
     make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
     install -Dm644 "$srcdir/gnome-screensaver.pam" "$pkgdir/etc/pam.d/gnome-screensaver"
+    # MATE's screensaver, its fork, installs its themes, the Cosmos
+    # backgrounds and the floaters logo under the same names: GNOME 2's are
+    # kept in /usr/share/gnome-screensaver, and its theme menu reads them
+    # from there (and no longer lists MATE's, nor MATE's GNOME 2's).
+    local _sd=$pkgdir/usr/share/gnome-screensaver
+    install -d "$_sd/themes"
+    mv "$pkgdir/usr/share/applications/screensavers" "$_sd/themes/screensavers"
+    mv "$pkgdir/usr/share/backgrounds/cosmos" "$_sd/cosmos"
+    mv "$pkgdir/usr/share/pixmaps/gnome-logo-white.svg" "$_sd/"
+    rmdir "$pkgdir/usr/share/backgrounds" "$pkgdir/usr/share/pixmaps"
+    sed -i 's|/usr/share/backgrounds/cosmos|/usr/share/gnome-screensaver/cosmos|g' \
+        "$_sd/cosmos/background-1.xml" "$_sd/themes/screensavers/cosmos-slideshow.desktop" \
+        "$pkgdir/usr/share/gnome-background-properties/cosmos.xml"
+    sed -i 's|/usr/share/pixmaps/gnome-logo-white.svg|/usr/share/gnome-screensaver/gnome-logo-white.svg|' \
+        "$_sd/themes/screensavers/footlogo-floaters.desktop"
+    sed -i 's|<DefaultAppDirs/>|<AppDir>/usr/share/gnome-screensaver/themes</AppDir>|' \
+        "$pkgdir/etc/xdg/menus/gnome-screensavers.menu"
+    grep -q '<AppDir>/usr/share/gnome-screensaver/themes</AppDir>' \
+        "$pkgdir/etc/xdg/menus/gnome-screensavers.menu"
     if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
         install -d "$pkgdir/usr/share/gconf/schemas"
         gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/$pkgname.schemas" \
