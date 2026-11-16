@@ -1,0 +1,78 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# GNOME System Monitor 2.28, the GNOME 2 system monitor (MATE's is its
+# fork): processes, resources and file systems.  From GNOME's release, for
+# x86_64 and AArch64, without its manual.  It takes GNOME System Monitor
+# 3's commands, so the two cannot be installed together.
+
+pkgname=gnome-system-monitor2
+pkgver=2.28.2
+pkgrel=1
+pkgdesc="System monitor of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/gnome-system-monitor"
+license=('GPL-2.0-or-later')
+depends=('gtk2' 'gtkmm2' 'glibmm' 'gconf' 'libgtop' 'libwnck' 'librsvg' 'libxml2'
+         'dbus-glib')
+makedepends=('intltool' 'gtk2' 'gtkmm2' 'glibmm' 'gconf' 'libgtop' 'libwnck'
+             'librsvg' 'libxml2' 'dbus-glib' 'glib2-devel')
+conflicts=('gnome-system-monitor')
+_domain=gnome-system-monitor
+source=("https://download.gnome.org/sources/gnome-system-monitor/${pkgver%.*}/gnome-system-monitor-$pkgver.tar.bz2")
+# From GNOME's gnome-system-monitor-2.28.2.sha256sum.
+sha256sums=('b628edfd39e3a6b374ce133f367d3568475eb4e981a367f4f9d62a9784e5ae59')
+
+prepare() {
+    # The tarball's config.guess and config.sub predate AArch64; use the
+    # build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
+    cd gnome-system-monitor-$pkgver
+    sed -i 's/^SUBDIRS = pixmaps po src help$/SUBDIRS = pixmaps po src/' Makefile.in
+    # C++11 no longer lets a stream temporary bind to a reference.
+    sed -i 's/static_cast<std::ostringstream&>(std::ostringstream() << count).str()/std::to_string(count)/' \
+        src/lsof.cpp
+}
+
+build() {
+    cd gnome-system-monitor-$pkgver
+    # gnome-doc-utils (Python 2) and gnome-icon-theme are gone from Arch:
+    # configure only checks their versions, so stubs satisfy it.  The help
+    # manual is left out; the Nimbus icon theme provides the icons.
+    mkdir -p "$srcdir/stub-pc"
+    printf 'Name: gnome-doc-utils\nDescription: stub\nVersion: 0.20.10\n' \
+        >"$srcdir/stub-pc/gnome-doc-utils.pc"
+    printf 'Name: gnome-icon-theme\nDescription: stub\nVersion: 2.31.0\n' \
+        >"$srcdir/stub-pc/gnome-icon-theme.pc"
+    export PKG_CONFIG_PATH="$srcdir/stub-pc"
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    CXXFLAGS+=" -std=gnu++17 -fpermissive"
+    export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --disable-scrollkeeper --disable-schemas-install
+    make
+}
+
+package() {
+    cd gnome-system-monitor-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
+        install -d "$pkgdir/usr/share/gconf/schemas"
+        gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/$pkgname.schemas" \
+            --domain "$_domain" "$pkgdir"/etc/gconf/schemas/*.schemas
+        rm -f "$pkgdir"/etc/gconf/schemas/*.schemas
+    fi
+    rmdir -p "$pkgdir/etc/gconf/schemas" 2>/dev/null || :
+    # GNOME 2's applications in the GNOME 2 session, MATE's in MATE's
+    # (voltos-gnome2 hides MATE's in GNOME 2).
+    local _f
+    for _f in "$pkgdir"/usr/share/applications/*.desktop; do
+        if grep -q '^NotShowIn=' "$_f"; then
+            sed -i 's/^NotShowIn=\(.*[^;]\);*$/NotShowIn=\1;MATE;/' "$_f"
+        elif ! grep -q '^OnlyShowIn=' "$_f"; then
+            sed -i '/^\[Desktop Entry\]$/a NotShowIn=MATE;' "$_f"
+        fi
+    done
+}

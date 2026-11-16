@@ -1,0 +1,40 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# GtkSourceView 2.10, the source-code text widget of GTK 2 (gedit 2's
+# editing component), which Arch no longer ships.  From GNOME's release,
+# for x86_64 and AArch64.  It installs beside GtkSourceView 3, 4 and 5.
+
+pkgname=gtksourceview2
+pkgver=2.10.5
+pkgrel=1
+pkgdesc="Source-code text widget for GTK 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/gtksourceview"
+license=('LGPL-2.1-or-later')
+depends=('gtk2' 'libxml2')
+makedepends=('intltool' 'gtk2' 'libxml2' 'glib2-devel')
+source=("https://download.gnome.org/sources/gtksourceview/${pkgver%.*}/gtksourceview-$pkgver.tar.bz2")
+# From GNOME's gtksourceview-2.10.5.sha256sum.
+sha256sums=('c585773743b1df8a04b1be7f7d90eecdf22681490d6810be54c81a7ae152191e')
+
+prepare() {
+    # The tarball's config.guess and config.sub (2010) predate AArch64;
+    # use the build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
+}
+
+build() {
+    cd gtksourceview-$pkgver
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --disable-static --disable-glade-catalog --disable-gtk-doc
+    make
+}
+
+package() {
+    cd gtksourceview-$pkgver
+    make DESTDIR="$pkgdir" install
+}

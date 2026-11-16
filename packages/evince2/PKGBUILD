@@ -1,0 +1,81 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# Evince 2.32, the GNOME 2 document viewer (MATE's Atril is its fork): PDF,
+# PostScript, DjVu, TIFF and comic books.  From GNOME's release, for x86_64
+# and AArch64, without its manual and its Nautilus extension.  It takes
+# Evince 3's commands, so the two cannot be installed together.
+
+pkgname=evince2
+pkgver=2.32.0
+pkgrel=1
+pkgdesc="Document viewer of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/evince"
+license=('GPL-2.0-or-later')
+depends=('gtk2' 'gconf' 'glib2' 'poppler-glib' 'libspectre' 'libtiff' 'djvulibre'
+         'libarchive' 'libgnome-keyring' 'libxml2' 'libsm' 'cairo')
+optdepends=('unrar: comic books in RAR archives'
+            'p7zip: comic books in 7z archives')
+makedepends=('intltool' 'gtk2' 'gconf' 'poppler-glib' 'libspectre' 'libtiff'
+             'djvulibre' 'libgnome-keyring' 'libxml2' 'libsm' 'libice' 'glib2-devel')
+conflicts=('evince')
+_domain=evince
+source=("https://download.gnome.org/sources/evince/${pkgver%.*}/evince-$pkgver.tar.bz2")
+# From GNOME's evince-2.32.0.sha256sum.
+sha256sums=('2a4c91ae38f8b5028cebb91b9da9ddc50ea8ae3f3d429df89ba351da2d787ff7')
+
+prepare() {
+    # The tarball's config.guess and config.sub (2010) predate AArch64;
+    # use the build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
+    cd evince-$pkgver
+    sed -i 's/^\(\tproperties shell po\) help /\1 /' Makefile.in
+}
+
+build() {
+    cd evince-$pkgver
+    # gnome-doc-utils (Python 2) and gnome-icon-theme are gone from Arch:
+    # configure only checks their versions, so stubs satisfy it.  The help
+    # manual is left out; the Nimbus icon theme provides the icons.
+    mkdir -p "$srcdir/stub-pc"
+    printf 'Name: gnome-doc-utils\nDescription: stub\nVersion: 0.20.10\n' \
+        >"$srcdir/stub-pc/gnome-doc-utils.pc"
+    printf 'Name: gnome-icon-theme\nDescription: stub\nVersion: 2.31.0\n' \
+        >"$srcdir/stub-pc/gnome-icon-theme.pc"
+    export PKG_CONFIG_PATH="$srcdir/stub-pc"
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    CXXFLAGS+=" -std=gnu++14 -fpermissive"
+    export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --libexecdir=/usr/lib/evince --with-gtk=2.0 --disable-static \
+        --disable-scrollkeeper --disable-schemas-install --disable-nautilus \
+        --disable-introspection --disable-tests --enable-pdf --enable-ps \
+        --enable-tiff --enable-djvu --enable-comics --disable-dvi \
+        --enable-pixbuf --with-smclient=xsmp
+    make
+}
+
+package() {
+    cd evince-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
+        install -d "$pkgdir/usr/share/gconf/schemas"
+        gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/$pkgname.schemas" \
+            --domain "$_domain" "$pkgdir"/etc/gconf/schemas/*.schemas
+        rm -f "$pkgdir"/etc/gconf/schemas/*.schemas
+    fi
+    rmdir -p "$pkgdir/etc/gconf/schemas" 2>/dev/null || :
+    # GNOME 2's applications in the GNOME 2 session, MATE's in MATE's
+    # (voltos-gnome2 hides MATE's in GNOME 2).
+    local _f
+    for _f in "$pkgdir"/usr/share/applications/*.desktop; do
+        if grep -q '^NotShowIn=' "$_f"; then
+            sed -i 's/^NotShowIn=\(.*[^;]\);*$/NotShowIn=\1;MATE;/' "$_f"
+        elif ! grep -q '^OnlyShowIn=' "$_f"; then
+            sed -i '/^\[Desktop Entry\]$/a NotShowIn=MATE;' "$_f"
+        fi
+    done
+}

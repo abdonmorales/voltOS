@@ -6,7 +6,7 @@
 
 pkgname=gnome-terminal2
 pkgver=2.32.1
-pkgrel=1
+pkgrel=2
 pkgdesc="Terminal of GNOME 2"
 arch=('x86_64' 'aarch64')
 url="https://gitlab.gnome.org/GNOME/gnome-terminal"
@@ -60,4 +60,14 @@ package() {
         rm -f "$pkgdir"/etc/gconf/schemas/*.schemas
     fi
     rmdir -p "$pkgdir/etc/gconf/schemas" 2>/dev/null || :
+    # GNOME 2's applications in the GNOME 2 session, MATE's in MATE's
+    # (voltos-gnome2 hides MATE's in GNOME 2).
+    local _f
+    for _f in "$pkgdir"/usr/share/applications/*.desktop; do
+        if grep -q '^NotShowIn=' "$_f"; then
+            sed -i 's/^NotShowIn=\(.*[^;]\);*$/NotShowIn=\1;MATE;/' "$_f"
+        elif ! grep -q '^OnlyShowIn=' "$_f"; then
+            sed -i '/^\[Desktop Entry\]$/a NotShowIn=MATE;' "$_f"
+        fi
+    done
 }

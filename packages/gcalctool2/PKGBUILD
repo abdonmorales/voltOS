@@ -1,0 +1,60 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# gcalctool 5.32, the GNOME 2 calculator (MATE Calculator is its fork).
+# From GNOME's release, for x86_64 and AArch64, without its manual.
+
+pkgname=gcalctool2
+pkgver=5.32.2
+pkgrel=1
+pkgdesc="Calculator of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/gnome-calculator"
+license=('GPL-2.0-or-later')
+depends=('gtk2' 'glib2' 'libxml2')
+makedepends=('intltool' 'gtk2' 'libxml2' 'glib2-devel')
+conflicts=('gcalctool')
+source=("https://download.gnome.org/sources/gcalctool/${pkgver%.*}/gcalctool-$pkgver.tar.bz2")
+# From GNOME's gcalctool-5.32.2.sha256sum.
+sha256sums=('b281cc545f27b37a0fd120366b1be517574d9f505b59dfc34f9860007df0b788')
+
+prepare() {
+    # The tarball's config.guess and config.sub (2010) predate AArch64;
+    # use the build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
+    cd gcalctool-$pkgver
+    sed -i "s/^SUBDIRS = po src data help$/SUBDIRS = po src data/" Makefile.in
+}
+
+build() {
+    cd gcalctool-$pkgver
+    # gnome-doc-utils (Python 2) is gone: satisfy configure's check with a stub
+    # and leave out the help manual.
+    mkdir -p "$srcdir/stub-pc"
+    printf 'Name: gnome-doc-utils\nDescription: stub\nVersion: 0.20.10\n' \
+        >"$srcdir/stub-pc/gnome-doc-utils.pc"
+    export PKG_CONFIG_PATH="$srcdir/stub-pc"
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --with-gtk=2.0 --disable-scrollkeeper --disable-schemas-compile
+    make
+}
+
+package() {
+    cd gcalctool-$pkgver
+    make DESTDIR="$pkgdir" install
+    # Its gnome-calculator link would clash with GNOME 3's calculator.
+    rm "$pkgdir/usr/bin/gnome-calculator"
+    # GNOME 2's applications in the GNOME 2 session, MATE's in MATE's
+    # (voltos-gnome2 hides MATE's in GNOME 2).
+    local _f
+    for _f in "$pkgdir"/usr/share/applications/*.desktop; do
+        if grep -q '^NotShowIn=' "$_f"; then
+            sed -i 's/^NotShowIn=\(.*[^;]\);*$/NotShowIn=\1;MATE;/' "$_f"
+        elif ! grep -q '^OnlyShowIn=' "$_f"; then
+            sed -i '/^\[Desktop Entry\]$/a NotShowIn=MATE;' "$_f"
+        fi
+    done
+}

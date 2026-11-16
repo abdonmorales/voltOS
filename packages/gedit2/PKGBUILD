@@ -1,0 +1,72 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# gedit 2.30, the GNOME 2 text editor (MATE's Pluma is its fork).  From
+# GNOME's release, for x86_64 and AArch64, without its manual, its Python
+# plugins (PyGTK is Python 2) and its spell checker (written for Enchant 1).
+# It takes gedit 3's commands, so the two cannot be installed together.
+
+pkgname=gedit2
+pkgver=2.30.4
+pkgrel=1
+pkgdesc="Text editor of GNOME 2"
+arch=('x86_64' 'aarch64')
+url="https://gitlab.gnome.org/GNOME/gedit"
+license=('GPL-2.0-or-later')
+depends=('gtk2' 'gtksourceview2' 'gconf' 'glib2' 'libsm' 'libx11')
+makedepends=('intltool' 'gtk2' 'gtksourceview2' 'gconf' 'libsm' 'libice' 'glib2-devel')
+conflicts=('gedit')
+_domain=gedit
+source=("https://download.gnome.org/sources/gedit/${pkgver%.*}/gedit-$pkgver.tar.bz2")
+# From GNOME's gedit-2.30.4.sha256sum.
+sha256sums=('a561fe3dd1d199baede1bd07c4ee65f06fc7c494dd4d3327117f04149a608e3c')
+
+prepare() {
+    # The tarball's config.guess and config.sub (2010) predate AArch64;
+    # use the build host's current ones.
+    local _f
+    for _f in config.guess config.sub; do
+        find "$srcdir" -name $_f -exec cp -f "$(automake --print-libdir)/$_f" {} \;
+    done
+    cd gedit-$pkgver
+    sed -i 's/^@OS_OSX_FALSE@am__append_1 = help$/@OS_OSX_FALSE@am__append_1 =/' Makefile.in
+}
+
+build() {
+    cd gedit-$pkgver
+    # gnome-doc-utils (Python 2) is gone: satisfy configure's check with a stub
+    # and leave out the help manual.
+    mkdir -p "$srcdir/stub-pc"
+    printf 'Name: gnome-doc-utils\nDescription: stub\nVersion: 0.20.10\n' \
+        >"$srcdir/stub-pc/gnome-doc-utils.pc"
+    export PKG_CONFIG_PATH="$srcdir/stub-pc"
+    CFLAGS+=" -std=gnu17 -fpermissive"
+    export LIBS="-lICE -lX11"
+    export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+        --libexecdir=/usr/lib/gedit-2 --disable-scrollkeeper \
+        --disable-schemas-install --disable-python --disable-spell \
+        --disable-updater --disable-gvfs-metadata
+    make
+}
+
+package() {
+    cd gedit-$pkgver
+    make GCONF_DISABLE_MAKEFILE_SCHEMA_INSTALL=1 DESTDIR="$pkgdir" install
+    if compgen -G "$pkgdir/etc/gconf/schemas/*.schemas" >/dev/null; then
+        install -d "$pkgdir/usr/share/gconf/schemas"
+        gconf-merge-schema "$pkgdir/usr/share/gconf/schemas/$pkgname.schemas" \
+            --domain "$_domain" "$pkgdir"/etc/gconf/schemas/*.schemas
+        rm -f "$pkgdir"/etc/gconf/schemas/*.schemas
+    fi
+    rmdir -p "$pkgdir/etc/gconf/schemas" 2>/dev/null || :
+    # GNOME 2's applications in the GNOME 2 session, MATE's in MATE's
+    # (voltos-gnome2 hides MATE's in GNOME 2).
+    local _f
+    for _f in "$pkgdir"/usr/share/applications/*.desktop; do
+        if grep -q '^NotShowIn=' "$_f"; then
+            sed -i 's/^NotShowIn=\(.*[^;]\);*$/NotShowIn=\1;MATE;/' "$_f"
+        elif ! grep -q '^OnlyShowIn=' "$_f"; then
+            sed -i '/^\[Desktop Entry\]$/a NotShowIn=MATE;' "$_f"
+        fi
+    done
+}

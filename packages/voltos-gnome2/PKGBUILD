@@ -5,9 +5,11 @@
 # the OpenSolaris-style blue gradient; desktop icons), as voltos-desktop
 # does for MATE.  "GNOME 2.32" appears in LightDM's session list.
 #
-# In the GNOME 2 session, GNOME 2's applications are the defaults: Nautilus
-# opens folders, GNOME Terminal is the terminal, and MATE's counterparts are
-# left out of the menus (see gnome2-session).  MATE's session is unchanged.
+# In the GNOME 2 session, GNOME 2's applications are the defaults (Nautilus,
+# GNOME Terminal, gedit, Eye of GNOME, Evince, File Roller, gcalctool, System
+# Monitor, GNOME Utilities) and MATE's counterparts are left out of the menus
+# (see gnome2-session); in MATE, GNOME 2's are.  MATE's own volume control,
+# power manager and screensaver run in GNOME 2 too.
 #
 # GNOME 2's window manager, panel and session take the commands GNOME
 # Flashback uses, so the two cannot be installed together; GNOME 2 is
@@ -24,6 +26,8 @@ depends=('gnome-session2' 'gnome-settings-daemon2' 'metacity2' 'gnome-panel2'
          'nautilus2' 'gnome-terminal2' 'gnome-control-center2'
          'gtk-engine-nimbus' 'nimbus-gtk-theme' 'voltos-branding' 'gconf'
          'gnome-keyring' 'polkit-gnome' 'xdg-desktop-portal-gtk'
+         'gedit2' 'eog2' 'evince2' 'file-roller2' 'gcalctool2' 'gnome-system-monitor2'
+         'gnome-utils2'
          'network-manager-applet' 'mate-media' 'mate-power-manager' 'mate-screensaver')
 # Replaces GNOME Flashback: pacman offers to remove it along with the GNOME 3
 # programs GNOME 2 takes the place of (metacity, gnome-panel, gnome-session,
@@ -40,6 +44,16 @@ source=('voltos-gnome2.entries'
         'hide-mate-terminal.desktop'
         'hide-caja-browser.desktop'
         'hide-mate-font-viewer.desktop'
+        'hide-pluma.desktop'
+        'hide-eom.desktop'
+        'hide-atril.desktop'
+        'hide-engrampa.desktop'
+        'hide-mate-calc.desktop'
+        'hide-mate-system-monitor.desktop'
+        'hide-mate-dictionary.desktop'
+        'hide-mate-disk-usage-analyzer.desktop'
+        'hide-mate-search-tool.desktop'
+        'hide-mate-system-log.desktop'
         'show-mate-volume-control.desktop'
         'show-mate-power-preferences.desktop'
         'show-mate-power-statistics.desktop'
@@ -49,8 +63,7 @@ source=('voltos-gnome2.entries'
         'autostart-mate-screensaver.desktop'
         'gnome-screensaver-command'
         'gnome-screensaver-preferences')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-            'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     install -Dm644 voltos-gnome2.entries "$pkgdir/usr/share/voltos-gnome2/voltos-gnome2.entries"

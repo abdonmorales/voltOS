@@ -1,0 +1,6 @@
+[Desktop Entry]
+# MATE's counterpart of a GNOME 2 application: not shown in GNOME 2.
+Type=Application
+Name=eom
+Exec=eom
+Hidden=true

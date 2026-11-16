@@ -229,16 +229,20 @@ screens are kept; what is Solaris-specific underneath was replaced:
   then pick "GNOME 2.32" in the greeter. To go back:
   `doas pacman -S gnome-flashback metacity` (it offers to remove GNOME 2). `voltos-gnome2` sets the same look
   as MATE's (Nimbus, the blue gradient, desktop icons) as GConf defaults.
-  In the GNOME 2 session GNOME 2's own applications are the defaults:
-  Nautilus opens folders and draws the desktop, GNOME Terminal is the
-  terminal, and MATE's counterparts (Caja, MATE Terminal) are left out of
-  its menus; MATE keeps its own in its session. Where GNOME 2 has no
-  application of its own in VoltOS yet (text editor, image and document
-  viewers, archive manager, calculator, system monitor), MATE's, which
-  are their GNOME 2 originals continued, stay in use. So do MATE's volume
-  control, power manager and screensaver (with the panel's Lock Screen),
-  which also run in the GNOME 2 session: GNOME 2.32's own need GStreamer
-  0.10 and ConsoleKit, which are gone.
+  In the GNOME 2 session GNOME 2's own applications are the defaults,
+  built as VoltOS packages from GNOME's 2.30/2.32 releases: Nautilus
+  (folders and the desktop), GNOME Terminal, gedit (on GtkSourceView 2),
+  Eye of GNOME, Evince, File Roller, gcalctool, System Monitor (on
+  gtkmm 2.24) and GNOME Utilities (Screenshot, Dictionary, Disk Usage
+  Analyzer, Search for Files, System Log). MATE's counterparts, which are
+  their forks, are left out of GNOME 2's menus, and GNOME 2's out of
+  MATE's; each session opens files with its own. MATE's volume control,
+  power manager and screensaver (with the panel's Lock Screen) run in the
+  GNOME 2 session too: GNOME 2.32's own need GStreamer 0.10 and
+  ConsoleKit, which are gone. Left out of the GNOME 2 applications: their
+  manuals (gnome-doc-utils needs Python 2), Python plugins (PyGTK), gedit's
+  spell checker (Enchant 1) and Eye of GNOME's colour management (Little
+  CMS 1).
   The session uses logind, not ConsoleKit, for log out, restart, power off
   and suspend. Manuals are left out (they need gnome-doc-utils, which
   needs Python 2).

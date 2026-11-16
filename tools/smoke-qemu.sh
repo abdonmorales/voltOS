@@ -404,13 +404,17 @@ check_gnome2()
 	screenshot gnome2
 
 	# GNOME 2's applications are the session's defaults (gnome2-session):
-	# Nautilus opens folders, MATE's terminal is not in the menus,
+	# Nautilus, gedit, Evince, Eye of GNOME and File Roller open their
+	# files, MATE's Pluma and terminal are not in the menus,
 	# NetworkManager's applet runs in the panel, and so do MATE's volume
 	# control, power manager and screensaver, which the panel's Lock Screen
 	# (gnome-screensaver-command) reaches.
 	out=$(guest_sh "runuser -u volt -- env $g2env sh -c '
 		echo desktop=\$XDG_CURRENT_DESKTOP
-		gio mime inode/directory | head -n 1
+		for t in inode/directory text/plain application/pdf image/png application/zip; do
+			gio mime \$t | head -n 1 | sed \"s|.*: |\$t=|\"
+		done
+		grep -qx Hidden=true /usr/share/voltos-gnome2/applications/pluma.desktop && echo pluma-hidden
 		grep -qx Hidden=true /usr/share/voltos-gnome2/applications/mate-terminal.desktop && echo mate-terminal-hidden
 		pgrep -u volt -x nm-applet >/dev/null && echo nm-applet
 		for d in mate-volume-control-status-icon mate-power-manager mate-screensaver; do
@@ -419,12 +423,18 @@ check_gnome2()
 		/usr/lib/voltos-gnome2/bin/gnome-screensaver-command --query >/dev/null 2>&1 && echo lock-command'")
 	printf '%s\n' "$out" | sed 's/^/smoke-qemu.sh: GNOME 2 defaults: /'
 	case $(echo $out) in
-	"desktop=GNOME2:GNOME "*nautilus-folder-handler.desktop*" mate-terminal-hidden nm-applet mate-volume-control-status-icon mate-power-manager mate-screensaver lock-command") ;;
+	"desktop=GNOME2:GNOME inode/directory=nautilus-folder-handler.desktop text/plain=gedit.desktop application/pdf=evince.desktop image/png=eog.desktop application/zip=file-roller.desktop pluma-hidden mate-terminal-hidden nm-applet mate-volume-control-status-icon mate-power-manager mate-screensaver lock-command") ;;
 	*)
 		echo "smoke-qemu.sh: GNOME 2's applications are not the session's defaults" >&2
 		exit 1
 		;;
 	esac
+	# gedit 2 and Eye of GNOME 2, opened as from Nautilus.
+	guest_sh "runuser -u volt -- env $g2env sh -c 'gio open /usr/lib/os-release; gio open /usr/share/pixmaps/voltos-logo.svg' >/dev/null 2>&1 &" >/dev/null
+	sleep 15
+	screenshot gnome2-apps
+	guest_sh 'pkill -u volt -x gedit; pkill -u volt -x eog' >/dev/null
+	sleep 2
 
 	# Restart: the dialog's Restart button.
 	gnome2_shutdown_dialog gnome2-shutdown-dialog

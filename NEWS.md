@@ -22,11 +22,17 @@ Safer updates and verifiable downloads.
   the README.
 - **Version in os-release.** `/usr/lib/os-release` gives the VoltOS version
   (`VERSION_ID=0.2.0`).
-- **GNOME 2's applications in the GNOME 2 session.** With `voltos-gnome2`
-  installed, the GNOME 2.32 session uses Nautilus for folders and GNOME
-  Terminal as the terminal, and leaves MATE's Caja and MATE Terminal out of
-  its menus; the MATE session keeps Caja.  NetworkManager's icon now shows
-  in GNOME 2's panel (its autostart entry skipped sessions named GNOME).
+- **GNOME 2's applications in the GNOME 2 session.** New packages, from
+  GNOME's 2.30/2.32 releases: gedit (`gedit2`, with `gtksourceview2`), Eye
+  of GNOME (`eog2`), Evince (`evince2`), File Roller (`file-roller2`),
+  gcalctool (`gcalctool2`), System Monitor (`gnome-system-monitor2`, with
+  `gtkmm2`) and GNOME Utilities (`gnome-utils2`: Screenshot, Dictionary,
+  Disk Usage Analyzer, Search for Files, System Log).  `voltos-gnome2`
+  installs them, and in the GNOME 2.32 session they, Nautilus and GNOME
+  Terminal open their files and replace MATE's counterparts in the menus;
+  the MATE session keeps MATE's applications and its defaults.
+  NetworkManager's icon now shows in GNOME 2's panel (its autostart entry
+  skipped sessions named GNOME).
 - **Volume, power management and screen locking in GNOME 2.** MATE's volume
   control, power manager and screensaver now run in the GNOME 2.32 session
   too (they did not before: no volume icon, no battery, no lock), and the
