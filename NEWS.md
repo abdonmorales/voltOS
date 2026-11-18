@@ -20,6 +20,10 @@ Safer updates and verifiable downloads.
   the VoltOS signing key (fingerprint
   `5580 7487 EFAB 5F26 D4A3 2EFF 48A0 A16B EDE3 47A7`); see "Downloading" in
   the README.
+- **pico is the only text editor on the ISO.** Vim is no longer installed;
+  `pico` has been the default editor (`EDITOR`, `VISUAL`, `editor`) since
+  0.1.0.  Systems installed from earlier ISOs keep Vim until they remove it
+  (`doas pacman -Rs vim`), and `doas pacman -S vim` brings it back.
 - **Version in os-release.** `/usr/lib/os-release` gives the VoltOS version
   (`VERSION_ID=0.2.0`).
 - **GNOME 2's applications in the GNOME 2 session.** New packages, from
