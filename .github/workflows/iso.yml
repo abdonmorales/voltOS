@@ -288,6 +288,7 @@ jobs:
       # QEMU on the runner: KVM when the runner offers it, otherwise TCG
       # (much slower, hence the long timeouts).
       - name: Install QEMU and AAVMF
+        if: ${{ !cancelled() && steps.iso.outcome == 'success' }}
         run: |
           sudo apt-get install -yq qemu-system-arm qemu-efi-aarch64 qemu-utils socat imagemagick
           ls -l /dev/kvm 2>/dev/null || echo "no /dev/kvm: QEMU uses TCG"

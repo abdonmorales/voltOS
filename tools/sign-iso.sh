@@ -47,11 +47,18 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 # --- extract the EFI system partition the ISO appends -----------------------
-# xorriso reports it as: -append_partition 2 0xef --interval:local_fs:STARTd-ENDd::
+# xorriso reports it as
+#   -append_partition 2 TYPE --interval:local_fs:STARTd-ENDd::
+# where TYPE is 0xef on x86_64 (a hybrid MBR, for BIOS booting) and, on
+# AArch64 (UEFI only, a pure GPT), the EFI system partition's GPT type GUID
+# as 32 hex digits (28732ac11ff8d211ba4b00a0c93ec93b).  The new partition is
+# appended with the type as reported, which xorriso takes back.
 range=$(xorriso -indev "$in" -report_el_torito as_mkisofs 2>/dev/null |
-    sed -n "s/^-append_partition 2 0xef --interval:local_fs:\([0-9]*\)d-\([0-9]*\)d::.*/\1 \2/p")
+    sed -n "s/^-append_partition 2 \(0xef\|[0-9a-fA-F-]\{32,36\}\) --interval:local_fs:\([0-9]*\)d-\([0-9]*\)d::.*/\1 \2 \3/p")
 [ -n "$range" ] || { echo "sign-iso.sh: no EFI partition in $in" >&2; exit 1; }
 set -- $range
+esptype=$1
+shift
 dd if="$in" of="$tmp/esp-old.img" bs=512 skip="$1" count=$(($2 - $1 + 1)) status=none
 mkdir "$tmp/esp"
 mcopy -s -n -i "$tmp/esp-old.img" ::/ "$tmp/esp/"
@@ -102,6 +109,8 @@ done < <(find "$tmp/esp" \( -name 'vmlinuz-*' -o -name 'memtest86x64.efi' \) -pr
 openssl x509 -in "$cert" -outform DER -out "$tmp/esp/VOLTOS-SECUREBOOT.cer"
 
 # --- rebuild the FAT image (a little larger) and the ISO ----------------------
+# (-changes_pending yes: some xorriso versions, Ubuntu 24.04's 1.5.6 among
+# them, count a replaced appended partition as no change and write nothing.)
 kib=$(( $(du -sk "$tmp/esp" | cut -f1) + 16384 ))
 mkfs.fat -C -n ARCHISO_EFI "$tmp/esp.img" "$kib" >/dev/null
 mcopy -s -i "$tmp/esp.img" "$tmp/esp"/* ::/
@@ -109,7 +118,8 @@ mcopy -s -i "$tmp/esp.img" "$tmp/esp"/* ::/
 rm -f "$out"
 xorriso -indev "$in" -outdev "$out" \
     -boot_image any replay \
-    -append_partition 2 0xef "$tmp/esp.img" \
+    -append_partition 2 "$esptype" "$tmp/esp.img" \
+    -changes_pending yes \
     -commit >/dev/null 2>"$tmp/xorriso.log" || {
 	cat "$tmp/xorriso.log" >&2
 	exit 1
