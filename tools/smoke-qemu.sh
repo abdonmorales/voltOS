@@ -644,24 +644,27 @@ live-secureboot)
 		    -cdrom "$iso"
 	fi
 	wait_for "$tmp/serial.log" "$LIVE_RE" "$timeout"
-	# The firmware's SecureBoot variable, through the guest agent (which
-	# can still be starting when the desktop reports ready).
-	sb=
+	# Secure Boot as the booted system sees it: the firmware's SecureBoot
+	# variable, and the kernel's own report (its log), through the guest
+	# agent, which can still be starting when the desktop reports ready.
+	info=
 	for _ in 1 2 3 4 5 6; do
-		sb=$(guest_sh 'od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d0-aa1d-00a0c92dd8a7 2>&1')
-		[ -n "$sb" ] && break
+		info=$(guest_sh '
+			echo "efivar: $(od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d0-aa1d-00a0c92dd8a7 2>&1)"
+			ls -d /sys/firmware/efi /sys/firmware/efi/efivars 2>&1 | sed "s/^/sysfs: /"
+			findmnt -n -o FSTYPE,TARGET -t efivarfs | sed "s/^/mount: /"
+			dmesg | grep -i -E "secure ?boot|lockdown|efi: " | head -n 20 | sed "s/^/kernel: /"')
+		[ -n "$info" ] && break
 		sleep 10
 	done
-	echo "smoke-qemu.sh: SecureBoot variable: $sb"
-	if [ "$(echo $sb | awk '{print $NF}')" != 1 ]; then
-		# The kernel's own report on the serial console.
-		if [ -z "$sb" ] && grep -aiq 'secure boot enabled' "$tmp/serial.log"; then
-			echo "smoke-qemu.sh: guest agent silent; the kernel reports: $(grep -ai -m1 'secure boot enabled' "$tmp/serial.log")"
-		else
-			echo "smoke-qemu.sh: live system did not boot with Secure Boot on" >&2
-			grep -ai 'secure\|lockdown\|shim\|mok' "$tmp/serial.log" | tail -n 20 >&2 || :
-			exit 1
-		fi
+	printf '%s\n' "$info" | sed 's/^/smoke-qemu.sh: /'
+	if printf '%s\n' "$info" | grep -q '^efivar: .* 1$'; then
+		echo "smoke-qemu.sh: the firmware reports Secure Boot on"
+	elif printf '%s\n' "$info" | grep -qi '^kernel: .*secure boot enabled'; then
+		echo "smoke-qemu.sh: the kernel reports Secure Boot on"
+	else
+		echo "smoke-qemu.sh: live system did not boot with Secure Boot on" >&2
+		exit 1
 	fi
 	sleep 20
 	screenshot
