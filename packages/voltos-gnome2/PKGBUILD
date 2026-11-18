@@ -28,7 +28,7 @@ depends=('gnome-session2' 'gnome-settings-daemon2' 'metacity2' 'gnome-panel2'
          'gnome-keyring' 'polkit-gnome' 'xdg-desktop-portal-gtk'
          'gedit2' 'eog2' 'evince2' 'file-roller2' 'gcalctool2' 'gnome-system-monitor2'
          'gnome-utils2' 'gnome-media2' 'gnome-screensaver2' 'gnome-power-manager2'
-         'network-manager-applet')
+         'network-manager-applet' 'hunspell-en_us')
 # Replaces GNOME Flashback: pacman offers to remove it along with the GNOME 3
 # programs GNOME 2 takes the place of (metacity, gnome-panel, gnome-session,
 # gnome-settings-daemon, nautilus; each GNOME 2 package declares its own), and

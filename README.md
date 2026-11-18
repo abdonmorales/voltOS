@@ -243,9 +243,9 @@ screens are kept; what is Solaris-specific underneath was replaced:
   locker (GNOME Screensaver 2.30) and power management (GNOME Power
   Manager 2.32: battery, lid, brightness, suspend and hibernate) are
   GNOME 2's too, patched to use logind and today's UPower where they used
-  ConsoleKit and UPower 0.9. Left out of the GNOME 2 applications: their
-  manuals (gnome-doc-utils needs Python 2), Python plugins (PyGTK), gedit's
-  spell checker (Enchant 1), Eye of GNOME's colour management (Little
+  ConsoleKit and UPower 0.9. gedit's spell checker runs on Enchant 2. Left
+  out of the GNOME 2 applications: their manuals (gnome-doc-utils needs
+  Python 2), Python plugins (PyGTK), Eye of GNOME's colour management (Little
   CMS 1), GNOME Media's sound recorder (GStreamer 0.10) and the power
   statistics' processor wakeups (gone from UPower).
   The session uses logind, not ConsoleKit, for log out, restart, power off

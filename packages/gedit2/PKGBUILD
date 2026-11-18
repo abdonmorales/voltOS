@@ -1,8 +1,9 @@
 # Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
 #
 # gedit 2.30, the GNOME 2 text editor (MATE's Pluma is its fork).  From
-# GNOME's release, for x86_64 and AArch64, without its manual, its Python
-# plugins (PyGTK is Python 2) and its spell checker (written for Enchant 1).
+# GNOME's release, for x86_64 and AArch64, without its manual and its
+# Python plugins (PyGTK is Python 2).  Its spell checker is built on
+# Enchant 2 (written for Enchant 1).
 # It takes gedit 3's commands, so the two cannot be installed together.
 
 pkgname=gedit2
@@ -12,8 +13,12 @@ pkgdesc="Text editor of GNOME 2"
 arch=('x86_64' 'aarch64')
 url="https://gitlab.gnome.org/GNOME/gedit"
 license=('GPL-2.0-or-later')
-depends=('gtk2' 'gtksourceview2' 'gconf' 'glib2' 'libsm' 'libx11')
-makedepends=('intltool' 'gtk2' 'gtksourceview2' 'gconf' 'libsm' 'libice' 'glib2-devel')
+depends=('gtk2' 'gtksourceview2' 'gconf' 'glib2' 'libsm' 'libx11' 'enchant' 'iso-codes'
+         'libxml2')
+optdepends=('hunspell-en_us: English (US) spell checking dictionary'
+            'hunspell-en_gb: English (GB) spell checking dictionary')
+makedepends=('intltool' 'gtk2' 'gtksourceview2' 'gconf' 'libsm' 'libice' 'enchant'
+             'iso-codes' 'glib2-devel')
 conflicts=('gedit')
 _domain=gedit
 source=("https://download.gnome.org/sources/gedit/${pkgver%.*}/gedit-$pkgver.tar.bz2")
@@ -29,6 +34,11 @@ prepare() {
     done
     cd gedit-$pkgver
     sed -i 's/^@OS_OSX_FALSE@am__append_1 = help$/@OS_OSX_FALSE@am__append_1 =/' Makefile.in
+    # The spell checker on Enchant 2: its pkg-config name is enchant-2, and
+    # enchant_dict_add_to_pwl became enchant_dict_add.
+    sed -i 's/"enchant >= /"enchant-2 >= /g' configure
+    grep -q '"enchant-2 >= ' configure
+    sed -i 's/enchant_dict_add_to_pwl/enchant_dict_add/' plugins/spell/gedit-spell-checker.c
 }
 
 build() {
@@ -44,7 +54,7 @@ build() {
     export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
     ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
         --libexecdir=/usr/lib/gedit-2 --disable-scrollkeeper \
-        --disable-schemas-install --disable-python --disable-spell \
+        --disable-schemas-install --disable-python \
         --disable-updater --disable-gvfs-metadata
     make
 }

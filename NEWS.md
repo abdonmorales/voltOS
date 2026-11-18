@@ -42,6 +42,9 @@ Safer updates and verifiable downloads.
   Compress to files' menus, and Evince's a Document tab to their
   properties (`nautilus2` keeps its development files aside for them, in
   `/usr/include/nautilus2` and `/usr/lib/nautilus2`).
+  gedit 2 checks spelling again (its plugin moved to Enchant 2), with US
+  English installed with GNOME 2 (`hunspell-en_us`; other `hunspell-*`
+  dictionaries add languages).
   NetworkManager's icon now shows in GNOME 2's panel (its autostart entry
   skipped sessions named GNOME).
 - **Volume, power management and screen locking in GNOME 2.** The GNOME

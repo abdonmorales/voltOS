@@ -418,6 +418,7 @@ check_gnome2()
 		[ \"\$(readlink -e /usr/share/icons/nimbus/24x24/places/start-here.png)\" = /usr/share/icons/hicolor/24x24/apps/voltos-logo.png ] && echo menu-logo
 		grep -qx Hidden=true /usr/share/voltos-gnome2/applications/mate-terminal.desktop && echo mate-terminal-hidden
 		pgrep -u volt -x nm-applet >/dev/null && echo nm-applet
+		[ -e /usr/lib/gedit-2/plugins/libspell.so ] && enchant-lsmod-2 -list-dicts | grep -q "^en_US" && echo spell-checker
 		n=\$(pgrep -u volt -x nautilus | head -n 1)
 		grep -q libnautilus-fileroller.so /proc/\$n/maps && echo fileroller-extension
 		grep -q libevince-properties-page.so /proc/\$n/maps && echo evince-extension
@@ -427,7 +428,7 @@ check_gnome2()
 		gnome-screensaver-command --query >/dev/null 2>&1 && echo lock-command'")
 	printf '%s\n' "$out" | sed 's/^/smoke-qemu.sh: GNOME 2 defaults: /'
 	case $(echo $out) in
-	"desktop=GNOME2:GNOME inode/directory=nautilus-folder-handler.desktop text/plain=gedit.desktop application/pdf=evince.desktop image/png=eog.desktop application/zip=file-roller.desktop pluma-hidden menu-logo mate-terminal-hidden nm-applet fileroller-extension evince-extension gnome-volume-control-applet gnome-power-manager gnome-screensaver lock-command") ;;
+	"desktop=GNOME2:GNOME inode/directory=nautilus-folder-handler.desktop text/plain=gedit.desktop application/pdf=evince.desktop image/png=eog.desktop application/zip=file-roller.desktop pluma-hidden menu-logo mate-terminal-hidden nm-applet spell-checker fileroller-extension evince-extension gnome-volume-control-applet gnome-power-manager gnome-screensaver lock-command") ;;
 	*)
 		echo "smoke-qemu.sh: GNOME 2's applications are not the session's defaults" >&2
 		exit 1
