@@ -415,6 +415,7 @@ check_gnome2()
 			gio mime \$t | head -n 1 | sed \"s|.*: |\$t=|\"
 		done
 		grep -qx Hidden=true /usr/share/voltos-gnome2/applications/pluma.desktop && echo pluma-hidden
+		[ \"\$(readlink -e /usr/share/icons/nimbus/24x24/places/start-here.png)\" = /usr/share/icons/hicolor/24x24/apps/voltos-logo.png ] && echo menu-logo
 		grep -qx Hidden=true /usr/share/voltos-gnome2/applications/mate-terminal.desktop && echo mate-terminal-hidden
 		pgrep -u volt -x nm-applet >/dev/null && echo nm-applet
 		for d in gnome-volume-control-applet gnome-power-manager gnome-screensaver; do
@@ -423,7 +424,7 @@ check_gnome2()
 		gnome-screensaver-command --query >/dev/null 2>&1 && echo lock-command'")
 	printf '%s\n' "$out" | sed 's/^/smoke-qemu.sh: GNOME 2 defaults: /'
 	case $(echo $out) in
-	"desktop=GNOME2:GNOME inode/directory=nautilus-folder-handler.desktop text/plain=gedit.desktop application/pdf=evince.desktop image/png=eog.desktop application/zip=file-roller.desktop pluma-hidden mate-terminal-hidden nm-applet gnome-volume-control-applet gnome-power-manager gnome-screensaver lock-command") ;;
+	"desktop=GNOME2:GNOME inode/directory=nautilus-folder-handler.desktop text/plain=gedit.desktop application/pdf=evince.desktop image/png=eog.desktop application/zip=file-roller.desktop pluma-hidden menu-logo mate-terminal-hidden nm-applet gnome-volume-control-applet gnome-power-manager gnome-screensaver lock-command") ;;
 	*)
 		echo "smoke-qemu.sh: GNOME 2's applications are not the session's defaults" >&2
 		exit 1

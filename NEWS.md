@@ -20,6 +20,9 @@ Safer updates and verifiable downloads.
   the VoltOS signing key (fingerprint
   `5580 7487 EFAB 5F26 D4A3 2EFF 48A0 A16B EDE3 47A7`); see "Downloading" in
   the README.
+- **VoltOS's logo on GNOME 2's main menu.** The Nimbus icon theme's
+  `start-here` icon, which GNOME 2's panel shows on its menu button, was
+  OpenIndiana's logo; it is VoltOS's now (as MATE's menu already was).
 - **pico is the only text editor on the ISO.** Vim is no longer installed;
   `pico` has been the default editor (`EDITOR`, `VISUAL`, `editor`) since
   0.1.0.  Systems installed from earlier ISOs keep Vim until they remove it

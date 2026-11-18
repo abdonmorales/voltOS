@@ -11,7 +11,7 @@
 pkgname=nimbus-gtk-theme
 _commit=3eb29096b0fd9eee8c5caa4cdbecc0b0f5c0b423
 pkgver=1.0.r20260927
-pkgrel=2
+pkgrel=3
 pkgdesc="Nimbus GTK 3, Metacity and icon themes (Sun/OpenSolaris look and feel)"
 arch=('any')
 url="https://github.com/abdonmorales/nimbus"
@@ -70,4 +70,17 @@ CSS
     # to Adwaita so GNOME's symbolic icons resolve.
     sed -i 's/^Inherits=.*/Inherits=Adwaita,hicolor/' \
         "${pkgdir}"/usr/share/icons/nimbus/index.theme
+    # The main-menu logo (start-here, which GNOME 2's panel asks for, and
+    # its aliases distributor-logo and the places gnome-main-menu) is
+    # OpenIndiana's: point them at VoltOS's logo, which voltos-branding
+    # installs in hicolor (the logo is defined there only).
+    local _s _n _d
+    for _s in 16 24 32 48; do
+        _d="${pkgdir}/usr/share/icons/nimbus/${_s}x${_s}/places"
+        install -d "$_d"
+        for _n in start-here distributor-logo gnome-main-menu; do
+            rm -f "$_d/$_n.png"
+            ln -s "../../../hicolor/${_s}x${_s}/apps/voltos-logo.png" "$_d/$_n.png"
+        done
+    done
 }
