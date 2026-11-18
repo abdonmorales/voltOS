@@ -375,7 +375,31 @@ jobs:
           sudo -E SMOKE_TIMEOUT=7200 SMOKE_GUEST_WAIT=300 \
             SMOKE_SCREENSHOT=out/aarch64-install-gui.png tools/smoke-qemu.sh install-gui "$iso"
 
-      - name: Upload Secure Boot and graphical installer screenshots
+      # As on x86_64: install the previous release's ISO and update it.
+      # After publishing, like the tests above: the update rebuilds the ZFS
+      # module with DKMS, which takes long under TCG.
+      - name: Upgrade an installation of the previous release
+        if: ${{ !cancelled() && env.REPO_SIGNED == '1' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          prev=$(gh api "repos/$GH_REPO/releases" --jq '.[] | select(.draft | not) | .tag_name' |
+                 grep -E '^v[0-9]' | grep -vx "$GITHUB_REF_NAME" | sort -V | tail -n 1)
+          if [ -z "$prev" ]; then
+            echo "No earlier release to upgrade from."
+            exit 0
+          fi
+          echo "Upgrading an installation of $prev"
+          mkdir -p prev
+          gh release download "$prev" --dir prev --pattern 'voltos-*-aarch64.iso'
+          sudo -E SMOKE_TIMEOUT=7200 SMOKE_GUEST_WAIT=300 SMOKE_UPGRADE_WAIT=10800 \
+            SMOKE_GPU=ramfb SMOKE_UPGRADE=1 SMOKE_REPO=out/repo-aarch64 \
+            SMOKE_SCREENSHOT=out/aarch64-upgrade.png \
+            tools/smoke-qemu.sh install "$(ls prev/voltos-*-aarch64.iso)"
+          rm -rf prev
+
+      - name: Upload Secure Boot, graphical installer and upgrade screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -384,6 +408,7 @@ jobs:
           path: |
             out/aarch64-secureboot*.png
             out/aarch64-install-gui*.png
+            out/aarch64-upgrade*.png
 
   # Releases carry both ISOs.  0.x tags, and tags with a suffix such as
   # v1.0.0-rc1, are published as pre-releases.

@@ -32,7 +32,8 @@
 # the machine from its shutdown dialog),
 # SMOKE_UPGRADE=1 (install, with SMOKE_REPO and an earlier release's ISO:
 # then update the installed system with pacman -Syu, VoltOS's packages from
-# SMOKE_REPO, and check that it boots again).
+# SMOKE_REPO, and check that it boots again; SMOKE_UPGRADE_WAIT: seconds the
+# update may take, default 2400).
 #
 set -euo pipefail
 
@@ -481,7 +482,7 @@ check_upgrade()
 	    >"$tmp/http-upgrade.log" 2>&1 &
 	http=$!
 	sleep 2
-	out=$(SMOKE_GUEST_WAIT=2400 guest_sh '
+	out=$(SMOKE_GUEST_WAIT=${SMOKE_UPGRADE_WAIT:-2400} guest_sh '
 		. /usr/lib/os-release; echo "from=${VERSION_ID:-0.1.0}"
 		sed -i "/^\[voltos\]/,/^Server/ s|^Server = .*|Server = http://10.0.2.2:8089|" /etc/pacman.conf
 		pacman -Syu --noconfirm >/tmp/upgrade.log 2>&1
