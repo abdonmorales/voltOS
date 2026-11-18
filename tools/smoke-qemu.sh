@@ -644,12 +644,25 @@ live-secureboot)
 		    -cdrom "$iso"
 	fi
 	wait_for "$tmp/serial.log" "$LIVE_RE" "$timeout"
-	sb=$(guest_sh 'od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d0-aa1d-00a0c92dd8a7')
+	# The firmware's SecureBoot variable, through the guest agent (which
+	# can still be starting when the desktop reports ready).
+	sb=
+	for _ in 1 2 3 4 5 6; do
+		sb=$(guest_sh 'od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d0-aa1d-00a0c92dd8a7 2>&1')
+		[ -n "$sb" ] && break
+		sleep 10
+	done
 	echo "smoke-qemu.sh: SecureBoot variable: $sb"
-	[ "$(echo $sb | awk '{print $NF}')" = 1 ] || {
-		echo "smoke-qemu.sh: live system did not boot with Secure Boot on" >&2
-		exit 1
-	}
+	if [ "$(echo $sb | awk '{print $NF}')" != 1 ]; then
+		# The kernel's own report on the serial console.
+		if [ -z "$sb" ] && grep -aiq 'secure boot enabled' "$tmp/serial.log"; then
+			echo "smoke-qemu.sh: guest agent silent; the kernel reports: $(grep -ai -m1 'secure boot enabled' "$tmp/serial.log")"
+		else
+			echo "smoke-qemu.sh: live system did not boot with Secure Boot on" >&2
+			grep -ai 'secure\|lockdown\|shim\|mok' "$tmp/serial.log" | tail -n 20 >&2 || :
+			exit 1
+		fi
+	fi
 	sleep 20
 	screenshot
 	;;
