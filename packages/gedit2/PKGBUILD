@@ -13,8 +13,10 @@ pkgdesc="Text editor of GNOME 2"
 arch=('x86_64' 'aarch64')
 url="https://gitlab.gnome.org/GNOME/gedit"
 license=('GPL-2.0-or-later')
-depends=('gtk2' 'gtksourceview2' 'gconf' 'glib2' 'libsm' 'libx11' 'enchant' 'iso-codes'
-         'libxml2')
+# Arch's Enchant comes without a spell-checking engine: Hunspell is the one
+# its dictionaries (hunspell-*) are for.
+depends=('gtk2' 'gtksourceview2' 'gconf' 'glib2' 'libsm' 'libx11' 'enchant' 'hunspell'
+         'iso-codes' 'libxml2')
 optdepends=('hunspell-en_us: English (US) spell checking dictionary'
             'hunspell-en_gb: English (GB) spell checking dictionary')
 makedepends=('intltool' 'gtk2' 'gtksourceview2' 'gconf' 'libsm' 'libice' 'enchant'
