@@ -15,7 +15,12 @@ arch=('x86_64' 'aarch64')
 url="https://alpineapp.email/"
 license=('Apache-2.0')
 depends=('ncurses' 'glibc')
-source=("https://alpineapp.email/alpine/release/src/alpine-${pkgver}.tar.xz")
+# Alpine's own server (alpineapp.email) has served CI an error page in place
+# of the tarball; Gentoo's distfiles mirror keeps the same file (the
+# sha256 pin below is upstream's; a8 is the directory Gentoo files
+# alpine-2.26.tar.xz under, from a hash of the name: check it on a new
+# version).
+source=("alpine-${pkgver}.tar.xz::https://distfiles.gentoo.org/distfiles/a8/alpine-${pkgver}.tar.xz")
 sha256sums=('c0779c2be6c47d30554854a3e14ef5e36539502b331068851329275898a9baba')
 
 prepare() {
