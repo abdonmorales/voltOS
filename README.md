@@ -234,7 +234,9 @@ screens are kept; what is Solaris-specific underneath was replaced:
   (folders and the desktop), GNOME Terminal, gedit (on GtkSourceView 2),
   Eye of GNOME, Evince, File Roller, gcalctool, System Monitor (on
   gtkmm 2.24) and GNOME Utilities (Screenshot, Dictionary, Disk Usage
-  Analyzer, Search for Files, System Log). MATE's counterparts, which are
+  Analyzer, Search for Files, System Log), with File Roller's and Evince's
+  Nautilus extensions (Extract Here and Compress, document properties).
+  MATE's counterparts, which are
   their forks, are left out of GNOME 2's menus, and GNOME 2's out of
   MATE's; each session opens files with its own. The session's volume
   control (GNOME Media 2.32's, on PulseAudio/PipeWire), screensaver and

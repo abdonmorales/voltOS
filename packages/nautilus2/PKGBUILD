@@ -7,7 +7,7 @@
 
 pkgname=nautilus2
 pkgver=2.32.2.1
-pkgrel=2
+pkgrel=3
 pkgdesc="File manager and desktop of GNOME 2"
 arch=('x86_64' 'aarch64')
 url="https://gitlab.gnome.org/GNOME/nautilus"
@@ -60,10 +60,20 @@ package() {
     fi
     rmdir -p "$pkgdir/etc/gconf/schemas" 2>/dev/null || :
     # The extension library's development files have the names GNOME's
-    # libnautilus-extension (for Nautilus 4) uses; nothing builds against
-    # Nautilus 2's, so only the library itself (.so.1) is kept.
-    rm -rf "$pkgdir"/usr/include/nautilus "$pkgdir"/usr/lib/libnautilus-extension.so \
-        "$pkgdir"/usr/lib/pkgconfig/libnautilus-extension.pc \
-        "$pkgdir"/usr/share/gtk-doc/html/libnautilus-extension
+    # libnautilus-extension (for Nautilus 4) uses.  They are moved aside,
+    # for the GNOME 2 extensions VoltOS builds (File Roller's, Evince's):
+    # headers in /usr/include/nautilus2, the link library and pkg-config
+    # file in /usr/lib/nautilus2 (PKG_CONFIG_PATH=/usr/lib/nautilus2/pkgconfig).
+    install -d "$pkgdir/usr/include/nautilus2" "$pkgdir/usr/lib/nautilus2/pkgconfig"
+    mv "$pkgdir/usr/include/nautilus/libnautilus-extension" "$pkgdir/usr/include/nautilus2/"
+    rmdir "$pkgdir/usr/include/nautilus"
+    rm "$pkgdir/usr/lib/libnautilus-extension.so"
+    ln -s ../libnautilus-extension.so.1 "$pkgdir/usr/lib/nautilus2/libnautilus-extension.so"
+    sed -e 's|^libdir=.*|libdir=${exec_prefix}/lib/nautilus2|' \
+        -e 's|^Cflags: .*|Cflags: -I${includedir}/nautilus2|' \
+        "$pkgdir/usr/lib/pkgconfig/libnautilus-extension.pc" \
+        >"$pkgdir/usr/lib/nautilus2/pkgconfig/libnautilus-extension.pc"
+    rm "$pkgdir/usr/lib/pkgconfig/libnautilus-extension.pc"
+    rm -rf "$pkgdir"/usr/share/gtk-doc/html/libnautilus-extension
     rmdir -p "$pkgdir"/usr/lib/pkgconfig "$pkgdir"/usr/share/gtk-doc/html 2>/dev/null || :
 }

@@ -38,6 +38,10 @@ Safer updates and verifiable downloads.
   installs them, and in the GNOME 2.32 session they, Nautilus and GNOME
   Terminal open their files and replace MATE's counterparts in the menus;
   the MATE session keeps MATE's applications and its defaults.
+  In GNOME 2's Nautilus, File Roller's extension adds Extract Here and
+  Compress to files' menus, and Evince's a Document tab to their
+  properties (`nautilus2` keeps its development files aside for them, in
+  `/usr/include/nautilus2` and `/usr/lib/nautilus2`).
   NetworkManager's icon now shows in GNOME 2's panel (its autostart entry
   skipped sessions named GNOME).
 - **Volume, power management and screen locking in GNOME 2.** The GNOME

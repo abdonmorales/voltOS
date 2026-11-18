@@ -14,9 +14,10 @@ url="https://gitlab.gnome.org/GNOME/evince"
 license=('GPL-2.0-or-later')
 depends=('gtk2' 'gconf' 'glib2' 'poppler-glib' 'libspectre' 'libtiff' 'djvulibre'
          'libarchive' 'libgnome-keyring' 'libxml2' 'libsm' 'cairo')
-optdepends=('unrar: comic books in RAR archives'
+optdepends=('nautilus2: document properties in Nautilus 2'
+            'unrar: comic books in RAR archives'
             'p7zip: comic books in 7z archives')
-makedepends=('intltool' 'gtk2' 'gconf' 'poppler-glib' 'libspectre' 'libtiff'
+makedepends=('intltool' 'nautilus2' 'gtk2' 'gconf' 'poppler-glib' 'libspectre' 'libtiff'
              'djvulibre' 'libgnome-keyring' 'libxml2' 'libsm' 'libice' 'glib2-devel')
 conflicts=('evince')
 _domain=evince
@@ -45,13 +46,14 @@ build() {
         >"$srcdir/stub-pc/gnome-doc-utils.pc"
     printf 'Name: gnome-icon-theme\nDescription: stub\nVersion: 2.31.0\n' \
         >"$srcdir/stub-pc/gnome-icon-theme.pc"
-    export PKG_CONFIG_PATH="$srcdir/stub-pc"
+    # Nautilus 2's extension library keeps its pkg-config file aside (nautilus2).
+    export PKG_CONFIG_PATH="$srcdir/stub-pc:/usr/lib/nautilus2/pkgconfig"
     CFLAGS+=" -std=gnu17 -fpermissive"
     CXXFLAGS+=" -std=gnu++14 -fpermissive"
     export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
     ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
         --libexecdir=/usr/lib/evince --with-gtk=2.0 --disable-static \
-        --disable-scrollkeeper --disable-schemas-install --disable-nautilus \
+        --disable-scrollkeeper --disable-schemas-install --enable-nautilus \
         --disable-introspection --disable-tests --enable-pdf --enable-ps \
         --enable-tiff --enable-djvu --enable-comics --disable-dvi \
         --enable-pixbuf --with-smclient=xsmp

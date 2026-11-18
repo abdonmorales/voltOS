@@ -13,14 +13,15 @@ arch=('x86_64' 'aarch64')
 url="https://gitlab.gnome.org/GNOME/file-roller"
 license=('GPL-2.0-or-later')
 depends=('gtk2' 'gconf' 'glib2' 'libsm' 'hicolor-icon-theme')
-optdepends=('p7zip: 7z, ARJ, CAB, ISO, and more'
+optdepends=('nautilus2: right-click actions in Nautilus 2'
+            'p7zip: 7z, ARJ, CAB, ISO, and more'
             'unrar: RAR archives'
             'zip: ZIP archives (create)'
             'unzip: ZIP archives (extract)'
             'cpio: cpio and RPM archives'
             'lrzip: lrzip archives'
             'lzop: lzop archives')
-makedepends=('intltool' 'gtk2' 'gconf' 'libsm' 'glib2-devel')
+makedepends=('intltool' 'nautilus2' 'gtk2' 'gconf' 'libsm' 'glib2-devel')
 conflicts=('file-roller')
 _domain=file-roller
 source=("https://download.gnome.org/sources/file-roller/${pkgver%.*}/file-roller-$pkgver.tar.bz2")
@@ -47,13 +48,14 @@ build() {
     mkdir -p "$srcdir/stub-pc"
     printf 'Name: gnome-doc-utils\nDescription: stub\nVersion: 0.20.10\n' \
         >"$srcdir/stub-pc/gnome-doc-utils.pc"
-    export PKG_CONFIG_PATH="$srcdir/stub-pc"
+    # Nautilus 2's extension library keeps its pkg-config file aside (nautilus2).
+    export PKG_CONFIG_PATH="$srcdir/stub-pc:/usr/lib/nautilus2/pkgconfig"
     CFLAGS+=" -std=gnu17 -fpermissive"
     export LDFLAGS+=" -Wl,--copy-dt-needed-entries"
     ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
         --libexecdir=/usr/lib/file-roller --with-gtk=2.0 \
         --disable-scrollkeeper --disable-schemas-install \
-        --disable-nautilus-actions --disable-packagekit
+        --enable-nautilus-actions --disable-packagekit
     make
 }
 
