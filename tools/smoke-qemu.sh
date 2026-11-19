@@ -6,7 +6,8 @@
 #
 # The architecture follows the ISO's name (voltos-*-aarch64.iso: AArch64,
 # QEMU's "virt" machine with AAVMF; otherwise x86_64) or SMOKE_ARCH.  On
-# AArch64 only the UEFI modes (live-uefi, install-gui, install) exist.
+# AArch64 only the UEFI modes (live-uefi, live-secureboot, install-gui,
+# install) exist.
 #
 #   tools/smoke-qemu.sh live-bios  <iso>   SeaBIOS, live desktop
 #   tools/smoke-qemu.sh live-uefi  <iso>   OVMF, live desktop
@@ -594,7 +595,7 @@ LIVE_RE='VOLTOS_LIVE_READY'
 INSTALLED_RE='Reached target .*Graphical Interface'
 
 case "$arch:$mode" in
-aarch64:live-bios|aarch64:live-secureboot)
+aarch64:live-bios)
 	echo "smoke-qemu.sh: $mode is x86_64 only" >&2
 	exit 2
 	;;
@@ -662,6 +663,9 @@ live-secureboot)
 		echo "smoke-qemu.sh: the firmware reports Secure Boot on"
 	elif printf '%s\n' "$info" | grep -qi '^kernel: .*secure boot enabled'; then
 		echo "smoke-qemu.sh: the kernel reports Secure Boot on"
+	elif grep -aq 'UEFI Secure Boot is enabled' "$tmp/serial.log"; then
+		# The kernel's EFI stub (AArch64) says so on the firmware console.
+		echo "smoke-qemu.sh: the kernel's EFI stub reports Secure Boot on"
 	else
 		echo "smoke-qemu.sh: live system did not boot with Secure Boot on" >&2
 		exit 1
