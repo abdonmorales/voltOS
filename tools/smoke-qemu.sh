@@ -651,7 +651,7 @@ live-secureboot)
 	info=
 	for _ in 1 2 3 4 5 6; do
 		info=$(guest_sh '
-			echo "efivar: $(od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d0-aa1d-00a0c92dd8a7 2>&1)"
+			echo "efivar: $(od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c 2>&1)"
 			ls -d /sys/firmware/efi /sys/firmware/efi/efivars 2>&1 | sed "s/^/sysfs: /"
 			findmnt -n -o FSTYPE,TARGET -t efivarfs | sed "s/^/mount: /"
 			dmesg | grep -i -E "secure ?boot|lockdown|efi: " | head -n 20 | sed "s/^/kernel: /"')
