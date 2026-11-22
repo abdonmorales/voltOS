@@ -4,7 +4,12 @@
  * With VOLTOS_INSTALLER_TEST=<disk> in the environment the installer
  * drives its own screens the way a user would: it selects that disk,
  * keeps the detected time zone and the default locale, creates the user
- * "volt" with password "volt", accepts the licence and installs.  The
+ * "volt" with password "volt", accepts the licence and installs.
+ * VOLTOS_INSTALLER_TEST_SOFTWARE (words: gnome2 science engineering) also
+ * picks the optional software, and VOLTOS_INSTALLER_TEST_SERVER the
+ * [voltos] server to download it from.  VOLTOS_INSTALLER_TEST_HOLD=<seconds>
+ * keeps the filled-in account screen up that long (for a screenshot) and
+ * writes "users" to /tmp/voltos-installer-test.screen when it is shown.  The
  * outcome ("ok" or "failed: ...") is written to
  * /tmp/voltos-installer-test.result.  Dialogs are answered "OK"
  * automatically (gui_install_prompt_dialog()).  It erases the disk
@@ -17,6 +22,8 @@
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <gtk/gtk.h>
 #include "callbacks.h"
 #include "interface-globals.h"
@@ -24,12 +31,15 @@
 #include "test-mode.h"
 
 #define	TEST_RESULT	"/tmp/voltos-installer-test.result"
+#define	TEST_SCREEN	"/tmp/voltos-installer-test.screen"
 #define	DISK_WAIT	60	/* seconds to wait for target discovery */
 
 extern InstallScreen InstallCurrScreen;
 
 static const gchar *test_disk;
 static gint ticks;
+/* Ticks (2 s) left to keep the account screen up; -1: not shown yet. */
+static gint hold = -1;
 
 gboolean
 test_mode_enabled(void)
@@ -66,7 +76,7 @@ step(gpointer data)
 	ticks++;
 	/* A screen that refuses to move on means validation failed. */
 	if (InstallCurrScreen == last && InstallCurrScreen != DISK_SCREEN &&
-	    InstallCurrScreen != INSTALLATION_SCREEN) {
+	    InstallCurrScreen != INSTALLATION_SCREEN && hold <= 0) {
 		if (++same > 3) {
 			gchar *msg = g_strdup_printf("failed: stuck on screen %d",
 			    InstallCurrScreen);
@@ -106,6 +116,37 @@ step(gpointer data)
 		    MainWindow.UsersWindow.userpassword2entry), "volt");
 		gtk_entry_set_text(GTK_ENTRY(
 		    MainWindow.UsersWindow.hostnameentry), "voltos");
+		{
+			const gchar *sw = g_getenv(
+			    "VOLTOS_INSTALLER_TEST_SOFTWARE");
+
+			if (sw != NULL && strstr(sw, "gnome2") != NULL)
+				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(
+				    MainWindow.UsersWindow.gnome2radiobutton),
+				    TRUE);
+			if (sw != NULL && strstr(sw, "science") != NULL)
+				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(
+				    MainWindow.UsersWindow.sciencecheckbutton),
+				    TRUE);
+			if (sw != NULL && strstr(sw, "engineering") != NULL)
+				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(
+				    MainWindow.UsersWindow.engineeringcheckbutton),
+				    TRUE);
+		}
+		if (hold < 0) {
+			const gchar *h = g_getenv("VOLTOS_INSTALLER_TEST_HOLD");
+			FILE *f;
+
+			hold = h != NULL ? atoi(h) / 2 : 0;
+			if (hold > 0 && (f = fopen(TEST_SCREEN, "w")) != NULL) {
+				fputs("users\n", f);
+				fclose(f);
+			}
+		}
+		if (hold > 0) {
+			hold--;
+			break;
+		}
 		next();
 		break;
 	case CONFIRMATION_SCREEN:
@@ -136,5 +177,6 @@ test_mode_start(void)
 		return;
 	g_message("test mode: installing on %s", test_disk);
 	(void) remove(TEST_RESULT);
+	(void) remove(TEST_SCREEN);
 	g_timeout_add_seconds(2, step, NULL);
 }

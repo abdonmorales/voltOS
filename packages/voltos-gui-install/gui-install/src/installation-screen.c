@@ -759,6 +759,21 @@ installation_window_start_install(void)
 					break;
 				}
 			}
+			/* VoltOS: the desktop and optional software */
+			if ((err = nvlist_add_string(install_choices,
+			    OM_ATTR_DESKTOP, InstallationProfile.gnome2 ?
+			    "gnome2" : "mate")) != 0 ||
+			    (err = nvlist_add_boolean_value(install_choices,
+			    OM_ATTR_SCIENCE, InstallationProfile.science ?
+			    B_TRUE : B_FALSE)) != 0 ||
+			    (err = nvlist_add_boolean_value(install_choices,
+			    OM_ATTR_ENGINEERING, InstallationProfile.engineering ?
+			    B_TRUE : B_FALSE)) != 0) {
+				g_warning(_("Failed to add %s to pair list"),
+				    "OM_ATTR_DESKTOP");
+				break;
+			}
+
 			/* 10 : OM_ATTR_LOCALES_LIST */
 			construct_locale_string(&tmpStr, FALSE, ' ');
 			if (tmpStr) {

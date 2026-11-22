@@ -19,6 +19,11 @@
 #
 # The installed system is a copy of the live system's root image, so
 # installation works offline and installs exactly what was tested on the ISO.
+# What does not fit on the ISO - the GNOME 2.32 desktop and the scientific
+# and engineering tools - is optional and installed afterwards from the
+# [voltos] repository and Arch's mirrors (an Internet connection); if that
+# fails, the installation still completes, with MATE, and says what to
+# install later.
 #
 # Usage:
 #   voltos-install                    interactive (dialog)
@@ -26,6 +31,11 @@
 #                                     DISK HOSTNAME USERNAME FULLNAME PASSWORD
 #                                     TIMEZONE LOCALE KEYMAP POOL REBOOT
 #                                     CMDLINE (kernel command line)
+#                                     DESKTOP (mate, the default, or gnome2)
+#                                     SCIENCE ENGINEERING (yes/no: the
+#                                     voltos-science / voltos-engineering
+#                                     tools)  VOLTOS_SERVER (URL of a
+#                                     [voltos] mirror to install them from)
 #
 
 set -euo pipefail
@@ -47,7 +57,13 @@ KEYMAP="us"
 POOL="zroot"
 REBOOT="no"
 CMDLINE="rw quiet loglevel=3"
+DESKTOP=mate
+SCIENCE=no
+ENGINEERING=no
+VOLTOS_SERVER=""
 UNATTENDED=0
+# Optional software that could not be installed (install_software).
+MISSING=""
 
 die()
 {
@@ -108,9 +124,16 @@ read_config()
 		POOL) POOL=$value ;;
 		REBOOT) REBOOT=$value ;;
 		CMDLINE) CMDLINE=$value ;;
+		DESKTOP) DESKTOP=$value ;;
+		SCIENCE) SCIENCE=$value ;;
+		ENGINEERING) ENGINEERING=$value ;;
+		VOLTOS_SERVER) VOLTOS_SERVER=$value ;;
 		*) die "unknown setting '$key' in $1" ;;
 		esac
 	done <"$1"
+	case "$DESKTOP" in mate|gnome2) ;; *) die "DESKTOP must be mate or gnome2" ;; esac
+	case "$SCIENCE" in yes|no) ;; *) die "SCIENCE must be yes or no" ;; esac
+	case "$ENGINEERING" in yes|no) ;; *) die "ENGINEERING must be yes or no" ;; esac
 }
 
 # The disk the live medium was booted from must never be offered.
@@ -183,6 +206,25 @@ Continue?" 10 70 || die "installation cancelled"
 	ask KEYMAP "Keyboard" "Console keyboard layout (e.g. us, de, fr):" \
 	    "$KEYMAP"
 
+	DESKTOP=$(dialog --stdout --title "Desktop" --radiolist \
+"Choose the desktop.  GNOME 2.32 is downloaded during installation
+(Internet connection needed); MATE is on this medium." 12 70 2 \
+	    mate "MATE (recommended)" on \
+	    gnome2 "GNOME 2.32" off) || die "installation cancelled"
+	local extras
+	extras=$(dialog --stdout --title "Additional software" --separate-output \
+	    --checklist \
+"Downloaded during installation (Internet connection needed):" 13 76 2 \
+	    science "Science: Octave, Python (Jupyter, NumPy, SciPy), R, Maxima" off \
+	    engineering "Engineering: LC-3 tools, Verilog, SPICE, Arm toolchain" off) ||
+	    die "installation cancelled"
+	case $extras in *science*) SCIENCE=yes ;; esac
+	case $extras in *engineering*) ENGINEERING=yes ;; esac
+
+	local software=MATE
+	[ "$DESKTOP" = mate ] || software="GNOME 2.32"
+	[ "$SCIENCE" = no ] || software="$software, science tools"
+	[ "$ENGINEERING" = no ] || software="$software, engineering tools"
 	dialog --title "Ready to install" --yesno \
 "Disk:      $DISK  (ALL DATA WILL BE LOST)
 Host name: $HOSTNAME_
@@ -190,8 +232,9 @@ User:      $USERNAME (administrator)
 Time zone: $TIMEZONE
 Locale:    $LOCALE, keyboard $KEYMAP
 Pool:      $POOL, boot environment $POOL/ROOT/voltos
+Software:  $software
 
-Install now?" 15 70 || die "installation cancelled"
+Install now?" 16 76 || die "installation cancelled"
 	clear
 }
 
@@ -472,6 +515,53 @@ DOAS
 	    log "efibootmgr failed; the removable-media path EFI/BOOT/$fallback will be used"
 }
 
+# install_software: the optional software chosen (DESKTOP=gnome2, SCIENCE,
+# ENGINEERING), from the [voltos] repository (VOLTOS_SERVER: another server
+# for it, for this step only) and Arch's mirrors.  pacman -Syu, as Arch
+# requires: the packages may need newer libraries than the medium's.  If
+# that fails, the system stays as copied from the medium (MATE), and
+# MISSING names what to install later.
+install_software()
+{
+	local pkgs=() conf=$TARGET/etc/pacman.conf
+	[ "$DESKTOP" = mate ] || pkgs+=(voltos-gnome2)
+	[ "$SCIENCE" = no ] || pkgs+=(voltos-science)
+	[ "$ENGINEERING" = no ] || pkgs+=(voltos-engineering)
+	[ "${#pkgs[@]}" -gt 0 ] || return 0
+	if ! grep -q '^\[voltos\]' "$conf"; then
+		log "No [voltos] repository on this medium: ${pkgs[*]} not installed"
+		MISSING="${pkgs[*]}"
+		return 0
+	fi
+	log "Installing ${pkgs[*]} (downloading)"
+	if [ -n "$VOLTOS_SERVER" ]; then
+		cp -p "$conf" "$conf.voltos-install"
+		sed -i "/^\[voltos\]/,/^Server/ s|^Server = .*|Server = $VOLTOS_SERVER|" "$conf"
+	fi
+	local ok=0
+	log "+ pacman -Syu ${pkgs[*]}"
+	# --ask=4: yes to removing what GNOME 2 replaces (GNOME Flashback).
+	arch-chroot "$TARGET" pacman -Syu --noconfirm --ask=4 "${pkgs[@]}" \
+	    >>"$LOG" 2>&1 && ok=1
+	[ -z "$VOLTOS_SERVER" ] || mv "$conf.voltos-install" "$conf"
+	# pacman's signature checks leave a gpg-agent behind (see configure).
+	arch-chroot "$TARGET" gpgconf --homedir /etc/pacman.d/gnupg --kill all \
+	    >>"$LOG" 2>&1 || true
+	if [ "$ok" -eq 0 ]; then
+		log "Could not install ${pkgs[*]}; the installed system has MATE"
+		MISSING="${pkgs[*]}"
+		return 0
+	fi
+	if [ "$DESKTOP" = gnome2 ]; then
+		# LightDM starts GNOME 2.32 for users who have not chosen a
+		# session in the greeter.
+		install -d "$TARGET/etc/lightdm/lightdm.conf.d"
+		printf '# Written by voltos-install (DESKTOP=gnome2)\n[Seat:*]\nuser-session=gnome2\n' \
+		    >"$TARGET/etc/lightdm/lightdm.conf.d/60-voltos-desktop.conf"
+	fi
+	log "Installed ${pkgs[*]}"
+}
+
 # Processes that use the installed system: their root is in $TARGET or,
 # with "all", they run in another mount namespace that still has the
 # pool's file systems mounted after they were unmounted here.  Services of
@@ -557,14 +647,23 @@ main()
 	create_pool
 	copy_system
 	configure
+	install_software
 	finish
+	if [ -n "$MISSING" ]; then
+		log "Not installed: $MISSING.  Install later with: doas pacman -Syu $MISSING"
+	fi
 	if [ "$UNATTENDED" -eq 0 ]; then
+		local note=""
+		[ -z "$MISSING" ] || note="
+
+$MISSING could not be downloaded; once connected to the
+Internet, install it with:  doas pacman -Syu $MISSING"
 		dialog --title "VoltOS installed" --msgbox \
 "VoltOS has been installed on $DISK.
 
 Remove the installation medium and restart.  ZFSBootMenu will
 start VoltOS; press Escape at its countdown to pick another
-boot environment or roll back to a snapshot." 11 70 || true
+boot environment or roll back to a snapshot.$note" 15 70 || true
 		clear
 	fi
 	case "$REBOOT" in

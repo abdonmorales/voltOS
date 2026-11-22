@@ -2,14 +2,18 @@
 #
 # Unattended installation for automated testing and mass deployment.
 # Runs only when the kernel command line has voltos.autoinstall=<disk>;
-# optional voltos.autoinstall.reboot=poweroff|yes and
-# voltos.autoinstall.serial=1 (serial console on the installed system).
+# optional voltos.autoinstall.reboot=poweroff|yes,
+# voltos.autoinstall.serial=1 (serial console on the installed system),
+# voltos.autoinstall.desktop=gnome2, voltos.autoinstall.extras=science,engineering
+# and voltos.autoinstall.server=<URL> (voltos-install's DESKTOP, SCIENCE,
+# ENGINEERING and VOLTOS_SERVER).
 # Uses throwaway credentials (user "volt", password "volt") meant to be
 # changed at first login - never boot a medium with this option on a
 # machine you care about: it erases <disk> without asking.
 #
 set -e
 disk= after=poweroff cmdline="rw quiet loglevel=3"
+desktop=mate science=no engineering=no server=
 # The first serial port: ttyS0 on PCs, ttyAMA0 (PL011) on 64-bit ARM.
 serial=ttyS0
 [ "$(uname -m)" != aarch64 ] || serial=ttyAMA0
@@ -20,6 +24,12 @@ for arg in $(cat /proc/cmdline); do
 	# Give the installed system a serial console too (used by CI).
 	voltos.autoinstall.serial=1)
 		cmdline="rw loglevel=4 console=tty0 console=$serial,115200" ;;
+	voltos.autoinstall.desktop=*) desktop=${arg#voltos.autoinstall.desktop=} ;;
+	voltos.autoinstall.extras=*)
+		case ,${arg#voltos.autoinstall.extras=}, in *,science,*) science=yes ;; esac
+		case ,${arg#voltos.autoinstall.extras=}, in *,engineering,*) engineering=yes ;; esac
+		;;
+	voltos.autoinstall.server=*) server=${arg#voltos.autoinstall.server=} ;;
 	esac
 done
 [ -n "$disk" ] || exit 0
@@ -34,6 +44,10 @@ LOCALE=en_US.UTF-8
 KEYMAP=us
 REBOOT=no
 CMDLINE=$cmdline
+DESKTOP=$desktop
+SCIENCE=$science
+ENGINEERING=$engineering
+VOLTOS_SERVER=$server
 CFG
 echo "voltos-autoinstall: installing to $disk" >/dev/console
 # Report first, then power off or reboot (only after a successful

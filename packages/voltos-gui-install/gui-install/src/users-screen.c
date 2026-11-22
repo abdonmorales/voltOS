@@ -260,6 +260,12 @@ users_load_widgets(void)
 	MainWindow.UsersWindow.hostnameinfolabel = glade_xml_get_widget(
 													MainWindow.userswindowxml,
 													"hostnameinfolabel");
+	MainWindow.UsersWindow.gnome2radiobutton = glade_xml_get_widget(
+	    MainWindow.userswindowxml, "gnome2radiobutton");
+	MainWindow.UsersWindow.sciencecheckbutton = glade_xml_get_widget(
+	    MainWindow.userswindowxml, "sciencecheckbutton");
+	MainWindow.UsersWindow.engineeringcheckbutton = glade_xml_get_widget(
+	    MainWindow.userswindowxml, "engineeringcheckbutton");
 
 
 	rootpassword1label = glade_xml_get_widget(MainWindow.userswindowxml,
@@ -880,6 +886,14 @@ users_store_data(void)
 	if (!is_str_empty((gchar *)tmpStr)) {
 		InstallationProfile.hostname = g_strdup(tmpStr);
 	}
+
+	/* VoltOS: the desktop and optional software */
+	InstallationProfile.gnome2 = gtk_toggle_button_get_active(
+	    GTK_TOGGLE_BUTTON(MainWindow.UsersWindow.gnome2radiobutton));
+	InstallationProfile.science = gtk_toggle_button_get_active(
+	    GTK_TOGGLE_BUTTON(MainWindow.UsersWindow.sciencecheckbutton));
+	InstallationProfile.engineering = gtk_toggle_button_get_active(
+	    GTK_TOGGLE_BUTTON(MainWindow.UsersWindow.engineeringcheckbutton));
 }
 
 void

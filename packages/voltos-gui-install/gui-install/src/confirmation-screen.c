@@ -487,6 +487,26 @@ confirmation_screen_set_contents(void)
 					NULL);
 				g_free(tmpStr);
 			}
+
+			/* VoltOS: the desktop and optional software */
+			tmpStr = g_strdup_printf(_("Software: %s%s%s"),
+			    InstallationProfile.gnome2 ?
+			    _("GNOME 2.32 desktop") : _("MATE desktop"),
+			    InstallationProfile.science ?
+			    _(", science tools") : "",
+			    InstallationProfile.engineering ?
+			    _(", engineering tools") : "");
+			add_detail_hbox(
+				MainWindow.ConfirmationWindow.accountvbox,
+				FALSE, FALSE, tmpStr, NULL);
+			g_free(tmpStr);
+			if (InstallationProfile.gnome2 ||
+			    InstallationProfile.science ||
+			    InstallationProfile.engineering)
+				add_detail_hbox(
+					MainWindow.ConfirmationWindow.accountvbox,
+					FALSE, FALSE,
+					_("(downloaded during installation)"), NULL);
 			break;
 
 	}

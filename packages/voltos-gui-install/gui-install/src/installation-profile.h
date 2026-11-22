@@ -65,6 +65,11 @@ typedef struct _InstallationProfileType {
 	gchar *userpassword;
 	gchar *hostname;
 
+	/* VoltOS: optional software, downloaded during installation */
+	gboolean gnome2;
+	gboolean science;
+	gboolean engineering;
+
 	gboolean installfailed;
 } InstallationProfileType;
 

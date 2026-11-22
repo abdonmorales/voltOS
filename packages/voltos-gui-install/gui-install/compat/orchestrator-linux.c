@@ -544,6 +544,9 @@ stage(Install *in, const gchar *msg)
 	} else if (g_str_has_prefix(msg, "Configuring")) {
 		in->copying = FALSE;
 		report(in, OM_SOFTWARE_UPDATE, 85, "Configuring the new system");
+	} else if (g_str_has_prefix(msg, "Installing ")) {
+		report(in, OM_SOFTWARE_UPDATE, 88,
+		    "Downloading and installing the software you chose");
 	} else if (g_str_has_prefix(msg, "Finishing")) {
 		in->copying = FALSE;
 		report(in, OM_SOFTWARE_UPDATE, 95,
@@ -701,6 +704,22 @@ om_perform_install(nvlist_t *uchoices, om_callback_t inst_cb)
 		ok &= put(conf, "KEYMAP", keymap);
 		g_free(keymap);
 	}
+	if (nvlist_lookup_string(uchoices, OM_ATTR_DESKTOP, &s) == 0)
+		ok &= put(conf, "DESKTOP", s);
+	{
+		boolean_t b = B_FALSE;
+
+		(void) nvlist_lookup_boolean_value(uchoices, OM_ATTR_SCIENCE, &b);
+		ok &= put(conf, "SCIENCE", b ? "yes" : "no");
+		b = B_FALSE;
+		(void) nvlist_lookup_boolean_value(uchoices,
+		    OM_ATTR_ENGINEERING, &b);
+		ok &= put(conf, "ENGINEERING", b ? "yes" : "no");
+	}
+	/* The test mode's [voltos] server (VOLTOS_INSTALLER_TEST_SERVER). */
+	s = (gchar *)g_getenv("VOLTOS_INSTALLER_TEST_SERVER");
+	if (s != NULL)
+		ok &= put(conf, "VOLTOS_SERVER", s);
 	ok &= put(conf, "REBOOT", "no");
 	if (!ok) {
 		g_string_free(conf, TRUE);

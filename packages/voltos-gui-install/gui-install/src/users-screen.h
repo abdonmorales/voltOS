@@ -59,6 +59,10 @@ typedef struct _UsersWindowXML {
 	GtkWidget *hostnameinfo;
 	GtkWidget *hostnameinfoimage;
 	GtkWidget *hostnameinfolabel;
+	/* VoltOS: the software to install */
+	GtkWidget *gnome2radiobutton;
+	GtkWidget *sciencecheckbutton;
+	GtkWidget *engineeringcheckbutton;
 
 	gboolean error_posted;
 } UsersWindowXML;

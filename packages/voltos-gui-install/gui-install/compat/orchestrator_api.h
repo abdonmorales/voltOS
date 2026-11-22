@@ -158,6 +158,10 @@ int	nvlist_lookup_boolean_value(nvlist_t *, const char *, boolean_t *);
 #define	OM_ATTR_LOCALES_LIST		"locales_list"
 #define	OM_ATTR_INSTALL_TEST		"install_test"
 #define	OM_ATTR_KEYMAP			"keymap"
+/* VoltOS: optional software (voltos-install's DESKTOP, SCIENCE, ENGINEERING) */
+#define	OM_ATTR_DESKTOP			"desktop"
+#define	OM_ATTR_SCIENCE			"science"
+#define	OM_ATTR_ENGINEERING		"engineering"
 
 /* Error codes (subset) */
 #define	OM_TD_DISCOVERY_FAILED			101
