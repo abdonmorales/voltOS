@@ -28,9 +28,12 @@
 # updates from it, standing in for the published repository),
 # SMOKE_GPU (AArch64 display device: virtio-gpu-pci, the default, or ramfb,
 # a firmware-only framebuffer),
-# SMOKE_GNOME2=1 (install, with SMOKE_REPO: then install the GNOME 2.32
-# desktop from that repository, log in to it, and restart and power off
-# the machine from its shutdown dialog),
+# SMOKE_GNOME2=1 (install and install-gui, with SMOKE_REPO: choose the
+# GNOME 2.32 desktop in the installer, which downloads it from that
+# repository; install then logs in to it, and restarts and powers off the
+# machine from its shutdown dialog),
+# SMOKE_EXTRAS=science,engineering (install, with SMOKE_REPO: also choose
+# those tools in the installer, and check that they work),
 # SMOKE_UPGRADE=1 (install, with SMOKE_REPO and an earlier release's ISO:
 # then update the installed system with pacman -Syu, VoltOS's packages from
 # SMOKE_REPO, and check that it boots again; SMOKE_UPGRADE_WAIT: seconds the
@@ -242,6 +245,90 @@ screenshot()
 	echo "smoke-qemu.sh: screenshot $out"
 }
 
+# serve_repo <repo dir>: serve the repository to the guest at
+# http://10.0.2.2:8089 (QEMU's user network) until stop_repo, standing in
+# for the published [voltos] repository.
+serve_repo()
+{
+	python3 -m http.server 8089 --bind 127.0.0.1 --directory "$1" \
+	    >"$tmp/http-install.log" 2>&1 &
+	repo_http=$!
+	pids+=("$repo_http")
+	sleep 2
+}
+
+stop_repo()
+{
+	[ -z "${repo_http:-}" ] || kill "$repo_http" 2>/dev/null || true
+	repo_http=
+}
+
+# check_printing: printing and Bluetooth are set up on the installed system:
+# CUPS (started by its socket), Avahi and BlueZ enabled, CUPS answers, and
+# Gutenprint's drivers are there.
+check_printing()
+{
+	local out
+	out=$(guest_sh '
+		systemctl is-enabled cups.socket avahi-daemon.socket bluetooth.service | tr "\n" " "; echo
+		lpstat -r
+		lpinfo -m 2>/dev/null | grep -q gutenprint && echo gutenprint-drivers
+		command -v system-config-printer >/dev/null && echo print-settings
+		command -v blueman-manager >/dev/null && echo blueman')
+	printf 'smoke-qemu.sh: printing and Bluetooth: %s\n' "$(echo $out)"
+	[ "$(echo $out)" = "enabled enabled enabled scheduler is running gutenprint-drivers print-settings blueman" ] || {
+		echo "smoke-qemu.sh: printing or Bluetooth is not set up on the installed system" >&2
+		exit 1
+	}
+}
+
+# check_extras <list>: the science and engineering tools the installer
+# installed (SMOKE_EXTRAS) work: an LC-3 program assembles and runs, Octave,
+# Python's SciPy stack, R, Verilog, the Arm toolchain; and the MATLAB and
+# Vivado installers are there with what they need.
+check_extras()
+{
+	local out want=
+	out=$(SMOKE_GUEST_WAIT=300 guest_sh '
+		cd /tmp
+		if pacman -Q voltos-science >/dev/null 2>&1; then
+			octave-cli --eval "disp(6*7)" 2>/dev/null | grep -qx 42 && echo octave
+			python -c "import numpy, scipy, matplotlib, pandas, sympy, sklearn, jupyterlab" && echo python
+			Rscript -e "cat(6*7)" 2>/dev/null | grep -qx 42 && echo r
+			[ "$(uname -m)" != x86_64 ] || { voltos-matlab-install --help | grep -q mpm && echo matlab-installer; }
+		fi
+		if pacman -Q voltos-engineering >/dev/null 2>&1; then
+			printf ".ORIG x3000\nLEA R0, MSG\nPUTS\nHALT\nMSG .STRINGZ \"LC3 OK\"\n.END\n" >t.asm
+			lc3-assembler t.asm >/dev/null && printf "run\nquit\n" |
+			    timeout 30 lc3-simulator t.obj | grep -q "LC3 OK" && echo lc3
+			printf "module t; initial begin \$display(\"verilog ok\"); \$finish; end endmodule\n" >t.v
+			iverilog -o t.vvp t.v && vvp t.vvp | grep -q "verilog ok" && echo verilog
+			if [ "$(uname -m)" = x86_64 ]; then
+				[ -x /usr/bin/lc3tools ] && echo lc3tools-gui
+				printf "int main(void){return 0;}\n" >t.c
+				arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb --specs=nosys.specs t.c -o t.elf && echo arm-gcc
+				ldconfig -p | grep -q "libtinfo.so.5 " && echo libtinfo5
+				udevadm verify /usr/lib/udev/rules.d/70-voltos-fpga-cables.rules >/dev/null 2>&1 && echo cable-rules
+			fi
+		fi')
+	printf 'smoke-qemu.sh: tools: %s\n' "$(echo $out)"
+	case ",$1," in
+	*,science,*)
+		want="octave python r"
+		[ "$arch" != x86_64 ] || want="$want matlab-installer" ;;
+	esac
+	case ",$1," in
+	*,engineering,*)
+		want="$want lc3 verilog"
+		[ "$arch" != x86_64 ] || want="$want lc3tools-gui arm-gcc libtinfo5 cable-rules" ;;
+	esac
+	[ "$(echo $out)" = "$(echo $want)" ] || {
+		echo "smoke-qemu.sh: the installed tools do not work (want: $(echo $want))" >&2
+		guest_sh 'grep -E "error|warning" /var/log/voltos-install.log | tail -n 20' >&2
+		exit 1
+	}
+}
+
 # check_doas: administrators use doas, not sudo: voltos-doas installed,
 # sudo gone, doas.conf valid, granting wheel but not the live user.
 check_doas()
@@ -370,36 +457,46 @@ gnome2_shutdown_dialog()
 	screenshot "$1"
 }
 
-# check_gnome2 <repo dir>: install the GNOME 2.32 desktop (voltos-gnome2)
-# from <repo dir> in place of GNOME Flashback, log volt in to it, and
-# restart and power off from its shutdown dialog: gnome-session asks
-# systemd-logind (VoltOS's patch; GNOME 2 used ConsoleKit).  The machine
-# must restart, then power off.
+# check_gnome2_installed: the installer installed the GNOME 2.32 desktop
+# (DESKTOP=gnome2) in place of GNOME Flashback and made it LightDM's
+# default session.
+check_gnome2_installed()
+{
+	local out
+	out=$(guest_sh '
+		pacman -Q voltos-gnome2 >/dev/null && echo voltos-gnome2
+		pacman -Q gnome-flashback >/dev/null 2>&1 || echo no-flashback
+		grep -qx user-session=gnome2 /etc/lightdm/lightdm.conf.d/60-voltos-desktop.conf && echo default-session')
+	printf 'smoke-qemu.sh: GNOME 2 installation: %s\n' "$(echo $out)"
+	[ "$(echo $out)" = "voltos-gnome2 no-flashback default-session" ] || {
+		echo "smoke-qemu.sh: the installer did not install GNOME 2.32 as the desktop" >&2
+		guest_sh 'grep -B2 -A20 "Installing voltos-gnome2" /var/log/voltos-install.log | tail -n 40' >&2
+		exit 1
+	}
+}
+
+# check_gnome2: log volt in to the GNOME 2.32 desktop the installer installed
+# (LightDM's default session: autologin names no session), check its
+# defaults, and restart and power off from its shutdown dialog:
+# gnome-session asks systemd-logind (VoltOS's patch; GNOME 2 used
+# ConsoleKit).  The machine must restart, then power off.
 check_gnome2()
 {
-	local http out log
-	python3 -m http.server 8089 --bind 127.0.0.1 --directory "$1" \
-	    >"$tmp/http-gnome2.log" 2>&1 &
-	http=$!
-	sleep 2
-	out=$(SMOKE_GUEST_WAIT=1200 guest_sh '
-		sed -i "/^\[voltos\]/,/^Server/ s|^Server = .*|Server = http://10.0.2.2:8089|" /etc/pacman.conf
-		# --ask=4: yes to removing what GNOME 2 replaces (Flashback, ...).
-		pacman -Sy --noconfirm --ask=4 voltos-gnome2 xdotool >/tmp/gnome2-install.log 2>&1
-		echo "rc=$?"
-		tail -n 5 /tmp/gnome2-install.log')
-	kill "$http" 2>/dev/null || true
-	printf '%s\n' "$out"
+	local out log
+	check_gnome2_installed
+	out=$(SMOKE_GUEST_WAIT=600 guest_sh '
+		pacman -S --noconfirm --needed xdotool >/tmp/xdotool.log 2>&1
+		echo "rc=$?"')
 	printf '%s\n' "$out" | grep -q '^rc=0$' || {
-		echo "smoke-qemu.sh: installing voltos-gnome2 failed" >&2
-		guest_sh 'tail -n 40 /tmp/gnome2-install.log' >&2
+		echo "smoke-qemu.sh: installing xdotool failed" >&2
+		guest_sh 'tail -n 20 /tmp/xdotool.log' >&2
 		exit 1
 	}
 	guest_sh '
 		groupadd -rf autologin
 		gpasswd -a volt autologin >/dev/null
 		mkdir -p /etc/lightdm/lightdm.conf.d
-		printf "[Seat:*]\nautologin-user=volt\nautologin-session=gnome2\n" >/etc/lightdm/lightdm.conf.d/99-smoke-gnome2.conf
+		printf "[Seat:*]\nautologin-user=volt\n" >/etc/lightdm/lightdm.conf.d/99-smoke-gnome2.conf
 		systemctl restart lightdm' >/dev/null
 	gnome2_session || exit 1
 	sleep 20
@@ -427,10 +524,12 @@ check_gnome2()
 		for d in gnome-volume-control-applet gnome-power-manager gnome-screensaver; do
 			pgrep -u volt -f \"^(/usr/bin/)?\$d\" >/dev/null && echo \$d
 		done
+		pgrep -u volt -f blueman-applet >/dev/null && echo blueman-applet
+		pgrep -u volt -f system-config-printer-applet >/dev/null && echo print-applet
 		gnome-screensaver-command --query >/dev/null 2>&1 && echo lock-command'")
 	printf '%s\n' "$out" | sed 's/^/smoke-qemu.sh: GNOME 2 defaults: /'
 	case $(echo $out) in
-	"desktop=GNOME2:GNOME inode/directory=nautilus-folder-handler.desktop text/plain=gedit.desktop application/pdf=evince.desktop image/png=eog.desktop application/zip=file-roller.desktop pluma-hidden menu-logo mate-terminal-hidden nm-applet spell-checker fileroller-extension evince-extension gnome-volume-control-applet gnome-power-manager gnome-screensaver lock-command") ;;
+	"desktop=GNOME2:GNOME inode/directory=nautilus-folder-handler.desktop text/plain=gedit.desktop application/pdf=evince.desktop image/png=eog.desktop application/zip=file-roller.desktop pluma-hidden menu-logo mate-terminal-hidden nm-applet spell-checker fileroller-extension evince-extension gnome-volume-control-applet gnome-power-manager gnome-screensaver blueman-applet print-applet lock-command") ;;
 	*)
 		echo "smoke-qemu.sh: GNOME 2's applications are not the session's defaults" >&2
 		exit 1
@@ -497,7 +596,8 @@ check_upgrade()
 				echo "no-zfs-module ${d##*/}"
 			fi
 		done
-		pacman -Q voltos-branding voltos-installer zfs-dkms linux-lts')
+		pacman -Q voltos-branding voltos-installer zfs-dkms linux-lts
+		echo "services $(systemctl is-enabled cups.socket bluetooth.service | tr "\n" " ")"')
 	kill "$http" 2>/dev/null || true
 	printf '%s\n' "$out"
 	printf '%s\n' "$out" | grep -q '^rc=0$' || {
@@ -510,6 +610,11 @@ check_upgrade()
 		guest_sh 'dkms status; grep -i -A5 dkms /tmp/upgrade.log | tail -n 40' >&2
 		exit 1
 	fi
+	# Printing and Bluetooth come with the update (voltos-desktop).
+	printf '%s\n' "$out" | grep -q '^services enabled enabled $' || {
+		echo "smoke-qemu.sh: the update did not enable printing and Bluetooth" >&2
+		exit 1
+	}
 	for pkg in voltos-branding voltos-installer; do
 		want=$(cd "$1" && ls "$pkg"-[0-9]*.pkg.tar.zst | sort -V | tail -n 1 |
 		    sed "s/^$pkg-//; s/-[^-]*\.pkg\.tar\.zst$//")
@@ -685,7 +790,22 @@ install-gui)
 	    -drive "file=$tmp/disk.qcow2,if=virtio,format=qcow2"
 	wait_for "$tmp/serial.log" "$LIVE_RE" "$timeout"
 	env='runuser -u liveuser -- env DISPLAY=:0 XAUTHORITY=/home/liveuser/.Xauthority XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus'
-	guest_sh "$env VOLTOS_INSTALLER_TEST=/dev/vda setsid gui-install >/tmp/installer-gui.log 2>&1 &"
+	# The account screen waits 20 s (VOLTOS_INSTALLER_TEST_HOLD) for its
+	# screenshot.  With SMOKE_GNOME2 and SMOKE_REPO, it chooses GNOME 2.32,
+	# which the installer downloads from SMOKE_REPO.
+	sw=
+	if [ "${SMOKE_GNOME2:-0}" = 1 ] && [ -n "${SMOKE_REPO:-}" ]; then
+		serve_repo "$SMOKE_REPO"
+		sw="VOLTOS_INSTALLER_TEST_SOFTWARE=gnome2 VOLTOS_INSTALLER_TEST_SERVER=http://10.0.2.2:8089"
+	fi
+	guest_sh "$env VOLTOS_INSTALLER_TEST=/dev/vda VOLTOS_INSTALLER_TEST_HOLD=20 $sw setsid gui-install >/tmp/installer-gui.log 2>&1 &"
+	i=0
+	while [ "$i" -lt 600 ] && [ -z "$(guest_sh 'cat /tmp/voltos-installer-test.screen 2>/dev/null')" ]; do
+		sleep 2
+		i=$((i + 2))
+	done
+	sleep 3
+	screenshot account
 	sleep 30
 	screenshot progress
 	i=0 result=
@@ -696,6 +816,7 @@ install-gui)
 		i=$((i + 10))
 	done
 	echo "smoke-qemu.sh: graphical installer result: ${result:-none}"
+	stop_repo
 	screenshot done
 	case "$result" in
 	ok*) ;;
@@ -714,6 +835,7 @@ install-gui)
 	wait_greeter "$timeout"
 	sleep 10
 	screenshot
+	[ -z "$sw" ] || check_gnome2_installed
 	;;
 install)
 	# Boot the ISO's kernel directly so the unattended-install option can
@@ -723,15 +845,31 @@ install)
 	bsdtar -xf "$iso" -C "$tmp" "voltos/boot/$arch/vmlinuz-linux-lts" \
 	    "voltos/boot/$arch/initramfs-linux-lts.img"
 	label=$(blkid -o value -s LABEL "$iso" 2>/dev/null || isoinfo -d -i "$iso" | sed -n 's/^Volume id: //p')
-	qemu-img create -f qcow2 "$tmp/disk.qcow2" 20G >/dev/null
+	qemu-img create -f qcow2 "$tmp/disk.qcow2" 30G >/dev/null
 	uefi=$(uefi_args)
+	# The software chosen at installation (SMOKE_GNOME2, SMOKE_EXTRAS),
+	# downloaded from SMOKE_REPO.
+	choices=
+	if [ -n "${SMOKE_REPO:-}" ] && { [ "${SMOKE_GNOME2:-0}" = 1 ] || [ -n "${SMOKE_EXTRAS:-}" ]; }; then
+		serve_repo "$SMOKE_REPO"
+		choices="voltos.autoinstall.server=http://10.0.2.2:8089"
+		[ "${SMOKE_GNOME2:-0}" != 1 ] || choices="$choices voltos.autoinstall.desktop=gnome2"
+		[ -z "${SMOKE_EXTRAS:-}" ] || choices="$choices voltos.autoinstall.extras=$SMOKE_EXTRAS"
+	fi
 	# shellcheck disable=SC2086
 	qemu_boot "$tmp/install.log" $uefi $(cdrom_args) \
 	    -drive "file=$tmp/disk.qcow2,if=virtio,format=qcow2" \
 	    -kernel "$tmp/voltos/boot/$arch/vmlinuz-linux-lts" \
 	    -initrd "$tmp/voltos/boot/$arch/initramfs-linux-lts.img" \
-	    -append "archisobasedir=voltos archisolabel=$label console=$console voltos.autoinstall=/dev/vda voltos.autoinstall.reboot=poweroff voltos.autoinstall.serial=1"
+	    -append "archisobasedir=voltos archisolabel=$label console=$console voltos.autoinstall=/dev/vda voltos.autoinstall.reboot=poweroff voltos.autoinstall.serial=1 $choices"
 	wait_for "$tmp/install.log" 'VOLTOS_AUTOINSTALL_(OK|FAILED)' "$timeout"
+	stop_repo
+	# Software the installer could not download is not fatal to it, but
+	# is to the test.
+	if grep -a '\[voltos-install\] Not installed:' "$tmp/install.log" >&2; then
+		echo "smoke-qemu.sh: the installer could not install the chosen software" >&2
+		exit 1
+	fi
 	if grep -aq VOLTOS_AUTOINSTALL_FAILED "$tmp/install.log"; then
 		tail -n 60 "$tmp/install.log" >&2
 		exit 1
@@ -758,6 +896,8 @@ install)
 		echo "smoke-qemu.sh: no installation log in /var/log/voltos-install.log" >&2
 		exit 1
 	}
+	[ "${SMOKE_UPGRADE:-0}" = 1 ] || check_printing
+	[ -z "${SMOKE_REPO:-}" ] || [ -z "${SMOKE_EXTRAS:-}" ] || check_extras "$SMOKE_EXTRAS"
 	[ -z "${SMOKE_REPO:-}" ] || check_updates "$SMOKE_REPO"
 
 	if [ "${SMOKE_SECBOOT:-0}" = 1 ]; then
@@ -795,7 +935,7 @@ install)
 	# SMOKE_GNOME2=1 (needs SMOKE_REPO): the GNOME 2.32 desktop on the
 	# installed system; ends with the machine powered off.
 	if [ "${SMOKE_GNOME2:-0}" = 1 ] && [ -n "${SMOKE_REPO:-}" ]; then
-		check_gnome2 "$SMOKE_REPO"
+		check_gnome2
 	fi
 	;;
 *)

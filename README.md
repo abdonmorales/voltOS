@@ -23,6 +23,14 @@ VoltOS is an Arch Linux–based desktop distribution with:
 - **Secure Boot, with your own keys.** `doas voltos-secureboot enable` enrols
   machine-owner keys (plus Microsoft's) and signs ZFSBootMenu and the kernels;
   updates are re-signed automatically.
+- **Tools for science and engineering, on request.** The installer can add
+  `voltos-science` (GNU Octave, Python with Jupyter and the SciPy stack, R,
+  Maxima) and `voltos-engineering` (UT Austin's LC3Tools for the LC-3,
+  Icarus Verilog, Verilator, Yosys, GTKWave, ngspice, the Arm embedded
+  toolchain, OpenOCD). On x86_64 they also bring **Install MATLAB** and
+  **Install Vivado** to the menu, which install MathWorks' and AMD's
+  software (not redistributable) with the vendors' own installers, for
+  those licensed to use it.
 
 VoltOS is built for x86_64 (UEFI and BIOS) and, as a newer port, AArch64
 (64-bit ARM with UEFI). The logo is currently Tux.
@@ -37,7 +45,9 @@ VoltOS is built for x86_64 (UEFI and BIOS) and, as a newer port, AArch64
 | Live ISO on BIOS | Boots to the live desktop under SeaBIOS in QEMU (CI) |
 | Graphical installer (OpenSolaris gui-install on GTK 3) | CI installs through the GUI (test mode), then boots the result to the login screen |
 | AArch64 | Packages and ISO built in CI on an Arch Linux ARM root; CI boots the live desktop (virtio-gpu) and installs to ZFS, then boots the result through ZFSBootMenu to the login screen on a firmware-only framebuffer (ramfb). CI also installs with the graphical installer, and enables Secure Boot on an installed system (`voltos-secureboot enable`) and boots it with Secure Boot enforced (AAVMF). The ISO is signed with Fedora's shim-aa64 (Microsoft UEFI CA 2023) when the signing secrets are set. Runs under emulation in CI (QEMU TCG); newer and less tested on real hardware than x86_64 |
-| GNOME 2.32 desktop (GTK 2) | Built: GTK 2 with Nimbus's engine, the GNOME 2 platform and the desktop (Metacity, panel, session, settings daemon, Nautilus, terminal, control center), with VoltOS's defaults in `voltos-gnome2`. CI installs it on an installed system, logs in to a GNOME 2.32 session, and restarts and powers off the machine from its shutdown dialog (gnome-session through logind). Not on the ISO; planned to replace GNOME Flashback around VoltOS 1.5. MATE stays the default |
+| GNOME 2.32 desktop (GTK 2) | Built: GTK 2 with Nimbus's engine, the GNOME 2 platform, the desktop (Metacity, panel, session, settings daemon, Nautilus, terminal, control center) and its applications, with VoltOS's defaults in `voltos-gnome2`. Both installers offer it as the desktop (downloaded during installation: it does not fit on the ISO). CI installs it that way, logs in to a GNOME 2.32 session, and restarts and powers off the machine from its shutdown dialog (gnome-session through logind). MATE stays the default |
+| Science and engineering tools | `voltos-science`, `voltos-engineering`, `lc3tools`/`lc3tools-gui`, and on x86_64 `voltos-matlab` and `voltos-vivado`: offered by both installers (downloaded during installation). CI installs them and runs Octave, SciPy, R, an LC-3 program, a Verilog simulation and the Arm compiler |
+| Printing and Bluetooth | CUPS (Print Settings), Gutenprint, Avahi, Blueman, on the ISO and on updated systems |
 | Apache OpenOffice 4.1.17 | In the `[voltos]` repository (`doas pacman -S openoffice`). x86_64: Apache's build. AArch64: built from source with VoltOS's port (OpenOffice's own UNO bridge test passes; installed in an Arch Linux ARM root under qemu-user, Writer opens and edits a document). Too big for the ISO (2 GiB limit) |
 | Updates (`[voltos]` repository) | Signed packages published by CI to GitHub releases after the tests pass; the install test checks that the installed system verifies them |
 | CI (`.github/workflows/iso.yml`) | Builds, boots and installs both architectures; publishes both ISOs on `v*` tags (0.x tags as pre-releases) |
@@ -186,7 +196,33 @@ screens are kept; what is Solaris-specific underneath was replaced:
 - **VoltOS choices.** Whole-disk installs only (the fdisk partition editor and
   the upgrade screens are gone), no root password (the account created on the
   Users screen administers the system with doas), VoltOS branding, help and
-  slides.
+  slides. The Users screen also picks the desktop (MATE or GNOME 2.32) and
+  the optional science and engineering tools; what is not on the ISO is
+  downloaded at the end of the installation (`voltos-install`'s `DESKTOP`,
+  `SCIENCE` and `ENGINEERING`). Without a connection the installation still
+  completes, with MATE, and says what to install later.
+
+## MATLAB, Vivado and LC-3
+
+- **MATLAB** (x86_64): menu **Install MATLAB**, or
+  `doas voltos-matlab-install [--release R2026b] [--products "MATLAB Simulink"]`.
+  It downloads MathWorks' package manager, `mpm`, and installs into
+  `/opt/MATLAB/<release>`; MATLAB activates with your MathWorks account
+  (personal, campus or trial license) when it first starts. `voltos-matlab`
+  brings the libraries MathWorks lists for Ubuntu, and MATLAB uses Arch's
+  C++ runtime instead of its older copy.
+- **Vivado** (x86_64): download AMD's Unified Installer for Linux
+  (`FPGAs_AdaptiveSoCs_Unified_SDI_*_Lin64.bin`, free AMD account) from
+  [AMD's download page](https://www.xilinx.com/support/download.html), then
+  menu **Install Vivado** (or `voltos-vivado-install <file>`), and choose
+  `/opt/Xilinx`. `voltos-vivado` brings `libtinfo.so.5`
+  (`ncurses5-compat-libs`) and other libraries Vivado loads, and udev rules
+  that let the logged-in user program Digilent and AMD boards and cables
+  (Basys 3, Nexys, Arty, Zybo) without AMD's cable drivers.
+- **LC-3**: `lc3tools` has the command-line `lc3-assembler` and
+  `lc3-simulator`, and the grader framework (`/usr/share/lc3tools/test`);
+  `lc3tools-gui` (x86_64) is LC3Tools' editor and simulator, run by Arch's
+  Electron.
 
 ## Design notes
 
@@ -222,7 +258,8 @@ screens are kept; what is Solaris-specific underneath was replaced:
   or any of GNOME 2). Its window manager and panel take the names GNOME
   Flashback's use, so the two cannot be installed together: GNOME 2 is
   planned to replace Flashback as the second session around VoltOS 1.5,
-  after more testing; until then it is not on the ISO. To try it on an
+  after more testing; until then it is not on the ISO, and the installers
+  download it when it is chosen as the desktop. To add it to an
   installed system, run `doas pacman -Syu voltos-gnome2` and answer yes to
   removing GNOME Flashback and the GNOME 3 programs GNOME 2 takes the place
   of (Metacity, gnome-panel, gnome-session, the settings daemon, Nautilus),

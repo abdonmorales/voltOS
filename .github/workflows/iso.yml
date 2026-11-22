@@ -107,16 +107,23 @@ jobs:
         run: |
           iso=$(ls out/voltos-*-x86_64.iso)
           [ "${REPO_SIGNED:-0}" = 1 ] && export SMOKE_REPO=out/repo
-          # Then GNOME 2.32 in place of Flashback: restart and power off
-          # from its shutdown dialog (gnome-session through logind).
-          SMOKE_GNOME2=1 SMOKE_SCREENSHOT=out/installed.png tools/smoke-qemu.sh install "$iso"
+          # The installer also installs GNOME 2.32 in place of Flashback and
+          # the science and engineering tools (downloaded: VoltOS's packages
+          # from this build, Arch's from its mirrors); then the tools must
+          # work, and GNOME 2.32 restart and power off the machine from its
+          # shutdown dialog (gnome-session through logind).
+          SMOKE_TIMEOUT=1800 SMOKE_GNOME2=1 SMOKE_EXTRAS=science,engineering \
+            SMOKE_SCREENSHOT=out/installed.png tools/smoke-qemu.sh install "$iso"
 
       - name: Install with the graphical installer and boot the result
         # Each test reports on its own: also after another one failed.
         if: ${{ !cancelled() && steps.iso.outcome == 'success' }}
         run: |
           iso=$(ls out/voltos-*-x86_64.iso)
-          SMOKE_SCREENSHOT=out/install-gui.png tools/smoke-qemu.sh install-gui "$iso"
+          # Choosing GNOME 2.32 on its account screen (downloaded from this
+          # build's repository).
+          [ "${REPO_SIGNED:-0}" = 1 ] && export SMOKE_REPO=out/repo SMOKE_GNOME2=1
+          SMOKE_TIMEOUT=1800 SMOKE_SCREENSHOT=out/install-gui.png tools/smoke-qemu.sh install-gui "$iso"
 
       - name: Enable Secure Boot on an installed system and boot with it
         # Each test reports on its own: also after another one failed.

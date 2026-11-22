@@ -8,7 +8,46 @@ for `X.Y.Z` below.
 
 ## 0.2.0 (in development)
 
-Safer updates and verifiable downloads.
+Safer updates and verifiable downloads, GNOME 2.32 as a choice of desktop,
+printing, and tools for science and engineering.
+
+- **Choose the desktop and tools when installing.** The graphical
+  installer's account screen and the text installer offer MATE (the
+  default) or GNOME 2.32 as the desktop, and two optional sets of tools.
+  They do not fit on the ISO, so the installer downloads them at the end
+  (VoltOS's packages from the `[voltos]` repository, the rest from Arch's
+  mirrors). Without an Internet connection the installation still
+  completes, with MATE, and says what to install later.  Unattended
+  installs take `DESKTOP=gnome2`, `SCIENCE=yes` and `ENGINEERING=yes`.
+- **Science tools** (`voltos-science`): GNU Octave, Python with JupyterLab,
+  NumPy, SciPy, Matplotlib, pandas, SymPy and scikit-learn, R, Maxima
+  (x86_64) and gnuplot.
+- **Engineering tools** (`voltos-engineering`): LC3Tools, UT Austin's LC-3
+  assembler and simulator, as `lc3-assembler` and `lc3-simulator` with its
+  grader framework (`lc3tools`), and its editor and simulator (`lc3tools-gui`,
+  x86_64, on Arch's Electron); Icarus Verilog, Verilator, Yosys, GTKWave,
+  ngspice; OpenOCD, GDB, openFPGALoader, picocom; and on x86_64 the Arm
+  embedded toolchain (`arm-none-eabi-gcc`).
+- **MATLAB and Vivado, for those licensed to use them** (x86_64). Neither
+  may be redistributed, so VoltOS installs them with the vendors' own
+  installers: **Install MATLAB** (`voltos-matlab-install`) downloads
+  MathWorks' `mpm` and installs the chosen release (R2026b by default) and
+  products into `/opt/MATLAB`, which activates with your MathWorks account;
+  **Install Vivado** (`voltos-vivado-install`) runs AMD's Unified Installer,
+  downloaded with a free AMD account, into `/opt/Xilinx`. Their packages
+  bring the libraries these programs expect (`libtinfo.so.5` from the new
+  `ncurses5-compat-libs`, `libcrypt.so.1`), and udev rules let the
+  logged-in user program Digilent and AMD boards (Basys 3, Nexys, Arty,
+  Zybo) without AMD's cable drivers. They come with the science and
+  engineering tools, or on their own (`voltos-matlab`, `voltos-vivado`).
+- **Printing and Bluetooth.** CUPS with Gutenprint's drivers and driverless
+  (IPP Everywhere) printing, Avahi to find network printers, Print Settings
+  (System > Administration) and its tray icon; BlueZ with Blueman's
+  manager and tray icon. On the ISO, and on systems updated from 0.1.0
+  (`voltos-desktop` brings them and enables their services once).
+- **Smaller ISO.** Its root image is compressed harder (zstd level 19,
+  about 95 MB smaller, as fast to unpack), leaving room under GitHub's 2 GiB
+  limit for release files.
 
 - **Kernel updates OpenZFS cannot build for are refused.** `zfs-dkms`
   depends on a `linux-lts` below the first kernel its OpenZFS release does
@@ -64,9 +103,11 @@ Safer updates and verifiable downloads.
 
 ### Known issues
 
-- The ISOs boot with Secure Boot only when the release was built with the
-  Secure Boot signing secrets set; otherwise turn Secure Boot off to boot the
-  installer, and turn it on after installing with `voltos-secureboot enable`.
+- The ISOs are signed for Secure Boot (Microsoft-signed shim, then VoltOS's
+  key). With Secure Boot on, the first boot stops in shim's MokManager:
+  choose *Enroll key from disk*, pick `VOLTOS-SECUREBOOT.cer` from the
+  medium, confirm and reboot (once; later releases are signed with the same
+  key). Installed systems use their own keys: `voltos-secureboot enable`.
 - x86_64 systems installed from ISOs before November 13, 2026 have no Arch
   mirror configured; see "Updates" in the README for the one-line fix.
 - AArch64 is tested in an emulated machine (QEMU, AAVMF) only.
