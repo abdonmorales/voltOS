@@ -17,7 +17,7 @@
 
 pkgname=voltos-gnome2
 pkgver=2026.11
-pkgrel=2
+pkgrel=3
 pkgdesc="GNOME 2.32 desktop with VoltOS's defaults (Nimbus)"
 arch=('any')
 url="https://github.com/abdonmorales/voltOS"
@@ -41,6 +41,7 @@ source=('voltos-gnome2.entries'
         'gnome2-mimeapps.list'
         'gnome2-portals.conf'
         'nm-applet.desktop'
+        'print-applet.desktop'
         'hide-mate-terminal.desktop'
         'hide-caja-browser.desktop'
         'hide-mate-font-viewer.desktop'
@@ -54,7 +55,7 @@ source=('voltos-gnome2.entries'
         'hide-mate-disk-usage-analyzer.desktop'
         'hide-mate-search-tool.desktop'
         'hide-mate-system-log.desktop')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     install -Dm644 voltos-gnome2.entries "$pkgdir/usr/share/voltos-gnome2/voltos-gnome2.entries"
@@ -72,5 +73,6 @@ package() {
     done
     local auto=$pkgdir/etc/xdg/voltos-gnome2/autostart
     install -Dm644 nm-applet.desktop "$auto/nm-applet.desktop"
+    install -Dm644 print-applet.desktop "$auto/print-applet.desktop"
     install -Dm644 gnome2-portals.conf "$pkgdir/usr/share/xdg-desktop-portal/gnome2-portals.conf"
 }

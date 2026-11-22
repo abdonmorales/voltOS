@@ -1,0 +1,11 @@
+[Desktop Entry]
+# system-config-printer's applet (print job and printer notifications) does
+# not start in GNOME (GNOME 3 has its own), and GNOME 2.32's session counts
+# itself as GNOME: in GNOME 2 the panel's notification area shows it.
+Name=Print Queue Applet
+Comment=System tray icon for managing print jobs
+Icon=printer
+Exec=system-config-printer-applet
+Terminal=false
+Type=Application
+NoDisplay=true

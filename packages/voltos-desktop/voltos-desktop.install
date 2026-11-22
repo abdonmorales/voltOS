@@ -1,0 +1,17 @@
+# Printing and Bluetooth (since VoltOS 0.2.0): CUPS starts when a program
+# prints (its socket), Avahi finds network printers, and the Bluetooth
+# service runs when there is an adapter.  Enabled once, on installation and
+# on the update that brings them; switching one off later sticks.
+_enable() {
+	systemctl enable cups.socket avahi-daemon.socket bluetooth.service \
+	    >/dev/null 2>&1 || :
+}
+
+post_install() {
+	_enable
+}
+
+post_upgrade() {
+	[ "$(vercmp "$2" 2026.11-4)" -lt 0 ] && _enable
+	return 0
+}

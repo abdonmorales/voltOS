@@ -90,6 +90,16 @@ networkmanager
 wpa_supplicant
 bluez
 
+# --- Printing and Bluetooth (voltos-desktop needs them too) ---
+cups
+cups-filters
+cups-pk-helper
+gutenprint
+system-config-printer
+avahi
+bluez-utils
+blueman
+
 # --- Installation and rescue tools ---
 arch-install-scripts
 gptfdisk
