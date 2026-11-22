@@ -1,0 +1,33 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# Installs MATLAB from MathWorks for its owner: VoltOS cannot ship MATLAB,
+# which is not free software.  voltos-matlab-install (menu: Install MATLAB)
+# downloads MathWorks' package manager (mpm) and installs the chosen
+# release and products into /opt/MATLAB; MATLAB activates on first start
+# with the user's MathWorks account.  This package brings the system
+# libraries MATLAB needs (MathWorks' list for Ubuntu, in Arch's names).
+# x86_64 only: MathWorks does not make MATLAB for 64-bit ARM Linux.
+
+pkgname=voltos-matlab
+pkgver=1.0
+pkgrel=1
+pkgdesc="Install MATLAB from MathWorks (needs a MathWorks license), with the libraries it uses"
+arch=('x86_64')
+url="https://github.com/abdonmorales/voltOS"
+license=('MIT')
+depends=('bash' 'curl' 'ca-certificates' 'unzip' 'procps-ng'
+         'alsa-lib' 'at-spi2-core' 'cairo' 'gdk-pixbuf2' 'glib2' 'gtk3' 'pango'
+         'gstreamer' 'gst-plugins-base-libs' 'libcap' 'libcups' 'libdrm' 'mesa'
+         'libglvnd' 'libsndfile' 'libxcrypt' 'libxcrypt-compat' 'nspr' 'nss'
+         'pam' 'unixodbc' 'util-linux-libs' 'wayland' 'zlib' 'libice' 'libsm'
+         'libx11' 'libxcomposite' 'libxcursor' 'libxdamage' 'libxext' 'libxfixes'
+         'libxft' 'libxi' 'libxinerama' 'libxrandr' 'libxrender' 'libxt' 'libxtst'
+         'libxxf86vm' 'libxkbcommon' 'libxshmfence')
+optdepends=('jre21-openjdk: Java-based MATLAB features (R2026b and later no longer bundle Java)')
+source=('voltos-matlab-install' 'install-matlab.desktop')
+sha256sums=('SKIP' 'SKIP')
+
+package() {
+    install -Dm755 voltos-matlab-install "$pkgdir/usr/bin/voltos-matlab-install"
+    install -Dm644 install-matlab.desktop "$pkgdir/usr/share/applications/voltos-install-matlab.desktop"
+}

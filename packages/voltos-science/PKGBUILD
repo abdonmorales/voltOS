@@ -1,0 +1,21 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# Scientific software, chosen in the installer ("Science") or installed
+# with: doas pacman -Syu voltos-science.  GNU Octave (MATLAB-compatible),
+# Python with Jupyter and the SciPy stack, R, Maxima (computer algebra) and
+# gnuplot.  On x86_64 also voltos-matlab, which installs MATLAB itself for
+# those with a MathWorks license (Applications > Education/Science >
+# Install MATLAB).  Maxima is x86_64-only (Arch Linux ARM has no build).
+
+pkgname=voltos-science
+pkgver=2026.11
+pkgrel=1
+pkgdesc="VoltOS science tools: Octave, Python (Jupyter, NumPy, SciPy, pandas), R, Maxima"
+arch=('x86_64' 'aarch64')
+url="https://github.com/abdonmorales/voltOS"
+license=('MIT')
+depends=('octave' 'gnuplot'
+         'python-numpy' 'python-scipy' 'python-matplotlib' 'python-pandas'
+         'python-sympy' 'python-scikit-learn' 'ipython' 'python-ipykernel' 'jupyterlab'
+         'r')
+depends_x86_64=('maxima' 'voltos-matlab')

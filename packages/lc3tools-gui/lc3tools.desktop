@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=LC3Tools
+GenericName=LC-3 Simulator
+Comment=Write, assemble and simulate LC-3 programs
+Exec=lc3tools %F
+Icon=lc3tools
+Terminal=false
+Type=Application
+Categories=Development;Education;Electronics;
+Keywords=LC-3;LC3;assembly;simulator;

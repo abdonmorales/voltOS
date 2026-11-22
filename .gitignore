@@ -23,3 +23,5 @@ __pycache__/
 /repo-key/
 /packages/voltos-keyring/voltos.gpg
 /packages/voltos-keyring/voltos-trusted
+/packages/lc3tools/lc3tools/
+/packages/lc3tools-gui/lc3tools/

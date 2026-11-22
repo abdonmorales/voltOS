@@ -1,0 +1,31 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# Installs AMD Vivado for its owner: AMD's license does not let VoltOS ship
+# Vivado or download it for the user.  voltos-vivado-install (menu: Install
+# Vivado) takes AMD's Unified Installer, which the user downloads with a
+# free AMD account, and runs it into /opt/Xilinx.  This package brings the
+# libraries Vivado and its installer need on Arch (libtinfo.so.5:
+# ncurses5-compat-libs; libcrypt.so.1), and udev rules that give the user
+# at the computer access to USB JTAG cables and boards (Basys 3, Nexys,
+# Arty, Zybo), in place of AMD's cable drivers.  x86_64 only, like Vivado.
+
+pkgname=voltos-vivado
+pkgver=1.0
+pkgrel=1
+pkgdesc="Install AMD Vivado with AMD's installer, with the libraries and USB cable rules it needs"
+arch=('x86_64')
+url="https://github.com/abdonmorales/voltOS"
+license=('MIT')
+depends=('bash' 'zenity' 'xdg-utils' 'ncurses5-compat-libs' 'libxcrypt-compat'
+         'fontconfig' 'freetype2' 'gtk2' 'gtk3' 'libx11' 'libxext' 'libxi'
+         'libxrender' 'libxtst' 'libxft' 'libxrandr' 'libpng' 'zlib' 'which'
+         'make' 'gcc' 'glibc' 'xorg-xlsclients')
+optdepends=('openfpgaloader: program FPGA boards without Vivado')
+source=('voltos-vivado-install' 'install-vivado.desktop' '70-voltos-fpga-cables.rules')
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+package() {
+    install -Dm755 voltos-vivado-install "$pkgdir/usr/bin/voltos-vivado-install"
+    install -Dm644 install-vivado.desktop "$pkgdir/usr/share/applications/voltos-install-vivado.desktop"
+    install -Dm644 70-voltos-fpga-cables.rules "$pkgdir/usr/lib/udev/rules.d/70-voltos-fpga-cables.rules"
+}

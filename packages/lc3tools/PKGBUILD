@@ -1,0 +1,56 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# LC3Tools' command-line programs: the LC-3 assembler and simulator used in
+# introductory computer architecture courses (Patt and Patel, "Introduction
+# to Computing Systems"; LC3Tools is UT Austin's), and its library and test
+# framework for writing graders.  The GUI is lc3tools-gui.  The programs are
+# installed as lc3-assembler and lc3-simulator (upstream builds them as
+# "assembler" and "simulator").
+
+pkgname=lc3tools
+pkgver=2.1.0
+pkgrel=1
+pkgdesc="LC-3 assembler, simulator and grading framework (LC3Tools, command line)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/chiragsakhuja/lc3tools"
+license=('Apache-2.0')
+depends=('gcc-libs' 'glibc')
+makedepends=('cmake' 'git')
+source=("git+https://github.com/chiragsakhuja/lc3tools.git#tag=v$pkgver")
+sha256sums=('SKIP')
+
+build() {
+    # Upstream configures twice (its docs: "run twice").
+    cmake -S lc3tools -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SAMPLES=OFF
+    cmake -S lc3tools -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SAMPLES=OFF
+    cmake --build build
+}
+
+check() {
+    # Assemble and run a program: prints "Hi" and halts.
+    cat >hi.asm <<'ASM'
+        .ORIG x3000
+        LEA R0, MSG
+        PUTS
+        HALT
+MSG     .STRINGZ "Hi"
+        .END
+ASM
+    build/bin/assembler hi.asm
+    # The simulator keeps running at the end of piped input; grep -q ends
+    # it (SIGPIPE) once "Hi" is out, and the timeout if it never is.
+    printf 'run\nquit\n' | timeout 60 build/bin/simulator hi.obj | grep -q Hi
+}
+
+package() {
+    install -Dm755 build/bin/assembler "$pkgdir/usr/bin/lc3-assembler"
+    install -Dm755 build/bin/simulator "$pkgdir/usr/bin/lc3-simulator"
+    install -Dm644 build/lib/liblc3core.a "$pkgdir/usr/lib/liblc3core.a"
+    install -Dm644 -t "$pkgdir/usr/include/lc3tools" lc3tools/src/backend/*.h
+    # The unit-test (grader) framework, compiled into each grader.
+    install -Dm644 -t "$pkgdir/usr/share/lc3tools/test" \
+        lc3tools/src/test/framework*.cpp lc3tools/src/test/framework*.h
+    install -Dm644 -t "$pkgdir/usr/share/doc/lc3tools" lc3tools/docs/*.md \
+        lc3tools/docs/*.pdf
+    install -Dm644 lc3tools/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

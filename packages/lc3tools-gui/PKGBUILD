@@ -1,0 +1,75 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# LC3Tools' graphical editor, assembler and simulator for the LC-3 (UT
+# Austin's), run by Arch's Electron 40 (the version upstream builds with)
+# instead of a bundled copy.  Its update check is left out: pacman updates
+# it.  x86_64 only: Arch Linux ARM has no Electron.  The command-line tools
+# are lc3tools.
+
+pkgname=lc3tools-gui
+pkgver=2.1.0
+pkgrel=1
+pkgdesc="LC-3 editor, assembler and simulator (LC3Tools)"
+arch=('x86_64')
+url="https://github.com/chiragsakhuja/lc3tools"
+license=('Apache-2.0' 'MIT')
+depends=('electron40')
+makedepends=('cmake' 'git' 'nodejs' 'yarn' 'node-gyp' 'python')
+options=('!strip')
+source=("git+https://github.com/chiragsakhuja/lc3tools.git#tag=v$pkgver"
+        'lc3tools.desktop')
+sha256sums=('SKIP' 'SKIP')
+
+prepare() {
+    # pacman updates it, not electron-updater.
+    sed -i 's/^\(\s*\)autoUpdater.checkForUpdates()/\1\/\/ VoltOS: updated by pacman/' \
+        lc3tools/src/gui/src/main/index.js
+    grep -q 'VoltOS: updated by pacman' lc3tools/src/gui/src/main/index.js
+}
+
+build() {
+    # The core library the native module links (build/lib/liblc3core.a).
+    cmake -S lc3tools -B lc3tools/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SAMPLES=OFF
+    cmake -S lc3tools -B lc3tools/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SAMPLES=OFF
+    cmake --build lc3tools/build
+
+    local electron_version
+    electron_version=$(cat /usr/lib/electron40/version)
+    export ELECTRON_SKIP_BINARY_DOWNLOAD=1 HOME="$srcdir/home"
+    local yarnargs=(--frozen-lockfile --ignore-scripts --cache-folder "$srcdir/yarn-cache")
+
+    # The application (electron-vite), and its native module for Electron 40.
+    cd "$srcdir/lc3tools/src/gui"
+    yarn install "${yarnargs[@]}"
+    yarn run pack
+    (cd local_modules/lc3interface &&
+        node-gyp rebuild --target="$electron_version" \
+            --dist-url=https://electronjs.org/headers --devdir="$srcdir/node-gyp")
+
+    # What it needs at run time: its production dependencies.
+    rm -rf "$srcdir/app"
+    mkdir "$srcdir/app"
+    cp -a package.json yarn.lock dist local_modules "$srcdir/app/"
+    cd "$srcdir/app"
+    yarn install --production "${yarnargs[@]}"
+    rm -rf node_modules/lc3interface/build
+    install -Dm755 "$srcdir/lc3tools/src/gui/local_modules/lc3interface/build/Release/lc3interface.node" \
+        node_modules/lc3interface/build/Release/lc3interface.node
+    rm -rf local_modules yarn.lock
+}
+
+package() {
+    local app=$pkgdir/usr/lib/lc3tools-gui
+    install -d "$app"
+    cp -a "$srcdir/app/." "$app/"
+    install -d "$pkgdir/usr/bin"
+    cat >"$pkgdir/usr/bin/lc3tools" <<'SH'
+#!/bin/sh
+exec electron40 /usr/lib/lc3tools-gui "$@"
+SH
+    chmod 755 "$pkgdir/usr/bin/lc3tools"
+    install -Dm644 lc3tools.desktop "$pkgdir/usr/share/applications/lc3tools.desktop"
+    install -Dm644 lc3tools/src/gui/static/icons/256x256.png \
+        "$pkgdir/usr/share/icons/hicolor/256x256/apps/lc3tools.png"
+    install -Dm644 lc3tools/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Install Vivado
+Comment=Install AMD Vivado with AMD's installer (downloaded with a free AMD account)
+Exec=voltos-vivado-install
+Icon=applications-electronics
+Terminal=false
+Type=Application
+Categories=Development;Electronics;Settings;

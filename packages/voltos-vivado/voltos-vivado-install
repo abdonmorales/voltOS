@@ -1,0 +1,104 @@
+#!/bin/bash
+#
+# voltos-vivado-install: install AMD Vivado (and Vitis) with AMD's own
+# installer.  AMD's license does not let VoltOS ship or download Vivado for
+# you: download AMD's "Unified Installer for Linux" yourself (a free AMD
+# account; the free Standard edition covers Basys 3, Nexys, Arty, Zybo and
+# other student boards) from
+#
+#   https://www.xilinx.com/support/download.html
+#
+# and run
+#
+#   voltos-vivado-install ~/Downloads/FPGAs_AdaptiveSoCs_Unified_SDI_*_Lin64.bin
+#
+# as yourself (not root): it makes /opt/Xilinx yours (doas asks for your
+# password), starts AMD's installer, and tells it to install there.  The
+# voltos-vivado package already has the libraries Vivado needs and lets
+# you use USB JTAG cables and boards without root (its udev rules).
+# Without a file and with a display, it asks for the file.
+#
+set -euo pipefail
+
+DOWNLOAD_URL=https://www.xilinx.com/support/download.html
+PREFIX=/opt/Xilinx
+
+gui=0
+[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v zenity >/dev/null && gui=1
+
+say()
+{
+	echo "$*"
+	[ "$gui" -eq 0 ] || zenity --info --no-wrap --title "Install Vivado" --text "$*" 2>/dev/null || :
+}
+
+die()
+{
+	echo "voltos-vivado-install: $*" >&2
+	[ "$gui" -eq 0 ] || zenity --error --no-wrap --title "Install Vivado" --text "$*" 2>/dev/null || :
+	exit 1
+}
+
+[ "$(id -u)" -ne 0 ] || die "run it as yourself, not as root (AMD's installer is a desktop program)"
+
+installer=${1:-}
+if [ -z "$installer" ]; then
+	[ "$gui" -eq 1 ] || { sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+	if ! installer=$(zenity --file-selection --title \
+	    "Choose AMD's Unified Installer (FPGAs_AdaptiveSoCs_Unified_SDI_..._Lin64.bin)" \
+	    --file-filter "AMD installer (*.bin) | *.bin" 2>/dev/null); then
+		if zenity --question --no-wrap --title "Install Vivado" --text \
+"Vivado is installed with AMD's Unified Installer for Linux,
+which AMD lets you download after signing in with a free AMD account.
+
+Open AMD's download page now?  Run Install Vivado again
+once the download has finished." 2>/dev/null; then
+			xdg-open "$DOWNLOAD_URL" >/dev/null 2>&1 &
+		fi
+		exit 0
+	fi
+fi
+[ -f "$installer" ] || die "no such file: $installer"
+case $(basename "$installer") in
+*_Lin64.bin|*Lin64*.bin) ;;
+*) die "$installer is not AMD's Linux installer (…_Lin64.bin)" ;;
+esac
+
+# The installation directory, owned by the user who installs (AMD's
+# installer runs as that user).
+if [ ! -w "$PREFIX" ]; then
+	echo "Making $PREFIX yours (doas asks for your password)..."
+	doas install -d -m 755 -o "$(id -un)" -g "$(id -gn)" "$PREFIX" ||
+	    die "could not create $PREFIX"
+fi
+
+say "AMD's installer starts now.  When it asks for the installation directory,
+choose $PREFIX.  Sign in with your AMD account when asked; the free
+Vivado Standard edition needs no license file.  Leave \"Install cable
+drivers\" unticked: VoltOS's rules already allow the JTAG cables."
+chmod u+x "$installer" 2>/dev/null || :
+sh "$installer"
+
+vivado=$(ls -d "$PREFIX"/*/Vivado/bin/vivado "$PREFIX"/Vivado/*/bin/vivado 2>/dev/null | sort -V | tail -n 1 || :)
+if [ -z "$vivado" ]; then
+	say "Vivado was not found in $PREFIX.  If you installed it elsewhere, start it with
+<directory>/Vivado/bin/vivado."
+	exit 0
+fi
+# A menu entry, unless AMD's installer made one.
+apps=${XDG_DATA_HOME:-$HOME/.local/share}/applications
+if ! grep -qls "Exec=.*vivado" "$apps"/*.desktop 2>/dev/null; then
+	install -d "$apps"
+	cat >"$apps/voltos-vivado.desktop" <<DESKTOP
+[Desktop Entry]
+Name=Vivado
+Comment=AMD FPGA design suite
+Exec=$vivado
+Icon=applications-electronics
+Terminal=false
+Type=Application
+Categories=Development;Electronics;
+DESKTOP
+fi
+say "Vivado is installed ($vivado).  Start it from the menu.
+Plug in your board after logging in again if it was connected during installation."

@@ -1,0 +1,12 @@
+# VoltOS: USB JTAG cables and FPGA boards, for the user at the computer
+# (uaccess), so Vivado's hardware manager and openFPGALoader work without
+# root.  The devices AMD's cable-driver rules (52-xilinx-*.rules) open to
+# everyone (MODE 666), here only to the logged-in user.
+#
+# Digilent boards and cables: Basys 3, Nexys, Arty, Zybo, JTAG-HS (FTDI
+# chips with Digilent's name), and Digilent's own USB controllers.
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0403", ATTR{manufacturer}=="Digilent", TAG+="uaccess"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="1443", TAG+="uaccess"
+# AMD/Xilinx Platform Cable USB, SmartLynq, and FTDI-based AMD boards.
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="03fd", TAG+="uaccess"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0403", ATTR{manufacturer}=="Xilinx", TAG+="uaccess"

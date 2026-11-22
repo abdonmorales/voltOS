@@ -1,0 +1,22 @@
+# Maintainer: Abdon Morales <abdonm@cs.utexas.edu>
+#
+# Electrical and computer engineering software, chosen in the installer
+# ("Engineering") or installed with: doas pacman -Syu voltos-engineering.
+# The LC-3 assembler and simulator (LC3Tools), Verilog simulation and
+# synthesis (Icarus Verilog, Verilator, Yosys, GTKWave), circuit simulation
+# (ngspice), and tools for microcontrollers (OpenOCD, GDB, a serial
+# terminal).  On x86_64 also LC3Tools' GUI, the Arm embedded toolchain
+# (arm-none-eabi-gcc; Arch Linux ARM has none) and voltos-vivado, which
+# installs AMD Vivado with AMD's installer (Install Vivado in the menu).
+
+pkgname=voltos-engineering
+pkgver=2026.11
+pkgrel=1
+pkgdesc="VoltOS engineering tools: LC-3 tools, Verilog, SPICE, embedded toolchains"
+arch=('x86_64' 'aarch64')
+url="https://github.com/abdonmorales/voltOS"
+license=('MIT')
+depends=('lc3tools' 'iverilog' 'verilator' 'yosys' 'gtkwave' 'ngspice'
+         'openocd' 'gdb' 'picocom' 'python-pyserial' 'cmake' 'openfpgaloader')
+depends_x86_64=('lc3tools-gui' 'arm-none-eabi-gcc' 'arm-none-eabi-newlib'
+                'arm-none-eabi-binutils' 'voltos-vivado')

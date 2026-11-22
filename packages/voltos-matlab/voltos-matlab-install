@@ -1,0 +1,87 @@
+#!/bin/bash
+#
+# voltos-matlab-install: install MATLAB (and other MathWorks products) from
+# MathWorks with its package manager, mpm, into /opt/MATLAB/<release>.
+# MATLAB is not free software and VoltOS cannot ship it: this downloads it
+# from MathWorks, and MATLAB asks you to sign in with your MathWorks account
+# (a personal, campus or trial license) when it first starts.
+#
+#   doas voltos-matlab-install [--release R2026b] [--products "MATLAB Simulink"]
+#                              [--destination DIR]
+#
+# Product names are mpm's (spaces in names become underscores, e.g.
+# Signal_Processing_Toolbox); see https://www.mathworks.com/help/install/ug/mpminstall.html.
+#
+set -euo pipefail
+
+release=R2026b
+products="MATLAB"
+dest=
+MPM_URL=https://www.mathworks.com/mpm/glnxa64/mpm
+
+usage()
+{
+	sed -n '3,15p' "$0" | sed 's/^# \{0,1\}//'
+	exit "${1:-0}"
+}
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+	--release) release=${2:?}; shift 2 ;;
+	--release=*) release=${1#*=}; shift ;;
+	--products) products=${2:?}; shift 2 ;;
+	--products=*) products=${1#*=}; shift ;;
+	--destination) dest=${2:?}; shift 2 ;;
+	--destination=*) dest=${1#*=}; shift ;;
+	-h|--help) usage ;;
+	*) echo "voltos-matlab-install: unknown option $1" >&2; usage 2 ;;
+	esac
+done
+case $release in
+R20[0-9][0-9][ab]) ;;
+*) echo "voltos-matlab-install: release must look like R2026b" >&2; exit 2 ;;
+esac
+[ "$(id -u)" -eq 0 ] || { echo "voltos-matlab-install: run it as root: doas voltos-matlab-install" >&2; exit 1; }
+dest=${dest:-/opt/MATLAB/$release}
+
+tmp=$(mktemp -d)
+trap 'rm -r -- "$tmp"' EXIT
+echo "Downloading MathWorks' installer (mpm)..."
+curl -fL --progress-bar -o "$tmp/mpm" "$MPM_URL"
+chmod 755 "$tmp/mpm"
+
+echo "Installing $products $release into $dest (several GB; this takes a while)..."
+# shellcheck disable=SC2086
+"$tmp/mpm" install --release="$release" --destination="$dest" --products $products
+
+# MATLAB brings its own C++ runtime, older than Arch's; graphics drivers
+# and other system libraries MATLAB loads need Arch's.  (Renamed, not
+# removed: rename it back if MathWorks support asks.)
+for f in "$dest"/sys/os/glnxa64/libstdc++.so.6*; do
+	[ -e "$f" ] && [ "${f%.voltos-disabled}" = "$f" ] && mv "$f" "$f.voltos-disabled"
+done
+
+# The command and the menu entry (in /usr/local: they belong to this
+# installation, not to the voltos-matlab package).
+install -d /usr/local/bin /usr/local/share/applications
+ln -sfn "$dest/bin/matlab" /usr/local/bin/matlab
+icon=applications-science
+for i in "$dest"/bin/glnxa64/cef_resources/matlab_icon.png "$dest"/ui/icons/matlab.png; do
+	[ -f "$i" ] && { icon=$i; break; }
+done
+cat >"/usr/local/share/applications/matlab-$release.desktop" <<DESKTOP
+[Desktop Entry]
+Name=MATLAB $release
+Comment=Numerical computing (MathWorks)
+Exec=$dest/bin/matlab -desktop
+Icon=$icon
+Terminal=false
+Type=Application
+Categories=Science;Math;Development;
+StartupNotify=true
+DESKTOP
+
+echo
+echo "MATLAB $release is installed.  Start it from the menu or with 'matlab';"
+echo "the first time, it asks you to sign in to your MathWorks account to activate it."
+echo "Remove it with: doas rm -r $dest /usr/local/bin/matlab /usr/local/share/applications/matlab-$release.desktop"

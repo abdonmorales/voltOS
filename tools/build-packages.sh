@@ -44,7 +44,9 @@ order=(voltos-keyring linux-lts-aarch64 nimbus-gtk-theme gtk2 gtk-engine-nimbus 
        gtksourceview2 gedit2 eog2 evince2 file-roller2 gcalctool2 gtkmm2
        gnome-system-monitor2 gnome-utils2 gnome-media2 gnome-screensaver2
        gnome-power-manager2
-       pico voltos-branding voltos-desktop voltos-gnome2 openoffice zfs-utils zfs-dkms
+       pico ncurses5-compat-libs lc3tools lc3tools-gui voltos-matlab voltos-vivado
+       voltos-science voltos-engineering
+       voltos-branding voltos-desktop voltos-gnome2 openoffice zfs-utils zfs-dkms
        zfsbootmenu-efi perl-boolean zfsbootmenu
        voltos-zfs-snapshots voltos-secureboot voltos-doas voltos-installer voltos-gui-install
        voltos-live)

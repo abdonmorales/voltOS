@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Install MATLAB
+Comment=Download and install MATLAB from MathWorks (needs a MathWorks account)
+Exec=sh -c 'doas voltos-matlab-install; echo; read -r -p "Press Enter to close. " _'
+Icon=applications-science
+Terminal=true
+Type=Application
+Categories=Science;Math;Settings;
