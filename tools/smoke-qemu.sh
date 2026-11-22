@@ -307,7 +307,9 @@ check_extras()
 				[ -x /usr/bin/lc3tools ] && echo lc3tools-gui
 				printf "int main(void){return 0;}\n" >t.c
 				arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb --specs=nosys.specs t.c -o t.elf && echo arm-gcc
-				ldconfig -p | grep -q "libtinfo.so.5 " && echo libtinfo5
+				# Loaded by name, as Vivado does (ldconfig lists it under
+				# libncursesw.so.5, its soname).
+				python -c "import ctypes; ctypes.CDLL(\"libtinfo.so.5\")" && echo libtinfo5
 				udevadm verify /usr/lib/udev/rules.d/70-voltos-fpga-cables.rules >/dev/null 2>&1 && echo cable-rules
 			fi
 		fi')
