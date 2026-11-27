@@ -201,7 +201,9 @@ jobs:
   # locally with generate-zbm (there is no upstream AArch64 release EFI).
   aarch64:
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 420
+    # GitHub-hosted runners stop any job at 6 hours; the longer tests are
+    # in aarch64-tests below.
+    timeout-minutes: 340
     permissions:
       contents: write
     steps:
@@ -357,7 +359,8 @@ jobs:
             out/SHA256SUMS-aarch64
             out/repo-aarch64/
 
-      # As on x86_64, after the tests above.  gh runs on the runner;
+      # As on x86_64, after the tests above (the longer ones, in
+      # aarch64-tests, run after it).  gh runs on the runner;
       # repo-add (in "prepare") runs in the Arch Linux ARM root.
       - name: Publish the package repository
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.REPO_SIGNED == '1'
@@ -376,34 +379,64 @@ jobs:
           sudo chown -R "$(id -u)" out/repo-aarch64
           tools/publish-repo.sh upload out/repo-aarch64 repo-aarch64
 
-      # After publishing, so that this long test (another install, under TCG)
-      # does not hold back package updates.  Secure Boot capable AAVMF in
-      # Setup Mode: voltos-secureboot enrolls the owner's keys and signs
-      # ZFSBootMenu and the kernel, then the machine boots with Secure Boot
-      # enforced.
+  # The longer AArch64 tests, each in a job of its own on the ISO and
+  # repository the aarch64 job built.  GitHub-hosted runners stop a job
+  # after 6 hours, and the build and every test in one job came within
+  # half an hour of that (one slow test was enough to lose the release).
+  # They run after the aarch64 job has published the package repository,
+  # so they do not hold back package updates.
+  aarch64-tests:
+    needs: aarch64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        # secureboot: Secure Boot capable AAVMF in Setup Mode;
+        #   voltos-secureboot enrolls the owner's keys and signs ZFSBootMenu
+        #   and the kernel, then the machine boots with Secure Boot enforced.
+        # install-gui: the OpenSolaris graphical installer in its test mode,
+        #   as on x86_64: from the live desktop to the installed system's
+        #   login screen.
+        # upgrade: as on x86_64, install the previous release's ISO and
+        #   update it (which rebuilds the ZFS module with DKMS, long under
+        #   TCG).
+        test: [secureboot, install-gui, upgrade]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: voltos-aarch64
+          path: out
+
+      - name: Install QEMU and AAVMF
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq qemu-system-arm qemu-efi-aarch64 qemu-utils socat imagemagick libarchive-tools
+          ls -l /dev/kvm 2>/dev/null || echo "no /dev/kvm: QEMU uses TCG"
+          # The repository is signed when the aarch64 job had the key.
+          if ls out/repo-aarch64/*.pkg.tar.zst.sig >/dev/null 2>&1; then
+            echo "REPO_SIGNED=1" >> "$GITHUB_ENV"
+          fi
+
       - name: Enable Secure Boot on an installed system and boot with it
-        # Each test reports on its own: also after another one failed.
-        if: ${{ !cancelled() && steps.iso.outcome == 'success' }}
+        if: matrix.test == 'secureboot'
         run: |
           iso=$(ls out/voltos-*-aarch64.iso)
           sudo -E SMOKE_TIMEOUT=7200 SMOKE_GUEST_WAIT=300 SMOKE_GPU=ramfb SMOKE_SECBOOT=1 \
             SMOKE_SCREENSHOT=out/aarch64-secureboot.png tools/smoke-qemu.sh install "$iso"
 
-      # The OpenSolaris graphical installer in its test mode, as on x86_64:
-      # from the live desktop to the installed system's login screen.
       - name: Install with the graphical installer and boot the result
-        # Also when the Secure Boot test failed: separate results.
-        if: ${{ !cancelled() && steps.iso.outcome == 'success' }}
+        if: matrix.test == 'install-gui'
         run: |
           iso=$(ls out/voltos-*-aarch64.iso)
           sudo -E SMOKE_TIMEOUT=7200 SMOKE_GUEST_WAIT=300 \
             SMOKE_SCREENSHOT=out/aarch64-install-gui.png tools/smoke-qemu.sh install-gui "$iso"
 
-      # As on x86_64: install the previous release's ISO and update it.
-      # After publishing, like the tests above: the update rebuilds the ZFS
-      # module with DKMS, which takes long under TCG.
       - name: Upgrade an installation of the previous release
-        if: ${{ !cancelled() && steps.iso.outcome == 'success' && env.REPO_SIGNED == '1' }}
+        if: matrix.test == 'upgrade' && env.REPO_SIGNED == '1'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -423,22 +456,19 @@ jobs:
             tools/smoke-qemu.sh install "$(ls prev/voltos-*-aarch64.iso)"
           rm -rf prev
 
-      - name: Upload Secure Boot, graphical installer and upgrade screenshots
+      - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots-aarch64-secureboot-gui
+          name: screenshots-aarch64-${{ matrix.test }}
           if-no-files-found: ignore
-          path: |
-            out/aarch64-secureboot*.png
-            out/aarch64-install-gui*.png
-            out/aarch64-upgrade*.png
+          path: out/aarch64-*.png
 
   # Releases carry both ISOs.  0.x tags, and tags with a suffix such as
   # v1.0.0-rc1, are published as pre-releases.
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build, aarch64]
+    needs: [build, aarch64, aarch64-tests]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
